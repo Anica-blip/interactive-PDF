@@ -10,12 +10,12 @@ import crypto from 'crypto';
 
 // Wasabi Configuration from environment
 const wasabiConfig = {
-  endpoint: process.env.VITE_WASABI_ENDPOINT,
-  region: process.env.VITE_WASABI_REGION,
+  endpoint: 'https://s3.eu-west-1.wasabisys.com',
+  region: 'eu-west-1',
   accessKeyId: process.env.VITE_WASABI_ACCESS_KEY,
   secretAccessKey: process.env.VITE_WASABI_SECRET_KEY,
-  bucketName: process.env.VITE_WASABI_PUBLIC_BUCKET.split('/')[0], // Extract bucket name
-  bucketPath: process.env.VITE_WASABI_PUBLIC_BUCKET.split('/').slice(1).join('/') // Extract path
+  bucketName: process.env.VITE_WASABI_PUBLIC_BUCKET || '3c-public-content',
+  defaultFolder: 'coffee-break-chat/interactive-pdfs' // Can be changed per request
 };
 
 // Initialize Wasabi client
@@ -147,7 +147,7 @@ async function generatePDF(req, res) {
 
     // Upload to Wasabi with public access
     const uniqueId = crypto.randomUUID();
-    const cloudFilename = `${wasabiConfig.bucketPath}/interactive-pdfs/${uniqueId}.pdf`;
+    const cloudFilename = `${wasabiConfig.defaultFolder}/${uniqueId}.pdf`;
     
     console.log('Uploading to Wasabi...');
     await uploadToWasabi(pdfBuffer, cloudFilename);
