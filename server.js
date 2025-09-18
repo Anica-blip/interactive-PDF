@@ -1,18 +1,22 @@
 {
+  "version": 2,
   "name": "interactive-pdf-creator",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vercel dev",
-    "build": "vercel build",
-    "deploy": "vercel"
-  },
-  "dependencies": {
-    "pdf-lib": "^1.17.1",
-    "@aws-sdk/client-s3": "^3.400.0"
-  },
-  "devDependencies": {
-    "vercel": "^32.0.0"
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    }
   }
 }
 
