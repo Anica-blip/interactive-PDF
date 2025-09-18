@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "name": "interactive-pdf-creator",
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "VITE_WASABI_ACCESS_KEY": "@vite_wasabi_access_key",
+    "VITE_WASABI_SECRET_KEY": "@vite_wasabi_secret_key", 
+    "VITE_WASABI_ENDPOINT": "@vite_wasabi_endpoint",
+    "VITE_WASABI_REGION": "@vite_wasabi_region",
+    "VITE_WASABI_PUBLIC_BUCKET": "@vite_wasabi_public_bucket"
+  }
+}
