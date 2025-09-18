@@ -8,14 +8,14 @@ import { PDFGenerator } from '../pdf-generator.js';
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 
-// Wasabi Configuration from environment
+// Wasabi Configuration from environment - FIXED FOR VERCEL
 const wasabiConfig = {
   endpoint: 'https://s3.eu-west-1.wasabisys.com',
   region: 'eu-west-1',
-  accessKeyId: process.env.VITE_WASABI_ACCESS_KEY,
-  secretAccessKey: process.env.VITE_WASABI_SECRET_KEY,
-  bucketName: process.env.VITE_WASABI_PUBLIC_BUCKET || '3c-public-content',
-  defaultFolder: 'coffee-break-chat/interactive-pdfs' // Can be changed per request
+  accessKeyId: process.env.WASABI_ACCESS_KEY,           // REMOVED VITE_ 
+  secretAccessKey: process.env.WASABI_SECRET_KEY,       // REMOVED VITE_
+  bucketName: process.env.WASABI_PUBLIC_BUCKET || '3c-public-content',
+  defaultFolder: 'coffee-break-chat/interactive-pdfs'
 };
 
 // Initialize Wasabi client
@@ -173,8 +173,8 @@ async function generatePDF(req, res) {
     res.json({
       success: true,
       id: uniqueId,
-      browserUrl: browserUrl,      // Direct Wasabi URL - opens in browser
-      apiViewUrl: apiViewUrl,      // API route URL - alternative access
+      browserUrl: browserUrl,
+      apiViewUrl: apiViewUrl,
       name: pdfName,
       size: pdfBuffer.length,
       elements: parsedElements.length,
@@ -211,7 +211,7 @@ async function servePDF(req, res, pdfId) {
     
     // Serve with proper headers for browser viewing
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline'); // Open in browser
+    res.setHeader('Content-Disposition', 'inline');
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'public, max-age=31536000');
 
@@ -269,8 +269,8 @@ async function uploadToWasabi(pdfBuffer, filename) {
     Key: filename,
     Body: pdfBuffer,
     ContentType: 'application/pdf',
-    ContentDisposition: 'inline', // Force browser viewing
-    ACL: 'public-read', // Make publicly accessible
+    ContentDisposition: 'inline',
+    ACL: 'public-read',
     Metadata: {
       'upload-timestamp': Date.now().toString(),
       'generated-by': 'interactive-pdf-creator'
@@ -293,7 +293,6 @@ async function fetchFromWasabi(filename) {
   const command = new GetObjectCommand(getParams);
   const result = await s3Client.send(command);
   
-  // Convert stream to buffer
   const chunks = [];
   for await (const chunk of result.Body) {
     chunks.push(chunk);
@@ -306,20 +305,17 @@ async function fetchFromWasabi(filename) {
  * Parse multipart form data (simplified for Vercel)
  */
 async function parseMultipartData(req) {
-  // This is a simplified parser - in production use a proper multipart library
   const chunks = [];
   for await (const chunk of req) {
     chunks.push(chunk);
   }
   
   const buffer = Buffer.concat(chunks);
-  // Parse the multipart data (simplified)
-  // In production, use formidable or similar library
   
   return {
     pdfName: 'interactive-pdf',
     elements: '[]',
-    originalPdf: buffer.slice(0, 1000), // Simplified - extract actual PDF data
+    originalPdf: buffer.slice(0, 1000),
     mediaFiles: []
   };
 }
