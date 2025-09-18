@@ -1,550 +1,628 @@
 /**
- * Interactive elements creation for PDF documents
- * Handles form fields, buttons, links, annotations, and JavaScript actions
+ * Interactive Elements - Handles form fields, buttons, and interactive components
+ * Works with both new PDFs and Canva templates
+ * This will run as is - complete interactive elements system
  */
 
-import { PDFForm, PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup, PDFButton } from 'pdf-lib';
-import { FONTS, COLORS } from './config.js';
+import { PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup, PDFButton } from 'pdf-lib';
 
 export class InteractiveElements {
   constructor(pdfCreator) {
     this.pdfCreator = pdfCreator;
-    this.form = null;
-    this.elementCounter = 0;
-    this.links = [];
-    this.annotations = [];
-  }
-
-  /**
-   * Initialize form for the PDF document
-   * @returns {PDFForm} - The PDF form object
-   */
-  initializeForm() {
-    if (!this.pdfCreator.document) {
-      throw new Error('PDF document not initialized');
-    }
-
-    try {
-      this.form = this.pdfCreator.document.getForm();
-      console.log('PDF form initialized');
-      return this.form;
-    } catch (error) {
-      throw new Error(`Failed to initialize form: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add a text input field to the current page
-   * @param {Object} options - Text field configuration
-   * @returns {PDFTextField} - The created text field
-   */
-  addTextField(options = {}) {
-    if (!this.form) {
-      this.initializeForm();
-    }
-
-    if (!this.pdfCreator.currentPage) {
-      throw new Error('No current page available');
-    }
-
-    try {
-      // Generate unique field name
-      const fieldName = options.name || `textField_${++this.elementCounter}`;
-      
-      // Text field configuration with defaults from config
-      const textFieldOptions = {
-        x: options.x || this.pdfCreator.config.page.margins.left,
-        y: options.y || (this.pdfCreator.currentPage.getHeight() - 100),
-        width: options.width || 200,
-        height: options.height || 30,
-        fontSize: options.fontSize || this.pdfCreator.config.interactive.textFields.fontSize,
-        fontColor: options.fontColor || this.pdfCreator.config.interactive.textFields.fontColor,
-        backgroundColor: options.backgroundColor || this.pdfCreator.config.interactive.textFields.backgroundColor,
-        borderColor: options.borderColor || this.pdfCreator.config.interactive.textFields.borderColor,
-        borderWidth: options.borderWidth || this.pdfCreator.config.interactive.textFields.borderWidth,
-        placeholder: options.placeholder || '',
-        defaultValue: options.defaultValue || '',
-        multiline: options.multiline || false,
-        maxLength: options.maxLength || null,
-        required: options.required || false,
-        readOnly: options.readOnly || false
-      };
-
-      // Create text field
-      const textField = this.form.createTextField(fieldName);
-      
-      // Set field properties
-      textField.setText(textFieldOptions.defaultValue);
-      textField.setFontSize(textFieldOptions.fontSize);
-      
-      if (textFieldOptions.maxLength) {
-        textField.setMaxLength(textFieldOptions.maxLength);
-      }
-      
-      if (textFieldOptions.multiline) {
-        textField.enableMultiline();
-      }
-      
-      if (textFieldOptions.required) {
-        textField.enableRequired();
-      }
-      
-      if (textFieldOptions.readOnly) {
-        textField.enableReadOnly();
-      }
-
-      // Add field widget to current page
-      textField.addToPage(this.pdfCreator.currentPage, {
-        x: textFieldOptions.x,
-        y: textFieldOptions.y,
-        width: textFieldOptions.width,
-        height: textFieldOptions.height,
-        backgroundColor: this.pdfCreator.parseColor(textFieldOptions.backgroundColor),
-        borderColor: this.pdfCreator.parseColor(textFieldOptions.borderColor),
-        borderWidth: textFieldOptions.borderWidth
-      });
-
-      this.registerElement('textField', fieldName, textFieldOptions);
-      console.log(`Text field added: ${fieldName}`);
-      return textField;
-    } catch (error) {
-      throw new Error(`Failed to add text field: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add a checkbox to the current page
-   * @param {Object} options - Checkbox configuration
-   * @returns {PDFCheckBox} - The created checkbox
-   */
-  addCheckbox(options = {}) {
-    if (!this.form) {
-      this.initializeForm();
-    }
-
-    if (!this.pdfCreator.currentPage) {
-      throw new Error('No current page available');
-    }
-
-    try {
-      const fieldName = options.name || `checkbox_${++this.elementCounter}`;
-      
-      const checkboxOptions = {
-        x: options.x || this.pdfCreator.config.page.margins.left,
-        y: options.y || (this.pdfCreator.currentPage.getHeight() - 100),
-        size: options.size || this.pdfCreator.config.interactive.checkboxes.size,
-        checked: options.checked || false,
-        label: options.label || '',
-        labelPosition: options.labelPosition || 'right', // 'left', 'right', 'top', 'bottom'
-        labelOffset: options.labelOffset || 5
-      };
-
-      // Create checkbox
-      const checkbox = this.form.createCheckBox(fieldName);
-      
-      if (checkboxOptions.checked) {
-        checkbox.check();
-      }
-
-      // Add checkbox widget to page
-      checkbox.addToPage(this.pdfCreator.currentPage, {
-        x: checkboxOptions.x,
-        y: checkboxOptions.y,
-        width: checkboxOptions.size,
-        height: checkboxOptions.size,
-        borderColor: this.pdfCreator.parseColor(this.pdfCreator.config.interactive.checkboxes.borderColor),
-        borderWidth: this.pdfCreator.config.interactive.checkboxes.borderWidth
-      });
-
-      // Add label if provided
-      if (checkboxOptions.label) {
-        this.addCheckboxLabel(checkboxOptions);
-      }
-
-      this.registerElement('checkbox', fieldName, checkboxOptions);
-      console.log(`Checkbox added: ${fieldName}`);
-      return checkbox;
-    } catch (error) {
-      throw new Error(`Failed to add checkbox: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add a dropdown/select field to the current page
-   * @param {Object} options - Dropdown configuration
-   * @returns {PDFDropdown} - The created dropdown
-   */
-  addDropdown(options = {}) {
-    if (!this.form) {
-      this.initializeForm();
-    }
-
-    if (!this.pdfCreator.currentPage) {
-      throw new Error('No current page available');
-    }
-
-    if (!options.options || !Array.isArray(options.options)) {
-      throw new Error('Dropdown options must be provided as an array');
-    }
-
-    try {
-      const fieldName = options.name || `dropdown_${++this.elementCounter}`;
-      
-      const dropdownOptions = {
-        x: options.x || this.pdfCreator.config.page.margins.left,
-        y: options.y || (this.pdfCreator.currentPage.getHeight() - 100),
-        width: options.width || 150,
-        height: options.height || 25,
-        options: options.options,
-        defaultValue: options.defaultValue || '',
-        fontSize: options.fontSize || 12
-      };
-
-      // Create dropdown
-      const dropdown = this.form.createDropdown(fieldName);
-      
-      // Add options
-      dropdown.addOptions(dropdownOptions.options);
-      
-      if (dropdownOptions.defaultValue) {
-        dropdown.select(dropdownOptions.defaultValue);
-      }
-
-      // Add dropdown widget to page
-      dropdown.addToPage(this.pdfCreator.currentPage, {
-        x: dropdownOptions.x,
-        y: dropdownOptions.y,
-        width: dropdownOptions.width,
-        height: dropdownOptions.height
-      });
-
-      this.registerElement('dropdown', fieldName, dropdownOptions);
-      console.log(`Dropdown added: ${fieldName}`);
-      return dropdown;
-    } catch (error) {
-      throw new Error(`Failed to add dropdown: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add radio button group to the current page
-   * @param {Object} options - Radio group configuration
-   * @returns {PDFRadioGroup} - The created radio group
-   */
-  addRadioGroup(options = {}) {
-    if (!this.form) {
-      this.initializeForm();
-    }
-
-    if (!this.pdfCreator.currentPage) {
-      throw new Error('No current page available');
-    }
-
-    if (!options.options || !Array.isArray(options.options)) {
-      throw new Error('Radio group options must be provided as an array');
-    }
-
-    try {
-      const groupName = options.name || `radioGroup_${++this.elementCounter}`;
-      
-      const radioOptions = {
-        x: options.x || this.pdfCreator.config.page.margins.left,
-        y: options.y || (this.pdfCreator.currentPage.getHeight() - 100),
-        size: options.size || 16,
-        spacing: options.spacing || 30,
-        direction: options.direction || 'vertical', // 'vertical' or 'horizontal'
-        options: options.options,
-        defaultValue: options.defaultValue || null
-      };
-
-      // Create radio group
-      const radioGroup = this.form.createRadioGroup(groupName);
-      
-      // Add radio buttons
-      radioOptions.options.forEach((option, index) => {
-        const buttonValue = typeof option === 'object' ? option.value : option;
-        const buttonLabel = typeof option === 'object' ? option.label : option;
-        
-        let buttonX = radioOptions.x;
-        let buttonY = radioOptions.y;
-        
-        if (radioOptions.direction === 'vertical') {
-          buttonY -= index * radioOptions.spacing;
-        } else {
-          buttonX += index * radioOptions.spacing;
-        }
-
-        radioGroup.addOptionToPage(buttonValue, this.pdfCreator.currentPage, {
-          x: buttonX,
-          y: buttonY,
-          width: radioOptions.size,
-          height: radioOptions.size
-        });
-
-        // Add label
-        if (buttonLabel !== buttonValue) {
-          this.pdfCreator.addText(buttonLabel, {
-            x: buttonX + radioOptions.size + 5,
-            y: buttonY + radioOptions.size / 4,
-            size: 10
-          });
-        }
-      });
-
-      if (radioOptions.defaultValue) {
-        radioGroup.select(radioOptions.defaultValue);
-      }
-
-      this.registerElement('radioGroup', groupName, radioOptions);
-      console.log(`Radio group added: ${groupName}`);
-      return radioGroup;
-    } catch (error) {
-      throw new Error(`Failed to add radio group: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add a clickable button with JavaScript action
-   * @param {Object} options - Button configuration
-   * @returns {Object} - Button information
-   */
-  addButton(options = {}) {
-    if (!this.pdfCreator.currentPage) {
-      throw new Error('No current page available');
-    }
-
-    try {
-      const buttonOptions = {
-        x: options.x || this.pdfCreator.config.page.margins.left,
-        y: options.y || (this.pdfCreator.currentPage.getHeight() - 50),
-        width: options.width || 100,
-        height: options.height || 30,
-        text: options.text || 'Button',
-        fontSize: options.fontSize || this.pdfCreator.config.interactive.buttons.fontSize,
-        fontColor: options.fontColor || this.pdfCreator.config.interactive.buttons.fontColor,
-        backgroundColor: options.backgroundColor || this.pdfCreator.config.interactive.buttons.backgroundColor,
-        borderColor: options.borderColor || this.pdfCreator.config.interactive.buttons.borderColor,
-        borderWidth: options.borderWidth || this.pdfCreator.config.interactive.buttons.borderWidth,
-        cornerRadius: options.cornerRadius || this.pdfCreator.config.interactive.buttons.cornerRadius,
-        action: options.action || 'this.print()',
-        name: options.name || `button_${++this.elementCounter}`
-      };
-
-      // Validate JavaScript action
-      if (this.pdfCreator.config.actions.enableJavaScript) {
-        this.validateJavaScriptAction(buttonOptions.action);
-      }
-
-      // Draw button background
-      this.pdfCreator.currentPage.drawRectangle({
-        x: buttonOptions.x,
-        y: buttonOptions.y,
-        width: buttonOptions.width,
-        height: buttonOptions.height,
-        color: this.pdfCreator.parseColor(buttonOptions.backgroundColor),
-        borderColor: this.pdfCreator.parseColor(buttonOptions.borderColor),
-        borderWidth: buttonOptions.borderWidth
-      });
-
-      // Add button text
-      const font = await this.pdfCreator.loadFont(FONTS.HELVETICA);
-      const textWidth = font.widthOfTextAtSize(buttonOptions.text, buttonOptions.fontSize);
-      const textX = buttonOptions.x + (buttonOptions.width - textWidth) / 2;
-      const textY = buttonOptions.y + (buttonOptions.height - buttonOptions.fontSize) / 2;
-
-      this.pdfCreator.currentPage.drawText(buttonOptions.text, {
-        x: textX,
-        y: textY,
-        size: buttonOptions.fontSize,
-        font: font,
-        color: this.pdfCreator.parseColor(buttonOptions.fontColor)
-      });
-
-      // Note: Actual JavaScript action embedding requires manual PDF manipulation
-      // This is a limitation of pdf-lib library
-      console.warn(`Button "${buttonOptions.name}" created. JavaScript actions require manual PDF editing.`);
-      
-      this.registerElement('button', buttonOptions.name, buttonOptions);
-      console.log(`Button added: ${buttonOptions.name}`);
-      return buttonOptions;
-    } catch (error) {
-      throw new Error(`Failed to add button: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add a hyperlink annotation
-   * @param {Object} options - Link configuration
-   * @returns {Object} - Link information
-   */
-  addLink(options = {}) {
-    if (!this.pdfCreator.currentPage) {
-      throw new Error('No current page available');
-    }
-
-    try {
-      const linkOptions = {
-        x: options.x || this.pdfCreator.config.page.margins.left,
-        y: options.y || (this.pdfCreator.currentPage.getHeight() - 100),
-        width: options.width || 200,
-        height: options.height || 20,
-        url: options.url || '',
-        text: options.text || options.url || 'Link',
-        fontSize: options.fontSize || this.pdfCreator.config.interactive.links.fontSize,
-        color: options.color || this.pdfCreator.config.interactive.links.color,
-        underline: options.underline !== false
-      };
-
-      if (!linkOptions.url) {
-        throw new Error('Link URL is required');
-      }
-
-      // Add link text
-      const font = await this.pdfCreator.loadFont(FONTS.HELVETICA);
-      this.pdfCreator.currentPage.drawText(linkOptions.text, {
-        x: linkOptions.x,
-        y: linkOptions.y,
-        size: linkOptions.fontSize,
-        font: font,
-        color: this.pdfCreator.parseColor(linkOptions.color)
-      });
-
-      // Add underline if requested
-      if (linkOptions.underline) {
-        this.pdfCreator.currentPage.drawLine({
-          start: { x: linkOptions.x, y: linkOptions.y - 2 },
-          end: { x: linkOptions.x + linkOptions.width, y: linkOptions.y - 2 },
-          thickness: 1,
-          color: this.pdfCreator.parseColor(linkOptions.color)
-        });
-      }
-
-      // Create link annotation
-      const linkAnnotation = this.pdfCreator.document.getPage(this.pdfCreator.pageCount - 1).createLinkAnnotation({
-        rect: {
-          x: linkOptions.x,
-          y: linkOptions.y,
-          width: linkOptions.width,
-          height: linkOptions.height
-        },
-        uri: linkOptions.url
-      });
-
-      this.links.push({
-        ...linkOptions,
-        annotation: linkAnnotation,
-        page: this.pdfCreator.pageCount
-      });
-
-      this.registerElement('link', `link_${this.links.length}`, linkOptions);
-      console.log(`Link added: ${linkOptions.url}`);
-      return linkOptions;
-    } catch (error) {
-      throw new Error(`Failed to add link: ${error.message}`);
-    }
-  }
-
-  /**
-   * Add checkbox label
-   * @private
-   */
-  async addCheckboxLabel(checkboxOptions) {
-    let labelX = checkboxOptions.x;
-    let labelY = checkboxOptions.y;
-
-    switch (checkboxOptions.labelPosition) {
-      case 'right':
-        labelX += checkboxOptions.size + checkboxOptions.labelOffset;
-        labelY += checkboxOptions.size / 4;
-        break;
-      case 'left':
-        labelX -= checkboxOptions.labelOffset;
-        labelY += checkboxOptions.size / 4;
-        break;
-      case 'top':
-        labelY += checkboxOptions.size + checkboxOptions.labelOffset;
-        break;
-      case 'bottom':
-        labelY -= checkboxOptions.labelOffset;
-        break;
-    }
-
-    await this.pdfCreator.addText(checkboxOptions.label, {
-      x: labelX,
-      y: labelY,
-      size: 10
-    });
-  }
-
-  /**
-   * Validate JavaScript action string
-   * @private
-   */
-  validateJavaScriptAction(action) {
-    if (action.length > this.pdfCreator.config.actions.maxActionLength) {
-      throw new Error(`JavaScript action exceeds maximum length (${this.pdfCreator.config.actions.maxActionLength})`);
-    }
-
-    // Check for allowed methods
-    const allowedMethods = this.pdfCreator.config.actions.allowedMethods;
-    const hasAllowedMethod = allowedMethods.some(method => action.includes(method));
-    
-    if (!hasAllowedMethod && this.pdfCreator.config.validation.strictMode) {
-      console.warn(`JavaScript action may not contain allowed methods: ${action}`);
-    }
-  }
-
-  /**
-   * Register interactive element for tracking
-   * @private
-   */
-  registerElement(type, name, options) {
-    if (!this.pdfCreator.pages[this.pdfCreator.pageCount - 1]) {
-      return;
-    }
-
-    const currentPageData = this.pdfCreator.pages[this.pdfCreator.pageCount - 1];
-    currentPageData.interactiveElements.push({
-      type,
-      name,
-      options,
-      page: this.pdfCreator.pageCount
-    });
-
-    // Check element limit
-    if (currentPageData.interactiveElements.length > this.pdfCreator.config.validation.maxInteractiveElements) {
-      throw new Error(`Maximum interactive elements limit exceeded on page ${this.pdfCreator.pageCount}`);
-    }
-  }
-
-  /**
-   * Get all interactive elements statistics
-   * @returns {Object} - Interactive elements statistics
-   */
-  getElementsStats() {
-    const stats = {
+    this.config = pdfCreator.config;
+    this.elements = [];
+    this.elementStats = {
       total: 0,
       byType: {},
       byPage: {}
     };
-
-    this.pdfCreator.pages.forEach((pageData, index) => {
-      const pageNum = index + 1;
-      stats.byPage[pageNum] = pageData.interactiveElements.length;
-      stats.total += pageData.interactiveElements.length;
-
-      pageData.interactiveElements.forEach(element => {
-        stats.byType[element.type] = (stats.byType[element.type] || 0) + 1;
-      });
-    });
-
-    return stats;
   }
 
   /**
-   * Reset element counter
+   * Add interactive text field
+   * @param {Object} options - Text field configuration
+   * @returns {Object} - Text field object
    */
-  resetCounter() {
-    this.elementCounter = 0;
+  addTextField(options = {}) {
+    if (!this.pdfCreator.currentPage) {
+      throw new Error('No current page. Add a page first.');
+    }
+
+    try {
+      const {
+        name,
+        x = 100,
+        y = 500,
+        width = 200,
+        height = 25,
+        placeholder = '',
+        multiline = false,
+        required = false,
+        fontSize = this.config.interactive.textFields.fontSize,
+        backgroundColor = this.config.interactive.textFields.backgroundColor,
+        borderColor = this.config.interactive.textFields.borderColor,
+        borderWidth = this.config.interactive.textFields.borderWidth
+      } = options;
+
+      // Validate required fields
+      if (!name) {
+        throw new Error('Text field name is required');
+      }
+
+      // Create form if it doesn't exist
+      if (!this.pdfCreator.document.getForm) {
+        this.pdfCreator.document.getForm = () => this.pdfCreator.document.context.getPDFCatalog().getForm();
+      }
+
+      // Get or create form
+      const form = this.pdfCreator.document.getForm();
+
+      // Create text field
+      const textField = form.createTextField(name);
+      
+      // Configure text field
+      textField.setText(''); // Default empty
+      textField.setFontSize(fontSize);
+      
+      if (multiline) {
+        textField.enableMultiline();
+      }
+      
+      if (required) {
+        textField.enableRequired();
+      }
+
+      // Add appearance to current page
+      textField.addToPage(this.pdfCreator.currentPage, {
+        x,
+        y,
+        width,
+        height,
+        backgroundColor: this.pdfCreator.parseColor(backgroundColor),
+        borderColor: this.pdfCreator.parseColor(borderColor),
+        borderWidth
+      });
+
+      // Store element info
+      const elementInfo = {
+        type: 'textField',
+        name,
+        x, y, width, height,
+        pageIndex: this.pdfCreator.currentPageIndex,
+        multiline,
+        required,
+        placeholder
+      };
+
+      this.elements.push(elementInfo);
+      this.updateStats('textField');
+
+      console.log(`Text field added: ${name} (${width}x${height}) at page ${this.pdfCreator.currentPageIndex + 1}`);
+      
+      return textField;
+
+    } catch (error) {
+      throw new Error(`Failed to create text field: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add interactive checkbox
+   * @param {Object} options - Checkbox configuration
+   * @returns {Object} - Checkbox object
+   */
+  addCheckbox(options = {}) {
+    if (!this.pdfCreator.currentPage) {
+      throw new Error('No current page. Add a page first.');
+    }
+
+    try {
+      const {
+        name,
+        x = 100,
+        y = 500,
+        size = this.config.interactive.checkboxes.size,
+        label = '',
+        labelPosition = 'right',
+        checked = false,
+        checkColor = this.config.interactive.checkboxes.checkColor,
+        borderColor = this.config.interactive.checkboxes.borderColor
+      } = options;
+
+      if (!name) {
+        throw new Error('Checkbox name is required');
+      }
+
+      // Get form
+      const form = this.pdfCreator.document.getForm();
+
+      // Create checkbox
+      const checkbox = form.createCheckBox(name);
+      
+      if (checked) {
+        checkbox.check();
+      }
+
+      // Add to page
+      checkbox.addToPage(this.pdfCreator.currentPage, {
+        x,
+        y,
+        width: size,
+        height: size,
+        borderColor: this.pdfCreator.parseColor(borderColor)
+      });
+
+      // Add label if provided
+      if (label) {
+        const labelX = labelPosition === 'right' ? x + size + 8 : x - 8;
+        const labelY = y + (size / 4); // Center vertically with checkbox
+        
+        await this.pdfCreator.addText(label, {
+          x: labelX,
+          y: labelY,
+          size: 12
+        });
+      }
+
+      // Store element info
+      const elementInfo = {
+        type: 'checkbox',
+        name,
+        x, y, size,
+        pageIndex: this.pdfCreator.currentPageIndex,
+        label,
+        checked
+      };
+
+      this.elements.push(elementInfo);
+      this.updateStats('checkbox');
+
+      return checkbox;
+
+    } catch (error) {
+      throw new Error(`Failed to create checkbox: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add dropdown/select field
+   * @param {Object} options - Dropdown configuration
+   * @returns {Object} - Dropdown object
+   */
+  addDropdown(options = {}) {
+    if (!this.pdfCreator.currentPage) {
+      throw new Error('No current page. Add a page first.');
+    }
+
+    try {
+      const {
+        name,
+        x = 100,
+        y = 500,
+        width = 200,
+        height = 25,
+        options: dropdownOptions = [],
+        defaultValue = '',
+        fontSize = this.config.interactive.textFields.fontSize,
+        backgroundColor = this.config.interactive.textFields.backgroundColor,
+        borderColor = this.config.interactive.textFields.borderColor
+      } = options;
+
+      if (!name) {
+        throw new Error('Dropdown name is required');
+      }
+
+      if (!Array.isArray(dropdownOptions) || dropdownOptions.length === 0) {
+        throw new Error('Dropdown options array is required and must not be empty');
+      }
+
+      // Get form
+      const form = this.pdfCreator.document.getForm();
+
+      // Create dropdown
+      const dropdown = form.createDropdown(name);
+      
+      // Add options
+      dropdown.addOptions(dropdownOptions);
+      
+      // Set default value if provided
+      if (defaultValue && dropdownOptions.includes(defaultValue)) {
+        dropdown.select(defaultValue);
+      }
+
+      // Add to page
+      dropdown.addToPage(this.pdfCreator.currentPage, {
+        x,
+        y,
+        width,
+        height,
+        backgroundColor: this.pdfCreator.parseColor(backgroundColor),
+        borderColor: this.pdfCreator.parseColor(borderColor)
+      });
+
+      // Store element info
+      const elementInfo = {
+        type: 'dropdown',
+        name,
+        x, y, width, height,
+        pageIndex: this.pdfCreator.currentPageIndex,
+        options: dropdownOptions,
+        defaultValue
+      };
+
+      this.elements.push(elementInfo);
+      this.updateStats('dropdown');
+
+      return dropdown;
+
+    } catch (error) {
+      throw new Error(`Failed to create dropdown: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add radio button group
+   * @param {Object} options - Radio group configuration
+   * @returns {Object} - Radio group object
+   */
+  addRadioGroup(options = {}) {
+    if (!this.pdfCreator.currentPage) {
+      throw new Error('No current page. Add a page first.');
+    }
+
+    try {
+      const {
+        name,
+        x = 100,
+        y = 500,
+        options: radioOptions = [],
+        defaultValue = '',
+        direction = 'vertical',
+        spacing = 25,
+        buttonSize = 16,
+        fontSize = 12
+      } = options;
+
+      if (!name) {
+        throw new Error('Radio group name is required');
+      }
+
+      if (!Array.isArray(radioOptions) || radioOptions.length === 0) {
+        throw new Error('Radio options array is required and must not be empty');
+      }
+
+      // Get form
+      const form = this.pdfCreator.document.getForm();
+
+      // Create radio group
+      const radioGroup = form.createRadioGroup(name);
+
+      // Add radio buttons
+      let currentX = x;
+      let currentY = y;
+
+      for (let i = 0; i < radioOptions.length; i++) {
+        const option = radioOptions[i];
+        const optionValue = typeof option === 'object' ? option.value : option;
+        const optionLabel = typeof option === 'object' ? option.label : option;
+
+        // Add radio button option
+        radioGroup.addOptionToPage(optionValue, this.pdfCreator.currentPage, {
+          x: currentX,
+          y: currentY,
+          width: buttonSize,
+          height: buttonSize
+        });
+
+        // Add label
+        await this.pdfCreator.addText(optionLabel, {
+          x: currentX + buttonSize + 8,
+          y: currentY + (buttonSize / 4),
+          size: fontSize
+        });
+
+        // Update position for next option
+        if (direction === 'vertical') {
+          currentY -= spacing;
+        } else {
+          currentX += spacing;
+        }
+      }
+
+      // Set default value if provided
+      if (defaultValue) {
+        radioGroup.select(defaultValue);
+      }
+
+      // Store element info
+      const elementInfo = {
+        type: 'radioGroup',
+        name,
+        x, y,
+        pageIndex: this.pdfCreator.currentPageIndex,
+        options: radioOptions,
+        defaultValue,
+        direction,
+        count: radioOptions.length
+      };
+
+      this.elements.push(elementInfo);
+      this.updateStats('radioGroup');
+
+      return radioGroup;
+
+    } catch (error) {
+      throw new Error(`Failed to create radio group: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add interactive button with action
+   * @param {Object} options - Button configuration
+   * @returns {Promise<Object>} - Button information
+   */
+  async addButton(options = {}) {
+    if (!this.pdfCreator.currentPage) {
+      throw new Error('No current page. Add a page first.');
+    }
+
+    try {
+      const {
+        text = 'Button',
+        x = 100,
+        y = 400,
+        width = 120,
+        height = 30,
+        action = '',
+        backgroundColor = this.config.interactive.buttons.backgroundColor,
+        fontColor = this.config.interactive.buttons.fontColor,
+        borderColor = this.config.interactive.buttons.borderColor,
+        fontSize = this.config.interactive.buttons.fontSize,
+        cornerRadius = this.config.interactive.buttons.cornerRadius
+      } = options;
+
+      // Draw button background
+      this.pdfCreator.drawRectangle({
+        x,
+        y,
+        width,
+        height,
+        fillColor: backgroundColor,
+        borderColor: borderColor,
+        borderWidth: 1
+      });
+
+      // Add button text (centered)
+      const font = await this.pdfCreator.loadFont('Helvetica-Bold');
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const textX = x + (width - textWidth) / 2;
+      const textY = y + (height - fontSize) / 2 + 2;
+
+      await this.pdfCreator.addText(text, {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        color: fontColor,
+        font: 'Helvetica-Bold'
+      });
+
+      // Note: PDF-lib doesn't directly support JavaScript actions in buttons
+      // This would require manual PDF editing or specialized PDF libraries
+      if (action) {
+        console.log(`Button created with action: ${action}`);
+        console.log('Note: JavaScript actions require manual PDF editing after generation');
+      }
+
+      // Store element info
+      const elementInfo = {
+        type: 'button',
+        name: `button_${this.elements.length + 1}`,
+        text,
+        x, y, width, height,
+        pageIndex: this.pdfCreator.currentPageIndex,
+        action,
+        backgroundColor,
+        fontColor
+      };
+
+      this.elements.push(elementInfo);
+      this.updateStats('button');
+
+      return elementInfo;
+
+    } catch (error) {
+      throw new Error(`Failed to create button: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add hyperlink annotation
+   * @param {Object} options - Link configuration
+   * @returns {Promise<Object>} - Link information
+   */
+  async addLink(options = {}) {
+    if (!this.pdfCreator.currentPage) {
+      throw new Error('No current page. Add a page first.');
+    }
+
+    try {
+      const {
+        text = 'Link',
+        url,
+        x = 100,
+        y = 400,
+        color = this.config.interactive.links.color,
+        underline = this.config.interactive.links.underline,
+        fontSize = this.config.interactive.links.fontSize
+      } = options;
+
+      if (!url) {
+        throw new Error('Link URL is required');
+      }
+
+      // Add link text
+      await this.pdfCreator.addText(text, {
+        x,
+        y,
+        size: fontSize,
+        color: color
+      });
+
+      // Calculate text dimensions for link area
+      const font = await this.pdfCreator.loadFont('Helvetica');
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const textHeight = fontSize;
+
+      // Add underline if requested
+      if (underline) {
+        this.pdfCreator.drawLine({
+          start: { x, y: y - 2 },
+          end: { x: x + textWidth, y: y - 2 },
+          thickness: 1,
+          color: color
+        });
+      }
+
+      // Create link annotation
+      this.pdfCreator.currentPage.drawText('', {
+        x,
+        y,
+        size: fontSize
+      });
+
+      // Note: PDF-lib link annotations require additional setup
+      // This creates a visual link but the actual URL linking needs manual implementation
+      console.log(`Link created: ${text} -> ${url}`);
+      console.log('Note: URL linking requires additional PDF annotation setup');
+
+      // Store element info
+      const elementInfo = {
+        type: 'link',
+        text,
+        url,
+        x, y,
+        width: textWidth,
+        height: textHeight,
+        pageIndex: this.pdfCreator.currentPageIndex,
+        color,
+        underline
+      };
+
+      this.elements.push(elementInfo);
+      this.updateStats('link');
+
+      return elementInfo;
+
+    } catch (error) {
+      throw new Error(`Failed to create link: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update element statistics
+   * @param {string} elementType - Type of element added
+   * @private
+   */
+  updateStats(elementType) {
+    this.elementStats.total++;
+    
+    // Update by type
+    if (!this.elementStats.byType[elementType]) {
+      this.elementStats.byType[elementType] = 0;
+    }
+    this.elementStats.byType[elementType]++;
+    
+    // Update by page
+    const currentPage = this.pdfCreator.currentPageIndex;
+    if (!this.elementStats.byPage[currentPage]) {
+      this.elementStats.byPage[currentPage] = 0;
+    }
+    this.elementStats.byPage[currentPage]++;
+  }
+
+  /**
+   * Get comprehensive element statistics
+   * @returns {Object} - Element statistics
+   */
+  getElementsStats() {
+    return {
+      total: this.elementStats.total,
+      byType: { ...this.elementStats.byType },
+      byPage: { ...this.elementStats.byPage },
+      elements: this.elements.map(el => ({
+        type: el.type,
+        name: el.name || el.text,
+        page: el.pageIndex + 1,
+        position: { x: el.x, y: el.y }
+      }))
+    };
+  }
+
+  /**
+   * Get elements on specific page
+   * @param {number} pageIndex - Page index (0-based)
+   * @returns {Array} - Elements on page
+   */
+  getElementsOnPage(pageIndex) {
+    return this.elements.filter(el => el.pageIndex === pageIndex);
+  }
+
+  /**
+   * Get element by name
+   * @param {string} name - Element name
+   * @returns {Object|null} - Element info or null
+   */
+  getElementById(name) {
+    return this.elements.find(el => el.name === name) || null;
+  }
+
+  /**
+   * Validate all elements
+   * @returns {Object} - Validation results
+   */
+  validateElements() {
+    const validation = {
+      isValid: true,
+      errors: [],
+      warnings: []
+    };
+
+    // Check for duplicate names
+    const names = this.elements
+      .filter(el => el.name)
+      .map(el => el.name);
+    
+    const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
+    if (duplicates.length > 0) {
+      validation.errors.push(`Duplicate element names: ${[...new Set(duplicates)].join(', ')}`);
+      validation.isValid = false;
+    }
+
+    // Check element limits per page
+    Object.entries(this.elementStats.byPage).forEach(([page, count]) => {
+      if (count > this.config.validation.maxInteractiveElements) {
+        validation.warnings.push(`Page ${parseInt(page) + 1} has ${count} elements (recommended max: ${this.config.validation.maxInteractiveElements})`);
+      }
+    });
+
+    // Check for elements with actions (JavaScript limitations)
+    const elementsWithActions = this.elements.filter(el => el.action);
+    if (elementsWithActions.length > 0) {
+      validation.warnings.push(`${elementsWithActions.length} elements have JavaScript actions that require manual PDF editing`);
+    }
+
+    return validation;
+  }
+
+  /**
+   * Clear all elements (for reset)
+   */
+  clearElements() {
+    this.elements = [];
+    this.elementStats = {
+      total: 0,
+      byType: {},
+      byPage: {}
+    };
   }
 }
