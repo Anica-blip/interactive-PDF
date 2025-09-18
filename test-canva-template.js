@@ -1,73 +1,80 @@
 /**
- * Test Script - Load your Canva PDF and add interactive elements
- * This will run as is - place your Canva PDF in the same directory
+ * COMPLETE WORKFLOW - Canva PDF to Social Media Ready URL
+ * This will run as is - complete solution for your use case
  */
 
 import { PDFGenerator } from './pdf-generator.js';
+import { PDFStorageManager } from './pdf-storage-manager.js';
 
-async function testCanvaTemplate() {
-  console.log('🔄 Testing Canva PDF template loading...');
+async function processCanvaForSocialMedia() {
+  console.log('🚀 COMPLETE WORKFLOW: Canva PDF → Interactive PDF → Social Media URL');
   
   try {
-    const generator = new PDFGenerator({
-      output: {
-        directory: './test-output',
-        filename: 'canva-enhanced.pdf'
+    // STEP 1: Initialize storage manager with your Wasabi config
+    const storage = new PDFStorageManager({
+      wasabi: {
+        endpoint: 'https://s3.wasabisys.com',
+        region: 'us-east-1',
+        accessKeyId: process.env.WASABI_ACCESS_KEY,
+        secretAccessKey: process.env.WASABI_SECRET_KEY,
+        bucketName: process.env.WASABI_BUCKET_NAME
       }
     });
 
-    // STEP 1: Load your Canva PDF
+    // Test connection first
+    const connected = await storage.testConnection();
+    if (!connected) {
+      throw new Error('Wasabi connection failed - check your credentials');
+    }
+
+    // STEP 2: Initialize PDF generator (no local file output needed)
+    const generator = new PDFGenerator();
+
+    // STEP 3: Load your Canva PDF
     console.log('📄 Loading Canva template...');
     await generator.initialize({ 
       templatePdf: './private-assets/YOUR_ACTUAL_FILENAME.pdf'  // <- Replace with your real PDF filename
     });
 
-    // STEP 2: Check what we loaded
     const templateInfo = generator.getTemplateInfo();
-    console.log('Template Info:', templateInfo);
+    console.log(`📋 Template loaded: ${templateInfo.filename} (${templateInfo.pages} pages)`);
 
-    // STEP 3: Set to first page and add test elements
+    // STEP 4: Add interactive elements where you designed frames
     generator.setCurrentPage(1);
     
-    // Add a test video placeholder
-    await generator.addMedia('./test-video.mp4', {
-      x: 100,
-      y: 200,
+    // Add media where your Canva frame is positioned
+    await generator.addMedia('./private-assets/your-video.mp4', {
+      x: 150,        // Position where your Canva frame is
+      y: 400,
       width: 300,
       height: 200
     });
 
-    // Add an audio button
+    // Add audio button
     await generator.addAudioButton({
-      audioUrl: './test-audio.mp3',
-      text: '🔊 Test Audio',
+      audioUrl: './private-assets/your-audio.mp3',
+      text: '🎵 Play Audio',
       x: 50,
       y: 50,
       width: 120,
       height: 30
     });
 
-    // Add a text field for testing
-    generator.addTextField({
-      name: 'testField',
-      x: 100,
-      y: 400,
-      width: 200,
-      height: 25,
-      placeholder: 'Test input field'
-    });
+    // STEP 5: COMPLETE WORKFLOW - Generate and upload to cloud
+    console.log('🔄 Generating and uploading to Wasabi...');
+    const result = await storage.processAndStore(generator, templateInfo.filename);
 
-    // STEP 4: Generate the enhanced PDF
-    console.log('🔄 Generating enhanced PDF...');
-    const result = await generator.generate();
+    // STEP 6: YOUR SHAREABLE URLS
+    console.log('✅ SUCCESS! PDF ready for social media:');
+    console.log(`   📱 Social Media URL: ${result.accessUrls.shareUrl}`);
+    console.log(`   🌐 Browser URL: ${result.accessUrls.browserUrl}`);
+    console.log(`   📎 Direct Link: ${result.accessUrls.directUrl}`);
+    console.log(`   📊 File Size: ${(result.uploadResult.size / 1024 / 1024).toFixed(2)}MB`);
+    console.log(`   📁 Cloud Storage: ${result.cloudFilename}`);
 
-    console.log('✅ SUCCESS! Enhanced PDF created:');
-    console.log(`   File: ${result.outputPath}`);
-    console.log(`   Size: ${result.fileSizeMB}MB`);
-    console.log(`   Original Template: ${templateInfo.filename}`);
-    console.log(`   Pages: ${result.statistics.pages}`);
-    console.log(`   Interactive Elements Added: ${result.statistics.elements}`);
-    console.log(`   Media Items Added: ${result.statistics.media}`);
+    // STEP 7: Original Canva PDF can now be deleted if you want
+    console.log('\n💡 Your original Canva PDF can now be safely deleted.');
+    console.log('   The interactive PDF is self-contained and permanently accessible.');
 
     return result;
 
