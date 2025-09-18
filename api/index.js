@@ -1,6 +1,6 @@
 /**
  * Vercel Serverless API for Interactive PDF Creator
- * Complete workflow: Canva PDF → Interactive PDF → Wasabi → Browser URLs
+ * Complete workflow: Canva PDF to Interactive PDF to Wasabi to Browser URLs
  * This will run as is - production-ready system
  */
 
@@ -12,8 +12,8 @@ import crypto from 'crypto';
 const wasabiConfig = {
   endpoint: 'https://s3.eu-west-1.wasabisys.com',
   region: 'eu-west-1',
-  accessKeyId: process.env.WASABI_ACCESS_KEY,           // REMOVED VITE_ 
-  secretAccessKey: process.env.WASABI_SECRET_KEY,       // REMOVED VITE_
+  accessKeyId: process.env.WASABI_ACCESS_KEY,
+  secretAccessKey: process.env.WASABI_SECRET_KEY,
   bucketName: process.env.WASABI_PUBLIC_BUCKET || '3c-public-content',
   defaultFolder: 'coffee-break-chat/interactive-pdfs'
 };
