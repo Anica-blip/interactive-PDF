@@ -8,7 +8,7 @@ const wasabiConfig = {
   accessKeyId: process.env.WASABI_ACCESS_KEY,
   secretAccessKey: process.env.WASABI_SECRET_KEY,
   bucketName: process.env.WASABI_PUBLIC_BUCKET || '3c-public-content',
-  defaultFolder: 'coffee-break-chat/interactive-pdfs'
+  defaultFolder: process.env.WASABI_DEFAULT_FOLDER || 'interactive-pdfs'
 };
 
 const s3Client = new S3Client({
@@ -67,7 +67,7 @@ async function generatePDF(req, res) {
     console.log('Processing PDF generation request...');
 
     const body = await parseMultipartData(req);
-    const { pdfName, elements, originalPdf, mediaFiles } = body;
+    const { pdfName, elements, originalPdf, mediaFiles, folder } = body;
 
     if (!originalPdf) {
       return res.status(400).json({ 
@@ -134,7 +134,8 @@ async function generatePDF(req, res) {
     const pdfBuffer = await generator.generateBuffer();
 
     const uniqueId = crypto.randomUUID();
-    const cloudFilename = `${wasabiConfig.defaultFolder}/${uniqueId}.pdf`;
+    const targetFolder = folder || wasabiConfig.defaultFolder;
+    const cloudFilename = `${targetFolder}/${uniqueId}.pdf`;
     
     console.log('Uploading to Wasabi...');
     await uploadToWasabi(pdfBuffer, cloudFilename);
