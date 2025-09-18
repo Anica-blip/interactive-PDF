@@ -19,7 +19,7 @@ async function testCanvaTemplate() {
     // STEP 1: Load your Canva PDF
     console.log('📄 Loading Canva template...');
     await generator.initialize({ 
-      templatePdf: './your-canva-design.pdf'  // <- Change this to your Canva PDF filename
+      templatePdf: './private-assets/YOUR_ACTUAL_FILENAME.pdf'  // <- Replace with your real PDF filename
     });
 
     // STEP 2: Check what we loaded
