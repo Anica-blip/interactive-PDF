@@ -1,6 +1,6 @@
 /**
  * Main PDF Generator - Orchestrates all components
- * Follows structured workflow: Spec → Design → Build → Test → Integrate
+ * NOW SUPPORTS: Loading Canva PDFs as templates for interactive enhancement
  * This will run as is - complete interactive PDF creation system
  */
 
@@ -8,6 +8,7 @@ import { PDFCreator } from './pdf-creator.js';
 import { InteractiveElements } from './interactive-elements.js';
 import { MediaEmbedder } from './media-embedder.js';
 import { validateConfig, DEFAULT_CONFIG } from './config.js';
+import { PDFDocument } from 'pdf-lib';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -21,6 +22,10 @@ export class PDFGenerator {
     this.interactiveElements = null;
     this.mediaEmbedder = null;
     
+    // Template loading state
+    this.isTemplateLoaded = false;
+    this.templatePath = null;
+    
     // Generation state
     this.isInitialized = false;
     this.generationStats = {
@@ -29,35 +34,48 @@ export class PDFGenerator {
       pages: 0,
       elements: 0,
       mediaItems: 0,
-      fileSize: 0
+      fileSize: 0,
+      templateUsed: false
     };
     
     console.log('PDF Generator initialized with validated configuration');
   }
 
   /**
-   * STEP 1: SPEC - Initialize PDF document and prepare for content
+   * STEP 1: SPEC - Initialize PDF document (new or from template)
    * @param {Object} documentOptions - Document-level settings
+   * @param {string} documentOptions.templatePdf - Path to existing PDF template
    * @returns {Promise<PDFGenerator>} - Chainable interface
    */
   async initialize(documentOptions = {}) {
     try {
       this.generationStats.startTime = new Date();
       
-      // Initialize PDF document
-      await this.pdfCreator.initialize();
+      // Check if template PDF is provided
+      if (documentOptions.templatePdf) {
+        await this.loadTemplate(documentOptions.templatePdf);
+      } else {
+        // Initialize new PDF document (existing functionality)
+        await this.pdfCreator.initialize();
+      }
       
-      // Initialize interactive systems
+      // Initialize interactive systems with the PDF document
       this.interactiveElements = new InteractiveElements(this.pdfCreator);
       this.mediaEmbedder = new MediaEmbedder(this.pdfCreator);
       
-      // Apply document-level options
+      // Apply document-level options (metadata)
       if (documentOptions.title) this.config.pdf.title = documentOptions.title;
       if (documentOptions.author) this.config.pdf.author = documentOptions.author;
       if (documentOptions.subject) this.config.pdf.subject = documentOptions.subject;
       
       this.isInitialized = true;
-      console.log('✅ SPEC COMPLETE: PDF document initialized');
+      
+      if (this.isTemplateLoaded) {
+        console.log(`✅ SPEC COMPLETE: PDF template loaded (${this.generationStats.pages} pages)`);
+      } else {
+        console.log('✅ SPEC COMPLETE: PDF document initialized');
+      }
+      
       return this;
       
     } catch (error) {
@@ -66,7 +84,51 @@ export class PDFGenerator {
   }
 
   /**
-   * STEP 2: DESIGN - Add page with specified layout
+   * Load existing PDF as template for interactive enhancement
+   * @param {string} templatePath - Path to existing PDF file
+   * @returns {Promise<void>}
+   * @private
+   */
+  async loadTemplate(templatePath) {
+    // Law 1: Verification First - Check template exists
+    if (!await fs.pathExists(templatePath)) {
+      throw new Error(`Template PDF not found: ${templatePath}`);
+    }
+
+    try {
+      // Load existing PDF bytes
+      const templateBytes = await fs.readFile(templatePath);
+      
+      // Load PDF document using PDF-lib
+      const loadedPdf = await PDFDocument.load(templateBytes);
+      
+      // Replace the PDFCreator's document with loaded template
+      this.pdfCreator.document = loadedPdf;
+      
+      // Get page count from loaded template
+      const pageCount = loadedPdf.getPageCount();
+      this.generationStats.pages = pageCount;
+      
+      // Set template state
+      this.isTemplateLoaded = true;
+      this.templatePath = templatePath;
+      this.generationStats.templateUsed = true;
+      
+      // Set current page to first page if pages exist
+      if (pageCount > 0) {
+        this.pdfCreator.currentPage = loadedPdf.getPage(0);
+        this.pdfCreator.currentPageIndex = 0;
+      }
+      
+      console.log(`✅ Template loaded: ${path.basename(templatePath)} (${pageCount} pages)`);
+      
+    } catch (error) {
+      throw new Error(`Failed to load template PDF: ${error.message}`);
+    }
+  }
+
+  /**
+   * STEP 2: DESIGN - Add page or work with template pages
    * @param {Object} pageOptions - Page configuration
    * @returns {PDFGenerator} - Chainable interface
    */
@@ -74,6 +136,11 @@ export class PDFGenerator {
     this.validateInitialized();
     
     try {
+      // If template is loaded, warn about adding new pages
+      if (this.isTemplateLoaded) {
+        console.warn('⚠️  Adding new page to template. Consider using setCurrentPage() instead.');
+      }
+      
       const page = this.pdfCreator.addPage(pageOptions);
       this.generationStats.pages++;
       
@@ -86,8 +153,51 @@ export class PDFGenerator {
   }
 
   /**
+   * Set current page for content addition (useful for templates)
+   * @param {number} pageNumber - Page number (1-based)
+   * @returns {PDFGenerator} - Chainable interface
+   */
+  setCurrentPage(pageNumber) {
+    this.validateInitialized();
+    
+    const maxPages = this.isTemplateLoaded ? 
+      this.pdfCreator.document.getPageCount() : 
+      this.generationStats.pages;
+      
+    if (pageNumber < 1 || pageNumber > maxPages) {
+      throw new Error(`Page number ${pageNumber} out of range (1-${maxPages})`);
+    }
+    
+    // Convert to 0-based index
+    const pageIndex = pageNumber - 1;
+    this.pdfCreator.currentPage = this.pdfCreator.document.getPage(pageIndex);
+    this.pdfCreator.currentPageIndex = pageIndex;
+    
+    console.log(`Current page set to: ${pageNumber}${this.isTemplateLoaded ? ' (template page)' : ''}`);
+    return this;
+  }
+
+  /**
+   * Get information about loaded template
+   * @returns {Object} - Template information
+   */
+  getTemplateInfo() {
+    if (!this.isTemplateLoaded) {
+      return { isLoaded: false };
+    }
+    
+    return {
+      isLoaded: true,
+      path: this.templatePath,
+      pages: this.pdfCreator.document.getPageCount(),
+      currentPage: this.pdfCreator.currentPageIndex + 1,
+      filename: path.basename(this.templatePath)
+    };
+  }
+
+  /**
    * STEP 3: BUILD - Add content to current page
-   * Comprehensive content addition with validation
+   * All existing methods remain the same - they work on whatever page is current
    */
 
   /**
@@ -105,7 +215,8 @@ export class PDFGenerator {
 
     try {
       const result = await this.pdfCreator.addText(text, options);
-      console.log(`✅ BUILD: Text added (${result.lines} lines, ${result.width}x${result.height})`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Text added${pageInfo} (${result.lines} lines, ${result.width}x${result.height})`);
       return this;
       
     } catch (error) {
@@ -124,7 +235,8 @@ export class PDFGenerator {
     
     try {
       const result = await this.pdfCreator.addImage(imagePath, options);
-      console.log(`✅ BUILD: Image added (${result.width}x${result.height})`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Image added${pageInfo} (${result.width}x${result.height})`);
       return this;
       
     } catch (error) {
@@ -144,7 +256,8 @@ export class PDFGenerator {
     try {
       const result = await this.mediaEmbedder.embedMedia(mediaPath, options);
       this.generationStats.mediaItems++;
-      console.log(`✅ BUILD: Media added - ${result.type} (${result.dimensions?.width || 'auto'}x${result.dimensions?.height || 'auto'})`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Media added${pageInfo} - ${result.type} (${result.dimensions?.width || 'auto'}x${result.dimensions?.height || 'auto'})`);
       return this;
       
     } catch (error) {
@@ -153,17 +266,58 @@ export class PDFGenerator {
   }
 
   /**
-   * Add interactive text field
-   * @param {Object} options - Text field configuration
-   * @returns {PDFGenerator} - Chainable interface
+   * Add interactive audio button with playback link
+   * @param {Object} options - Audio button configuration
+   * @param {string} options.audioUrl - URL or path to audio file
+   * @param {string} options.text - Button text (default: "🔊 Play Audio")
+   * @returns {Promise<PDFGenerator>} - Chainable interface
    */
+  async addAudioButton(options = {}) {
+    this.validateInitialized();
+    
+    const audioOptions = {
+      text: options.text || '🔊 Play Audio',
+      x: options.x || 100,
+      y: options.y || 100,
+      width: options.width || 120,
+      height: options.height || 30,
+      backgroundColor: options.backgroundColor || '#28A745',
+      fontColor: options.fontColor || '#FFFFFF',
+      action: `app.alert('Audio: ${options.audioUrl || 'No URL provided'}');`, // Placeholder - actual audio requires PDF viewer support
+      audioUrl: options.audioUrl // Store for reference
+    };
+
+    try {
+      const button = await this.interactiveElements.addButton(audioOptions);
+      this.generationStats.elements++;
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Audio button added${pageInfo} - ${button.name}`);
+      
+      // Note about audio limitations
+      if (options.audioUrl) {
+        console.log(`📝 NOTE: Audio URL stored (${options.audioUrl}). Actual playback depends on PDF viewer support.`);
+      }
+      
+      return this;
+      
+    } catch (error) {
+      throw new Error(`Failed to add audio button: ${error.message}`);
+    }
+  }
+
+  /**
+   * All other interactive methods remain unchanged
+   * (addTextField, addCheckbox, addDropdown, addRadioGroup, addButton, addLink)
+   */
+
   addTextField(options = {}) {
     this.validateInitialized();
     
     try {
       const textField = this.interactiveElements.addTextField(options);
       this.generationStats.elements++;
-      console.log(`✅ BUILD: Text field added - ${textField.getName()}`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Text field added${pageInfo} - ${textField.getName()}`);
       return this;
       
     } catch (error) {
@@ -171,18 +325,14 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Add interactive checkbox
-   * @param {Object} options - Checkbox configuration
-   * @returns {PDFGenerator} - Chainable interface
-   */
   addCheckbox(options = {}) {
     this.validateInitialized();
     
     try {
       const checkbox = this.interactiveElements.addCheckbox(options);
       this.generationStats.elements++;
-      console.log(`✅ BUILD: Checkbox added - ${checkbox.getName()}`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Checkbox added${pageInfo} - ${checkbox.getName()}`);
       return this;
       
     } catch (error) {
@@ -190,18 +340,14 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Add dropdown/select field
-   * @param {Object} options - Dropdown configuration
-   * @returns {PDFGenerator} - Chainable interface
-   */
   addDropdown(options = {}) {
     this.validateInitialized();
     
     try {
       const dropdown = this.interactiveElements.addDropdown(options);
       this.generationStats.elements++;
-      console.log(`✅ BUILD: Dropdown added - ${dropdown.getName()}`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Dropdown added${pageInfo} - ${dropdown.getName()}`);
       return this;
       
     } catch (error) {
@@ -209,18 +355,14 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Add radio button group
-   * @param {Object} options - Radio group configuration
-   * @returns {PDFGenerator} - Chainable interface
-   */
   addRadioGroup(options = {}) {
     this.validateInitialized();
     
     try {
       const radioGroup = this.interactiveElements.addRadioGroup(options);
       this.generationStats.elements++;
-      console.log(`✅ BUILD: Radio group added - ${radioGroup.getName()}`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Radio group added${pageInfo} - ${radioGroup.getName()}`);
       return this;
       
     } catch (error) {
@@ -228,18 +370,14 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Add interactive button
-   * @param {Object} options - Button configuration  
-   * @returns {Promise<PDFGenerator>} - Chainable interface
-   */
   async addButton(options = {}) {
     this.validateInitialized();
     
     try {
       const button = await this.interactiveElements.addButton(options);
       this.generationStats.elements++;
-      console.log(`✅ BUILD: Button added - ${button.name}`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Button added${pageInfo} - ${button.name}`);
       return this;
       
     } catch (error) {
@@ -247,18 +385,14 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Add hyperlink
-   * @param {Object} options - Link configuration
-   * @returns {Promise<PDFGenerator>} - Chainable interface
-   */
   async addLink(options = {}) {
     this.validateInitialized();
     
     try {
       const link = await this.interactiveElements.addLink(options);
       this.generationStats.elements++;
-      console.log(`✅ BUILD: Link added - ${link.url}`);
+      const pageInfo = this.isTemplateLoaded ? ` on template page ${this.pdfCreator.currentPageIndex + 1}` : '';
+      console.log(`✅ BUILD: Link added${pageInfo} - ${link.url}`);
       return this;
       
     } catch (error) {
@@ -268,6 +402,7 @@ export class PDFGenerator {
 
   /**
    * STEP 4: TEST - Validate PDF structure and content
+   * Enhanced to handle template validation
    * @returns {Object} - Validation results
    */
   validateDocument() {
@@ -278,13 +413,24 @@ export class PDFGenerator {
         isValid: true,
         warnings: [],
         errors: [],
-        stats: this.getDocumentStatistics()
+        stats: this.getDocumentStatistics(),
+        templateInfo: this.getTemplateInfo()
       };
 
       // Check page count
       if (validation.stats.pages === 0) {
         validation.errors.push('Document has no pages');
         validation.isValid = false;
+      }
+
+      // Template-specific validation
+      if (this.isTemplateLoaded) {
+        validation.warnings.push('Template PDF loaded - ensure interactive elements are positioned correctly');
+        
+        // Check if elements were added to template
+        if (validation.stats.elements === 0 && validation.stats.media === 0) {
+          validation.warnings.push('No interactive elements added to template');
+        }
       }
 
       // Check page limits
@@ -303,16 +449,20 @@ export class PDFGenerator {
 
       // Check media file sizes
       const mediaStats = this.mediaEmbedder?.getMediaStats() || { totalSize: 0 };
-      if (mediaStats.totalSize > this.config.media.maxFileSize * 10) { // 10x limit for total
+      if (mediaStats.totalSize > this.config.media.maxFileSize * 10) {
         validation.warnings.push(`Total media size may affect PDF performance: ${(mediaStats.totalSize / 1024 / 1024).toFixed(2)}MB`);
       }
 
-      // Check JavaScript actions
-      if (this.config.actions.enableJavaScript && validation.stats.elements > 0) {
-        validation.warnings.push('JavaScript actions require manual PDF editing after generation');
+      // Audio button specific warnings
+      const buttonCount = elementStats.byType?.button || 0;
+      if (buttonCount > 0) {
+        validation.warnings.push('Audio/button playback requires PDF viewer support - test in target environment');
       }
 
       console.log(`✅ TEST: Document validation ${validation.isValid ? 'PASSED' : 'FAILED'}`);
+      if (this.isTemplateLoaded) {
+        console.log(`   Template: ${validation.templateInfo.filename} (${validation.templateInfo.pages} pages)`);
+      }
       console.log(`   Pages: ${validation.stats.pages}, Elements: ${validation.stats.elements}, Media: ${validation.stats.media}`);
       
       if (validation.warnings.length > 0) {
@@ -332,9 +482,7 @@ export class PDFGenerator {
 
   /**
    * STEP 5: INTEGRATE - Generate final PDF with all content
-   * @param {string} outputPath - Path for output PDF file
-   * @param {Object} options - Generation options
-   * @returns {Promise<Object>} - Generation results
+   * Enhanced to handle template-based generation
    */
   async generate(outputPath = null, options = {}) {
     this.validateInitialized();
@@ -351,6 +499,14 @@ export class PDFGenerator {
       const finalOutputPath = outputPath || 
                              path.join(this.config.output.directory, this.config.output.filename);
       
+      // If template was used, suggest different filename
+      if (this.isTemplateLoaded && !outputPath) {
+        const templateName = path.basename(this.templatePath, '.pdf');
+        const enhancedFilename = `${templateName}-interactive.pdf`;
+        const enhancedPath = path.join(this.config.output.directory, enhancedFilename);
+        console.log(`💡 Suggestion: Consider output path: ${enhancedPath}`);
+      }
+      
       // Ensure output directory exists
       await fs.ensureDir(path.dirname(finalOutputPath));
       
@@ -360,11 +516,11 @@ export class PDFGenerator {
       }
 
       // Generate PDF bytes
-      console.log('🔄 INTEGRATE: Generating PDF bytes...');
+      console.log(`🔄 INTEGRATE: Generating ${this.isTemplateLoaded ? 'enhanced template' : 'new'} PDF...`);
       const pdfBytes = await this.pdfCreator.document.save({
         useObjectStreams: this.config.output.compress,
         addDefaultPage: false,
-        objectsPerTick: 50 // Performance optimization
+        objectsPerTick: 50
       });
 
       // Write to file
@@ -385,6 +541,7 @@ export class PDFGenerator {
         generationTime: `${generationTime}ms`,
         statistics: this.getDocumentStatistics(),
         validation,
+        templateInfo: this.getTemplateInfo(),
         pdfBytes: options.returnBytes ? pdfBytes : null
       };
 
@@ -392,6 +549,9 @@ export class PDFGenerator {
       console.log(`   Output: ${finalOutputPath}`);
       console.log(`   Size: ${result.fileSizeMB}MB`);
       console.log(`   Time: ${result.generationTime}`);
+      if (this.isTemplateLoaded) {
+        console.log(`   Template: ${result.templateInfo.filename}`);
+      }
       console.log(`   Pages: ${result.statistics.pages}`);
       console.log(`   Elements: ${result.statistics.elements}`);
       console.log(`   Media: ${result.statistics.media}`);
@@ -403,11 +563,9 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Generate and return PDF as buffer (without saving to file)
-   * @param {Object} options - Generation options
-   * @returns {Promise<Buffer>} - PDF buffer
-   */
+  // All other existing methods remain unchanged
+  // (generateBuffer, getDocumentStatistics, getCurrentPageInfo, createTemplate, addContent, validateInitialized, reset)
+
   async generateBuffer(options = {}) {
     this.validateInitialized();
     
@@ -418,7 +576,7 @@ export class PDFGenerator {
         throw new Error(`Document validation failed: ${validation.errors.join(', ')}`);
       }
 
-      console.log('🔄 Generating PDF buffer...');
+      console.log(`🔄 Generating ${this.isTemplateLoaded ? 'enhanced template' : 'new'} PDF buffer...`);
       const pdfBytes = await this.pdfCreator.document.save({
         useObjectStreams: this.config.output.compress,
         addDefaultPage: false
@@ -435,23 +593,20 @@ export class PDFGenerator {
     }
   }
 
-  /**
-   * Get comprehensive document statistics
-   * @returns {Object} - Document statistics
-   */
   getDocumentStatistics() {
     const baseStats = this.pdfCreator.getDocumentStats();
     const elementStats = this.interactiveElements?.getElementsStats() || { total: 0, byType: {}, byPage: {} };
     const mediaStats = this.mediaEmbedder?.getMediaStats() || { total: 0, byType: {}, totalSize: 0 };
 
     return {
-      pages: baseStats.pageCount,
+      pages: this.isTemplateLoaded ? this.pdfCreator.document.getPageCount() : baseStats.pageCount,
       fonts: baseStats.fontsLoaded,
       elements: elementStats.total,
       elementsByType: elementStats.byType,
       media: mediaStats.total,
       mediaByType: mediaStats.byType,
       mediaSizeMB: (mediaStats.totalSize / 1024 / 1024).toFixed(2),
+      templateUsed: this.isTemplateLoaded,
       generationTime: this.generationStats.endTime ? 
                      `${this.generationStats.endTime - this.generationStats.startTime}ms` : 'In progress',
       fileSizeMB: this.generationStats.fileSize ? 
@@ -459,87 +614,45 @@ export class PDFGenerator {
     };
   }
 
-  /**
-   * Get current page information
-   * @returns {Object} - Current page details
-   */
   getCurrentPageInfo() {
     this.validateInitialized();
-    return this.pdfCreator.getCurrentPageInfo();
+    const baseInfo = this.pdfCreator.getCurrentPageInfo();
+    
+    if (this.isTemplateLoaded) {
+      return {
+        ...baseInfo,
+        isTemplateSource: true,
+        templatePath: this.templatePath,
+        currentPageNumber: this.pdfCreator.currentPageIndex + 1,
+        totalPages: this.pdfCreator.document.getPageCount()
+      };
+    }
+    
+    return baseInfo;
   }
 
-  /**
-   * Set current page for content addition
-   * @param {number} pageNumber - Page number (1-based)
-   * @returns {PDFGenerator} - Chainable interface
-   */
-  setCurrentPage(pageNumber) {
-    this.validateInitialized();
-    this.pdfCreator.setCurrentPage(pageNumber);
-    console.log(`Current page set to: ${pageNumber}`);
-    return this;
-  }
-
-  /**
-   * Create a template/preset configuration
-   * @param {string} templateName - Template identifier
-   * @returns {Object} - Template configuration
-   */
   static createTemplate(templateName) {
     const templates = {
       'form': {
-        pdf: {
-          title: 'Interactive Form',
-          subject: 'Form Template'
-        },
-        page: {
-          size: 'A4',
-          margins: { top: 72, bottom: 72, left: 72, right: 72 }
-        },
-        interactive: {
-          buttons: { backgroundColor: '#007BFF' },
-          textFields: { borderColor: '#007BFF' }
-        }
+        pdf: { title: 'Interactive Form', subject: 'Form Template' },
+        page: { size: 'A4', margins: { top: 72, bottom: 72, left: 72, right: 72 } },
+        interactive: { buttons: { backgroundColor: '#007BFF' }, textFields: { borderColor: '#007BFF' } }
       },
-      
       'presentation': {
-        pdf: {
-          title: 'Interactive Presentation',
-          subject: 'Presentation Template'
-        },
-        page: {
-          size: 'A4',
-          orientation: 'landscape',
-          margins: { top: 50, bottom: 50, left: 50, right: 50 }
-        },
-        media: {
-          video: { width: 600, height: 450 }
-        }
+        pdf: { title: 'Interactive Presentation', subject: 'Presentation Template' },
+        page: { size: 'A4', orientation: 'landscape', margins: { top: 50, bottom: 50, left: 50, right: 50 } },
+        media: { video: { width: 600, height: 450 } }
       },
-      
       'brochure': {
-        pdf: {
-          title: 'Interactive Brochure',
-          subject: 'Marketing Material'
-        },
-        page: {
-          size: 'A4',
-          margins: { top: 36, bottom: 36, left: 36, right: 36 }
-        },
-        interactive: {
-          links: { color: '#DC3545' }
-        }
+        pdf: { title: 'Interactive Brochure', subject: 'Marketing Material' },
+        page: { size: 'A4', margins: { top: 36, bottom: 36, left: 36, right: 36 } },
+        interactive: { links: { color: '#DC3545' } }
       }
     };
 
     return templates[templateName] || DEFAULT_CONFIG;
   }
 
-  /**
-   * Batch operation: Add multiple content items
-   * @param {Array} contentItems - Array of content configurations
-   * @returns {Promise<PDFGenerator>} - Chainable interface
-   */
   async addContent(contentItems) {
     this.validateInitialized();
     
@@ -563,6 +676,9 @@ export class PDFGenerator {
             break;
           case 'media':
             await this.addMedia(item.path || item.src, options);
+            break;
+          case 'audioButton':
+            await this.addAudioButton(options);
             break;
           case 'textField':
             this.addTextField(options);
@@ -594,51 +710,49 @@ export class PDFGenerator {
     return this;
   }
 
-  /**
-   * Validate that PDF generator is initialized
-   * @private
-   */
   validateInitialized() {
     if (!this.isInitialized) {
       throw new Error('PDF Generator not initialized. Call initialize() first.');
     }
   }
 
-  /**
-   * Reset generator for new document
-   */
   reset() {
     this.pdfCreator = new PDFCreator(this.config);
     this.interactiveElements = null;
     this.mediaEmbedder = null;
     this.isInitialized = false;
+    this.isTemplateLoaded = false;
+    this.templatePath = null;
     this.generationStats = {
       startTime: null,
       endTime: null,
       pages: 0,
       elements: 0,
       mediaItems: 0,
-      fileSize: 0
+      fileSize: 0,
+      templateUsed: false
     };
     console.log('PDF Generator reset for new document');
   }
 }
 
 /**
- * Convenience function for quick PDF generation
- * @param {Object} config - PDF configuration
+ * Enhanced convenience function - now supports template loading
+ * @param {Object} config - PDF configuration  
  * @param {Array} content - Content items array
  * @param {string} outputPath - Output file path
+ * @param {string} templatePdf - Optional path to template PDF
  * @returns {Promise<Object>} - Generation results
  */
-export async function generatePDF(config = {}, content = [], outputPath = null) {
+export async function generatePDF(config = {}, content = [], outputPath = null, templatePdf = null) {
   const generator = new PDFGenerator(config);
   
   try {
-    await generator.initialize();
+    // Initialize with optional template
+    await generator.initialize({ templatePdf });
     
-    // Add a default page if no page content specified
-    if (!content.some(item => item.type === 'page')) {
+    // Add a default page if no template and no page content specified
+    if (!templatePdf && !content.some(item => item.type === 'page')) {
       generator.addPage();
     }
     
@@ -651,5 +765,4 @@ export async function generatePDF(config = {}, content = [], outputPath = null) 
   }
 }
 
-// Export default configuration for easy access
 export { DEFAULT_CONFIG, validateConfig } from './config.js';
