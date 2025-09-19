@@ -12,7 +12,6 @@ import crypto from 'crypto';
 export class PDFStorageManager {
   constructor(config = {}) {
     this.config = {
-      // Wasabi Configuration
       wasabi: {
         endpoint: config.wasabi?.endpoint || 'https://s3.wasabisys.com',
         region: config.wasabi?.region || 'us-east-1',
@@ -21,24 +20,21 @@ export class PDFStorageManager {
         bucketName: config.wasabi?.bucketName || process.env.WASABI_BUCKET_NAME
       },
 
-      // File Organization
       organization: {
         useTimestamps: config.organization?.useTimestamps ?? true,
         useFolders: config.organization?.useFolders ?? true,
         folderPattern: config.organization?.folderPattern || 'YYYY/MM',
         namePattern: config.organization?.namePattern || '{original}-interactive-{timestamp}',
-        maxFileAge: config.organization?.maxFileAge || null // null = never delete
+        maxFileAge: config.organization?.maxFileAge || null
       },
 
-      // Access Control
       access: {
         makePublic: config.access?.makePublic ?? true,
-        customDomain: config.access?.customDomain || null, // e.g., 'pdfs.yoursite.com'
-        urlExpiration: config.access?.urlExpiration || null // null = permanent URLs
+        customDomain: config.access?.customDomain || null,
+        urlExpiration: config.access?.urlExpiration || null
       }
     };
 
-    // Initialize Wasabi client
     this.s3Client = new S3Client({
       endpoint: this.config.wasabi.endpoint,
       region: this.config.wasabi.region,
@@ -52,11 +48,6 @@ export class PDFStorageManager {
     this.uploadLog = [];
   }
 
-  /**
-   * Fetch PDF from Wasabi cloud storage
-   * @param {string} cloudFilename - Filename in cloud storage
-   * @returns {Promise<Buffer>} - PDF buffer
-   */
   async fetchFromWasabi(cloudFilename) {
     try {
       const getParams = {
@@ -67,7 +58,6 @@ export class PDFStorageManager {
       const command = new GetObjectCommand(getParams);
       const result = await this.s3Client.send(command);
       
-      // Convert stream to buffer
       const chunks = [];
       for await (const chunk of result.Body) {
         chunks.push(chunk);
@@ -79,30 +69,14 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Complete workflow: Generate PDF, upload to Wasabi, return shareable URL
-   * @param {Object} generator - PDFGenerator instance
-   * @param {string} originalFilename - Original Canva PDF filename
-   * @param {Object} options - Storage options
-   * @returns {Promise<Object>} - Complete upload result with URLs
-   */
   async processAndStore(generator, originalFilename, options = {}) {
     try {
       console.log(`Processing PDF for cloud storage: ${originalFilename}`);
 
-      // Generate the enhanced PDF
       const tempResult = await generator.generateBuffer();
-      
-      // Create systematic filename
       const cloudFilename = this.generateCloudFilename(originalFilename, options);
-      
-      // Upload to Wasabi
       const uploadResult = await this.uploadToWasabi(tempResult, cloudFilename, options);
-      
-      // Generate access URLs
       const accessUrls = this.generateAccessUrls(cloudFilename);
-      
-      // Log the upload
       const logEntry = this.logUpload(originalFilename, cloudFilename, uploadResult, accessUrls);
       
       console.log(`PDF stored and accessible:`);
@@ -125,13 +99,6 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Upload PDF directly to Wasabi from local file
-   * @param {string} localPdfPath - Path to generated PDF
-   * @param {string} originalFilename - Original filename for naming
-   * @param {Object} options - Upload options
-   * @returns {Promise<Object>} - Upload result
-   */
   async uploadExistingPdf(localPdfPath, originalFilename, options = {}) {
     try {
       if (!await fs.pathExists(localPdfPath)) {
@@ -145,7 +112,6 @@ export class PDFStorageManager {
       const accessUrls = this.generateAccessUrls(cloudFilename);
       const logEntry = this.logUpload(originalFilename, cloudFilename, uploadResult, accessUrls);
 
-      // Optionally delete local file after upload
       if (options.deleteLocal) {
         await fs.remove(localPdfPath);
         console.log(`Local file deleted: ${localPdfPath}`);
@@ -165,21 +131,12 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Generate systematic cloud filename
-   * @param {string} originalFilename - Original PDF filename
-   * @param {Object} options - Naming options
-   * @returns {string} - Cloud storage filename
-   * @private
-   */
   generateCloudFilename(originalFilename, options = {}) {
     const timestamp = options.timestamp || Date.now();
     const date = new Date(timestamp);
     
-    // Extract base name without extension
     const baseName = path.basename(originalFilename, '.pdf');
     
-    // Generate folder structure if enabled
     let folderPath = '';
     if (this.config.organization.useFolders) {
       const year = date.getFullYear();
@@ -201,14 +158,12 @@ export class PDFStorageManager {
       }
     }
 
-    // Generate filename based on pattern
     let filename = this.config.organization.namePattern;
     filename = filename.replace('{original}', baseName);
     filename = filename.replace('{timestamp}', timestamp);
     filename = filename.replace('{date}', date.toISOString().split('T')[0]);
     filename = filename.replace('{random}', crypto.randomBytes(4).toString('hex'));
     
-    // Add unique ID if not already unique
     if (options.ensureUnique) {
       const uniqueId = crypto.randomBytes(3).toString('hex');
       filename = `${filename}-${uniqueId}`;
@@ -217,14 +172,6 @@ export class PDFStorageManager {
     return `${folderPath}${filename}.pdf`;
   }
 
-  /**
-   * Upload PDF buffer to Wasabi
-   * @param {Buffer} pdfBuffer - PDF file buffer
-   * @param {string} cloudFilename - Filename in cloud storage
-   * @param {Object} options - Upload options
-   * @returns {Promise<Object>} - Upload result
-   * @private
-   */
   async uploadToWasabi(pdfBuffer, cloudFilename, options = {}) {
     try {
       const uploadParams = {
@@ -235,12 +182,10 @@ export class PDFStorageManager {
         ContentDisposition: options.forceDownload ? 'attachment' : 'inline'
       };
 
-      // Set public access if configured
       if (this.config.access.makePublic) {
         uploadParams.ACL = 'public-read';
       }
 
-      // Add metadata
       uploadParams.Metadata = {
         'upload-timestamp': Date.now().toString(),
         'original-filename': options.originalFilename || 'unknown',
@@ -265,27 +210,17 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Generate all access URLs for a PDF
-   * @param {string} cloudFilename - Filename in cloud storage
-   * @returns {Object} - Access URLs
-   * @private
-   */
   generateAccessUrls(cloudFilename) {
     const bucketName = this.config.wasabi.bucketName;
     const endpoint = this.config.wasabi.endpoint;
     
-    // Direct Wasabi URL
     const directUrl = `${endpoint}/${bucketName}/${cloudFilename}`;
     
-    // Custom domain URL if configured
     const customUrl = this.config.access.customDomain ? 
       `https://${this.config.access.customDomain}/${cloudFilename}` : directUrl;
     
-    // Browser-optimized URL (forces inline viewing)
     const browserUrl = `${directUrl}?response-content-disposition=inline&response-content-type=application/pdf`;
     
-    // Social media friendly URL
     const shareUrl = customUrl;
     
     return {
@@ -296,15 +231,6 @@ export class PDFStorageManager {
     };
   }
 
-  /**
-   * Log upload for tracking and management
-   * @param {string} originalFilename - Original filename
-   * @param {string} cloudFilename - Cloud filename
-   * @param {Object} uploadResult - Upload result
-   * @param {Object} accessUrls - Access URLs
-   * @returns {Object} - Log entry
-   * @private
-   */
   logUpload(originalFilename, cloudFilename, uploadResult, accessUrls) {
     const logEntry = {
       id: crypto.randomUUID(),
@@ -317,17 +243,11 @@ export class PDFStorageManager {
     };
 
     this.uploadLog.push(logEntry);
-    
-    // Save log to file for persistence
     this.saveUploadLog();
     
     return logEntry;
   }
 
-  /**
-   * Save upload log to file
-   * @private
-   */
   async saveUploadLog() {
     try {
       await fs.ensureDir('./storage-logs');
@@ -337,9 +257,6 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Load existing upload log
-   */
   async loadUploadLog() {
     try {
       if (await fs.pathExists('./storage-logs/upload-log.json')) {
@@ -351,10 +268,6 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Get all uploaded PDFs with their URLs
-   * @returns {Array} - List of uploaded PDFs
-   */
   getUploadedPdfs() {
     return this.uploadLog.map(entry => ({
       id: entry.id,
@@ -367,11 +280,6 @@ export class PDFStorageManager {
     }));
   }
 
-  /**
-   * Delete PDF from cloud storage
-   * @param {string} cloudFilename - Filename to delete
-   * @returns {Promise<boolean>} - Success status
-   */
   async deletePdf(cloudFilename) {
     try {
       const deleteParams = {
@@ -381,7 +289,6 @@ export class PDFStorageManager {
 
       await this.s3Client.send(new DeleteObjectCommand(deleteParams));
       
-      // Remove from log
       this.uploadLog = this.uploadLog.filter(entry => entry.cloudFilename !== cloudFilename);
       await this.saveUploadLog();
       
@@ -394,10 +301,6 @@ export class PDFStorageManager {
     }
   }
 
-  /**
-   * Test Wasabi connection
-   * @returns {Promise<boolean>} - Connection status
-   */
   async testConnection() {
     try {
       const testParams = {
@@ -416,10 +319,6 @@ export class PDFStorageManager {
   }
 }
 
-/**
- * Configuration helper for Wasabi setup
- * @returns {Object} - Configuration template
- */
 export function createWasabiConfig() {
   return {
     wasabi: {
@@ -439,7 +338,7 @@ export function createWasabiConfig() {
     
     access: {
       makePublic: true,
-      customDomain: 'pdfs.yoursite.com' // Optional custom domain
+      customDomain: 'pdfs.yoursite.com'
     }
   };
 }
