@@ -6,7 +6,7 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 
 export class PDFStorageManager {
@@ -53,6 +53,33 @@ export class PDFStorageManager {
   }
 
   /**
+   * Fetch PDF from Wasabi cloud storage
+   * @param {string} cloudFilename - Filename in cloud storage
+   * @returns {Promise<Buffer>} - PDF buffer
+   */
+  async fetchFromWasabi(cloudFilename) {
+    try {
+      const getParams = {
+        Bucket: this.config.wasabi.bucketName,
+        Key: cloudFilename
+      };
+      
+      const command = new GetObjectCommand(getParams);
+      const result = await this.s3Client.send(command);
+      
+      // Convert stream to buffer
+      const chunks = [];
+      for await (const chunk of result.Body) {
+        chunks.push(chunk);
+      }
+      
+      return Buffer.concat(chunks);
+    } catch (error) {
+      throw new Error(`Failed to fetch from Wasabi: ${error.message}`);
+    }
+  }
+
+  /**
    * Complete workflow: Generate PDF, upload to Wasabi, return shareable URL
    * @param {Object} generator - PDFGenerator instance
    * @param {string} originalFilename - Original Canva PDF filename
@@ -61,7 +88,7 @@ export class PDFStorageManager {
    */
   async processAndStore(generator, originalFilename, options = {}) {
     try {
-      console.log(`🔄 Processing PDF for cloud storage: ${originalFilename}`);
+      console.log(`Processing PDF for cloud storage: ${originalFilename}`);
 
       // Generate the enhanced PDF
       const tempResult = await generator.generateBuffer();
@@ -78,7 +105,7 @@ export class PDFStorageManager {
       // Log the upload
       const logEntry = this.logUpload(originalFilename, cloudFilename, uploadResult, accessUrls);
       
-      console.log(`✅ PDF stored and accessible:`);
+      console.log(`PDF stored and accessible:`);
       console.log(`   Direct URL: ${accessUrls.directUrl}`);
       console.log(`   Browser URL: ${accessUrls.browserUrl}`);
       console.log(`   Share URL: ${accessUrls.shareUrl}`);
@@ -121,7 +148,7 @@ export class PDFStorageManager {
       // Optionally delete local file after upload
       if (options.deleteLocal) {
         await fs.remove(localPdfPath);
-        console.log(`🗑️  Local file deleted: ${localPdfPath}`);
+        console.log(`Local file deleted: ${localPdfPath}`);
       }
 
       return {
@@ -358,7 +385,7 @@ export class PDFStorageManager {
       this.uploadLog = this.uploadLog.filter(entry => entry.cloudFilename !== cloudFilename);
       await this.saveUploadLog();
       
-      console.log(`🗑️  Deleted from cloud: ${cloudFilename}`);
+      console.log(`Deleted from cloud: ${cloudFilename}`);
       return true;
 
     } catch (error) {
@@ -379,11 +406,11 @@ export class PDFStorageManager {
       };
 
       await this.s3Client.send(new ListObjectsCommand(testParams));
-      console.log('✅ Wasabi connection successful');
+      console.log('Wasabi connection successful');
       return true;
 
     } catch (error) {
-      console.error(`❌ Wasabi connection failed: ${error.message}`);
+      console.error(`Wasabi connection failed: ${error.message}`);
       return false;
     }
   }
