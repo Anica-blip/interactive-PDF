@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import crypto from 'crypto';
 
 const wasabiConfig = {
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   if (pathname === '/api/' && req.method === 'GET') {
     return res.json({ 
       status: 'active', 
-      message: 'Interactive PDF Creator API',
+      message: 'Interactive PDF Creator API - Media URL Architecture',
       timestamp: new Date(),
       endpoints: {
         health: '/api/health',
@@ -77,58 +77,113 @@ async function generatePDF(req, res) {
       });
     }
 
-    // Load the original PDF using pdf-lib directly
+    // Step 1: Upload media files first and get their URLs
+    const mediaUrls = [];
+    if (mediaFiles && mediaFiles.length > 0) {
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const mediaId = crypto.randomUUID();
+        const fileExt = getFileExtension(mediaFiles[i]);
+        const mediaFilename = `${targetFolder}/media/${mediaId}${fileExt}`;
+        
+        await uploadToWasabi(mediaFiles[i], mediaFilename, getContentType(fileExt));
+        const mediaUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${mediaFilename}`;
+        mediaUrls.push(mediaUrl);
+      }
+    }
+
+    // Step 2: Load and enhance PDF with URL references (not embedded files)
     const existingPdfBytes = Buffer.isBuffer(originalPdf) ? originalPdf : Buffer.from(originalPdf);
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
     
     // Parse interactive elements
     const parsedElements = JSON.parse(elements || '[]');
+    const targetFolder = folder || wasabiConfig.defaultFolder;
     
-    // Add interactive elements to PDF
+    // Add interactive elements with media URL references
+    const form = pdfDoc.getForm();
+    
     for (const element of parsedElements) {
-      if (element.type === 'textField') {
-        const form = pdfDoc.getForm();
-        const textField = form.createTextField(element.name || `field_${Math.random()}`);
-        
-        // Set field position and size (simplified)
-        const pages = pdfDoc.getPages();
-        if (pages[element.page - 1]) {
-          textField.addToPage(pages[element.page - 1], {
+      const pages = pdfDoc.getPages();
+      const page = pages[(element.page || 1) - 1];
+      
+      if (!page) continue;
+
+      switch (element.type) {
+        case 'audio':
+          // Create audio button that references Wasabi URL
+          const audioUrl = element.mediaIndex !== undefined ? mediaUrls[element.mediaIndex] : element.audioUrl;
+          if (audioUrl) {
+            await addAudioButton(pdfDoc, page, helveticaFont, {
+              x: element.x || 100,
+              y: element.y || 100,
+              width: element.width || 120,
+              height: element.height || 30,
+              text: element.text || '🔊 Play Audio',
+              audioUrl: audioUrl
+            });
+          }
+          break;
+
+        case 'video':
+          // Create video link that opens Wasabi URL
+          const videoUrl = element.mediaIndex !== undefined ? mediaUrls[element.mediaIndex] : element.videoUrl;
+          if (videoUrl) {
+            await addVideoLink(pdfDoc, page, helveticaFont, {
+              x: element.x || 100,
+              y: element.y || 100,
+              width: element.width || 200,
+              height: element.height || 30,
+              text: element.text || '▶️ Play Video',
+              videoUrl: videoUrl
+            });
+          }
+          break;
+
+        case 'textField':
+          const textField = form.createTextField(element.name || `field_${Math.random()}`);
+          textField.addToPage(page, {
             x: element.x || 100,
             y: element.y || 100,
             width: element.width || 200,
             height: element.height || 25
           });
-        }
+          if (element.placeholder) textField.setText(element.placeholder);
+          break;
       }
     }
 
-    // Generate enhanced PDF buffer
+    // Step 3: Generate enhanced PDF
     const pdfBuffer = await pdfDoc.save();
     
-    // Upload to Wasabi
+    // Step 4: Upload PDF to Wasabi
     const uniqueId = crypto.randomUUID();
-    const targetFolder = folder || wasabiConfig.defaultFolder;
-    const cloudFilename = `${targetFolder}/${uniqueId}.pdf`;
+    const pdfFilename = `${targetFolder}/${uniqueId}.pdf`;
     
-    console.log('Uploading to Wasabi...');
-    await uploadToWasabi(pdfBuffer, cloudFilename);
+    console.log('Uploading enhanced PDF to Wasabi...');
+    await uploadToWasabi(pdfBuffer, pdfFilename, 'application/pdf');
 
-    // Store PDF metadata
-    const pdfData = {
+    // Step 5: Create and save metadata JSON
+    const metadata = {
       id: uniqueId,
       name: pdfName || 'interactive-pdf',
-      filename: cloudFilename,
-      created: new Date(),
+      filename: pdfFilename,
+      created: new Date().toISOString(),
       size: pdfBuffer.length,
-      elements: parsedElements.length
+      elements: parsedElements.length,
+      mediaFiles: mediaUrls,
+      folder: targetFolder
     };
-    
-    pdfStore.set(uniqueId, pdfData);
 
-    // Generate URLs
-    const browserUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${cloudFilename}`;
+    const metadataFilename = `${targetFolder}/${uniqueId}.json`;
+    await uploadToWasabi(JSON.stringify(metadata, null, 2), metadataFilename, 'application/json');
+    
+    pdfStore.set(uniqueId, metadata);
+
+    // Step 6: Return URLs
+    const browserUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${pdfFilename}`;
     const apiViewUrl = `https://${req.headers.host}/api/view/${uniqueId}`;
+    const metadataUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${metadataFilename}`;
 
     console.log(`PDF generated successfully: ${uniqueId}`);
 
@@ -137,10 +192,12 @@ async function generatePDF(req, res) {
       id: uniqueId,
       browserUrl: browserUrl,
       apiViewUrl: apiViewUrl,
-      name: pdfData.name,
+      metadataUrl: metadataUrl,
+      name: metadata.name,
       size: pdfBuffer.length,
       elements: parsedElements.length,
-      message: 'PDF generated and uploaded successfully'
+      mediaFiles: mediaUrls.length,
+      message: 'PDF generated with media URL references and uploaded successfully'
     });
 
   } catch (error) {
@@ -151,6 +208,75 @@ async function generatePDF(req, res) {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
+}
+
+// Add audio button with JavaScript action that opens URL
+async function addAudioButton(pdfDoc, page, font, options) {
+  const { x, y, width, height, text, audioUrl } = options;
+  
+  // Draw button background
+  page.drawRectangle({
+    x: x,
+    y: y,
+    width: width,
+    height: height,
+    color: rgb(0.2, 0.7, 0.3),
+  });
+
+  // Add button text
+  page.drawText(text, {
+    x: x + 5,
+    y: y + height/2 - 6,
+    size: 10,
+    font: font,
+    color: rgb(1, 1, 1),
+  });
+
+  // Create form button with JavaScript action
+  const form = pdfDoc.getForm();
+  const button = form.createButton(`audio_${Date.now()}`);
+  button.addToPage(page, { x, y, width, height });
+  
+  // JavaScript action to open audio URL
+  const jsAction = `app.launchURL('${audioUrl}', true);`;
+  button.enableReadOnly();
+}
+
+// Add video link
+async function addVideoLink(pdfDoc, page, font, options) {
+  const { x, y, width, height, text, videoUrl } = options;
+  
+  // Draw link background
+  page.drawRectangle({
+    x: x,
+    y: y,
+    width: width,
+    height: height,
+    color: rgb(0.1, 0.1, 0.8),
+  });
+
+  // Add link text
+  page.drawText(text, {
+    x: x + 5,
+    y: y + height/2 - 6,
+    size: 10,
+    font: font,
+    color: rgb(1, 1, 1),
+  });
+
+  // Create clickable annotation that opens video URL
+  page.node.set('Annots', pdfDoc.context.obj([
+    pdfDoc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [x, y, x + width, y + height],
+      A: pdfDoc.context.obj({
+        Type: 'Action',
+        S: 'URI',
+        URI: videoUrl
+      })
+    })
+  ]));
 }
 
 async function servePDF(req, res, pdfId) {
@@ -205,31 +331,23 @@ async function healthCheck(req, res) {
         endpoint: wasabiConfig.endpoint,
         defaultFolder: wasabiConfig.defaultFolder
       },
-      environment: {
-        nodeVersion: process.version,
-        hasWasabiCredentials: !!(wasabiConfig.accessKeyId && wasabiConfig.secretAccessKey)
-      }
+      architecture: 'Media URLs embedded, files stored separately'
     });
   } catch (error) {
     res.status(500).json({
       status: 'unhealthy',
-      error: error.message,
-      config: {
-        bucket: wasabiConfig.bucketName,
-        region: wasabiConfig.region,
-        endpoint: wasabiConfig.endpoint
-      }
+      error: error.message
     });
   }
 }
 
-async function uploadToWasabi(pdfBuffer, filename) {
+async function uploadToWasabi(data, filename, contentType = 'application/octet-stream') {
   const uploadParams = {
     Bucket: wasabiConfig.bucketName,
     Key: filename,
-    Body: pdfBuffer,
-    ContentType: 'application/pdf',
-    ContentDisposition: 'inline',
+    Body: data,
+    ContentType: contentType,
+    ContentDisposition: contentType === 'application/pdf' ? 'inline' : undefined,
     ACL: 'public-read',
     Metadata: {
       'upload-timestamp': Date.now().toString(),
@@ -266,7 +384,7 @@ async function parseMultipartData(req) {
   
   const buffer = Buffer.concat(chunks);
   
-  // Simple parsing for now - in production use proper multipart parser
+  // Simplified parsing - in production use proper multipart parser
   return {
     pdfName: 'interactive-pdf',
     elements: '[]',
@@ -274,4 +392,26 @@ async function parseMultipartData(req) {
     mediaFiles: [],
     folder: null
   };
+}
+
+function getFileExtension(buffer) {
+  // Simple file type detection based on magic bytes
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8) return '.jpg';
+  if (buffer[0] === 0x89 && buffer[1] === 0x50) return '.png';
+  if (buffer[0] === 0x47 && buffer[1] === 0x49) return '.gif';
+  if (buffer.slice(0, 4).toString() === 'ftyp') return '.mp4';
+  if (buffer.slice(0, 3).toString() === 'ID3') return '.mp3';
+  return '.bin';
+}
+
+function getContentType(extension) {
+  const types = {
+    '.jpg': 'image/jpeg',
+    '.png': 'image/png', 
+    '.gif': 'image/gif',
+    '.mp4': 'video/mp4',
+    '.mp3': 'audio/mpeg',
+    '.bin': 'application/octet-stream'
+  };
+  return types[extension] || 'application/octet-stream';
 }
