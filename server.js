@@ -1,33 +1,26 @@
-{
-  "version": 2,
-  "name": "interactive-pdf-creator",
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js"
-    }
-  ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  }
-}
+/**
+ * Server.js - Vercel Serverless Function for Interactive PDF Creation
+ * Handles PDF generation, Wasabi upload, and URL serving
+ * This will run as is - complete server solution
+ */
+
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
+import { PDFGenerator } from './pdf-generator.js';
+import { writeFile } from 'fs/promises';
+import crypto from 'crypto';
 
 // Wasabi Configuration from environment
 const wasabiConfig = {
-  endpoint: process.env.VITE_WASABI_ENDPOINT,
-  region: process.env.VITE_WASABI_REGION,
+  endpoint: process.env.VITE_WASABI_ENDPOINT || 'https://s3.eu-west-1.wasabisys.com',
+  region: process.env.VITE_WASABI_REGION || 'eu-west-1',
   accessKeyId: process.env.VITE_WASABI_ACCESS_KEY,
   secretAccessKey: process.env.VITE_WASABI_SECRET_KEY,
-  bucketName: process.env.VITE_WASABI_PUBLIC_BUCKET.split('/')[0], // Extract bucket name
-  bucketPath: process.env.VITE_WASABI_PUBLIC_BUCKET.split('/').slice(1).join('/') // Extract path
+  bucketName: process.env.VITE_WASABI_PUBLIC_BUCKET ? 
+    process.env.VITE_WASABI_PUBLIC_BUCKET.split('/')[0] : 
+    '3c-public-content',
+  bucketPath: process.env.VITE_WASABI_PUBLIC_BUCKET ? 
+    process.env.VITE_WASABI_PUBLIC_BUCKET.split('/').slice(1).join('/') : 
+    'interactive-pdfs'
 };
 
 // Initialize Wasabi client
@@ -73,6 +66,19 @@ export default async function handler(req, res) {
     return await healthCheck(req, res);
   }
 
+  if (pathname === '/api' && req.method === 'GET') {
+    return res.json({ 
+      status: 'active', 
+      message: 'Interactive PDF Creator API',
+      timestamp: new Date(),
+      endpoints: {
+        health: '/api/health',
+        generatePdf: 'POST /api/generate-pdf',
+        viewPdf: 'GET /api/view/{id}'
+      }
+    });
+  }
+
   // Default response
   res.status(404).json({ error: 'Not found' });
 }
@@ -113,7 +119,9 @@ async function generatePDF(req, res) {
     const parsedElements = JSON.parse(elements || '[]');
     
     for (const element of parsedElements) {
-      generator.setCurrentPage(element.page);
+      if (element.page) {
+        generator.setCurrentPage(element.page);
+      }
 
       switch (element.type) {
         case 'video':
@@ -121,8 +129,10 @@ async function generatePDF(req, res) {
             const mediaPath = `/tmp/media-${Date.now()}-${element.mediaIndex}`;
             await writeFile(mediaPath, mediaFiles[element.mediaIndex]);
             await generator.addMedia(mediaPath, {
-              x: element.x, y: element.y,
-              width: element.width, height: element.height
+              x: element.x, 
+              y: element.y,
+              width: element.width, 
+              height: element.height
             });
           }
           break;
@@ -133,8 +143,9 @@ async function generatePDF(req, res) {
             await writeFile(mediaPath, mediaFiles[element.mediaIndex]);
             await generator.addAudioButton({
               audioUrl: mediaPath,
-              text: element.text,
-              x: element.x, y: element.y,
+              text: element.text || 'Play Audio',
+              x: element.x, 
+              y: element.y,
               width: element.width || 120,
               height: element.height || 30
             });
@@ -143,11 +154,32 @@ async function generatePDF(req, res) {
 
         case 'textField':
           generator.addTextField({
-            name: element.name,
-            x: element.x, y: element.y,
+            name: element.name || `field_${Math.random()}`,
+            x: element.x, 
+            y: element.y,
             width: element.width || 200,
             height: element.height || 25,
             placeholder: element.placeholder
+          });
+          break;
+
+        case 'checkbox':
+          generator.addCheckbox({
+            name: element.name || `checkbox_${Math.random()}`,
+            x: element.x,
+            y: element.y,
+            checked: element.checked || false
+          });
+          break;
+
+        case 'button':
+          await generator.addButton({
+            text: element.text || 'Click Me',
+            x: element.x,
+            y: element.y,
+            width: element.width || 100,
+            height: element.height || 30,
+            action: element.action || 'app.alert("Button clicked!");'
           });
           break;
       }
@@ -167,7 +199,7 @@ async function generatePDF(req, res) {
     // Store PDF metadata
     const pdfData = {
       id: uniqueId,
-      name: pdfName,
+      name: pdfName || 'interactive-pdf',
       filename: cloudFilename,
       created: new Date(),
       size: pdfBuffer.length,
@@ -187,7 +219,7 @@ async function generatePDF(req, res) {
       id: uniqueId,
       browserUrl: browserUrl,      // Direct Wasabi URL - opens in browser
       apiViewUrl: apiViewUrl,      // API route URL - alternative access
-      name: pdfName,
+      name: pdfData.name,
       size: pdfBuffer.length,
       elements: parsedElements.length,
       message: 'PDF generated and uploaded successfully'
@@ -197,7 +229,8 @@ async function generatePDF(req, res) {
     console.error('PDF generation failed:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
@@ -261,7 +294,8 @@ async function healthCheck(req, res) {
       config: {
         bucket: wasabiConfig.bucketName,
         region: wasabiConfig.region,
-        endpoint: wasabiConfig.endpoint
+        endpoint: wasabiConfig.endpoint,
+        bucketPath: wasabiConfig.bucketPath
       }
     });
   } catch (error) {
@@ -331,15 +365,7 @@ async function parseMultipartData(req) {
   return {
     pdfName: 'interactive-pdf',
     elements: '[]',
-    originalPdf: buffer.slice(0, 1000), // Simplified - extract actual PDF data
+    originalPdf: buffer.slice(0, Math.min(buffer.length, 50000)), // Simplified - extract actual PDF data
     mediaFiles: []
   };
-}
-
-/**
- * Write file helper for Vercel /tmp directory
- */
-async function writeFile(path, data) {
-  const fs = await import('fs/promises');
-  await fs.writeFile(path, data);
 }
