@@ -4,7 +4,6 @@
  */
 
 export const DEFAULT_CONFIG = {
-  // PDF Document Settings
   pdf: {
     title: 'Interactive PDF Document',
     author: 'Interactive PDF Creator',
@@ -16,21 +15,18 @@ export const DEFAULT_CONFIG = {
     keywords: ['interactive', 'pdf', 'multimedia']
   },
 
-  // Page Configuration
   page: {
-    size: 'A4', // A4, Letter, Legal, or custom [width, height]
+    size: 'A4',
     margins: {
       top: 50,
       bottom: 50,
       left: 50,
       right: 50
     },
-    orientation: 'portrait' // 'portrait' or 'landscape'
+    orientation: 'portrait'
   },
 
-  // Interactive Elements Defaults
   interactive: {
-    // Button styling
     buttons: {
       fontSize: 12,
       fontColor: '#FFFFFF',
@@ -41,7 +37,6 @@ export const DEFAULT_CONFIG = {
       padding: 8
     },
     
-    // Text field styling
     textFields: {
       fontSize: 12,
       fontColor: '#000000',
@@ -52,7 +47,6 @@ export const DEFAULT_CONFIG = {
       padding: 4
     },
 
-    // Checkbox styling
     checkboxes: {
       size: 16,
       checkColor: '#007BFF',
@@ -60,7 +54,6 @@ export const DEFAULT_CONFIG = {
       borderWidth: 1
     },
 
-    // Link styling
     links: {
       color: '#007BFF',
       underline: true,
@@ -68,56 +61,47 @@ export const DEFAULT_CONFIG = {
     }
   },
 
-  // Media Configuration
   media: {
-    // Supported file types
     supportedVideo: ['.mp4', '.webm', '.mov'],
     supportedAudio: ['.mp3', '.wav', '.m4a'],
     supportedImages: ['.jpg', '.jpeg', '.png', '.gif'],
     
-    // Default dimensions for media placeholders
     video: {
       width: 400,
       height: 300,
-      thumbnailText: '▶ Click to play video'
+      thumbnailText: 'Click to play video'
     },
     
     audio: {
       width: 300,
       height: 50,
-      thumbnailText: '🔊 Click to play audio'
+      thumbnailText: 'Click to play audio'
     },
 
-    // File size limits (in bytes)
-    maxFileSize: 50 * 1024 * 1024, // 50MB
-    
-    // Embedding options
-    embedAsAttachment: true, // Embed files as PDF attachments
-    createThumbnails: true   // Create visual thumbnails for media
+    maxFileSize: 50 * 1024 * 1024,
+    embedAsAttachment: true,
+    createThumbnails: true
   },
 
-  // Output Configuration
   output: {
     filename: 'interactive-document.pdf',
     directory: './output',
     overwrite: true,
-    compress: true, // Enable PDF compression
+    compress: true,
     preserveMetadata: true
   },
 
-  // Validation Rules
   validation: {
-    strictMode: true, // Throw errors on invalid configurations
-    warnOnUnsupported: true, // Log warnings for unsupported features
-    validateMediaFiles: true, // Check if media files exist and are valid
-    maxPages: 1000, // Maximum number of pages allowed
-    maxInteractiveElements: 500 // Maximum interactive elements per page
+    strictMode: true,
+    warnOnUnsupported: true,
+    validateMediaFiles: true,
+    maxPages: 1000,
+    maxInteractiveElements: 500
   },
 
-  // JavaScript Actions Configuration
   actions: {
-    enableJavaScript: true, // Allow JavaScript actions in PDF
-    maxActionLength: 10000, // Maximum characters in JavaScript action
+    enableJavaScript: true,
+    maxActionLength: 10000,
     allowedMethods: [
       'this.print',
       'this.resetForm',
@@ -128,9 +112,6 @@ export const DEFAULT_CONFIG = {
   }
 };
 
-/**
- * Page size constants in points (1 point = 1/72 inch)
- */
 export const PAGE_SIZES = {
   A4: [595.28, 841.89],
   A3: [841.89, 1190.55],
@@ -140,9 +121,6 @@ export const PAGE_SIZES = {
   Tabloid: [792, 1224]
 };
 
-/**
- * Font constants for PDF generation
- */
 export const FONTS = {
   HELVETICA: 'Helvetica',
   HELVETICA_BOLD: 'Helvetica-Bold',
@@ -158,9 +136,6 @@ export const FONTS = {
   COURIER_BOLD_OBLIQUE: 'Courier-BoldOblique'
 };
 
-/**
- * Color constants in RGB format
- */
 export const COLORS = {
   BLACK: '#000000',
   WHITE: '#FFFFFF',
@@ -177,15 +152,9 @@ export const COLORS = {
   INFO: '#17A2B8'
 };
 
-/**
- * Validates and merges user configuration with defaults
- * @param {Object} userConfig - User provided configuration
- * @returns {Object} - Merged and validated configuration
- */
 export function validateConfig(userConfig = {}) {
   const config = mergeDeep(DEFAULT_CONFIG, userConfig);
   
-  // Validate page size
   if (typeof config.page.size === 'string') {
     if (!PAGE_SIZES[config.page.size.toUpperCase()]) {
       throw new Error(`Unsupported page size: ${config.page.size}`);
@@ -197,18 +166,15 @@ export function validateConfig(userConfig = {}) {
     }
   }
 
-  // Validate margins
   const margins = config.page.margins;
   if (margins.top < 0 || margins.bottom < 0 || margins.left < 0 || margins.right < 0) {
     throw new Error('Page margins must be non-negative');
   }
 
-  // Validate file size limit
   if (config.media.maxFileSize <= 0) {
     throw new Error('Media file size limit must be positive');
   }
 
-  // Validate page limits
   if (config.validation.maxPages <= 0 || config.validation.maxInteractiveElements <= 0) {
     throw new Error('Page and element limits must be positive');
   }
@@ -216,12 +182,6 @@ export function validateConfig(userConfig = {}) {
   return config;
 }
 
-/**
- * Deep merge two objects
- * @param {Object} target - Target object
- * @param {Object} source - Source object
- * @returns {Object} - Merged object
- */
 function mergeDeep(target, source) {
   const result = { ...target };
   
@@ -236,12 +196,6 @@ function mergeDeep(target, source) {
   return result;
 }
 
-/**
- * Get page dimensions based on size and orientation
- * @param {string|Array} size - Page size identifier or custom dimensions
- * @param {string} orientation - 'portrait' or 'landscape'
- * @returns {Array} - [width, height] in points
- */
 export function getPageDimensions(size, orientation = 'portrait') {
   let dimensions;
   
@@ -256,10 +210,9 @@ export function getPageDimensions(size, orientation = 'portrait') {
     throw new Error('Page size must be string or array');
   }
   
-  // Swap dimensions for landscape
   if (orientation === 'landscape') {
     return [dimensions[1], dimensions[0]];
   }
   
   return dimensions;
-}
+  }
