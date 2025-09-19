@@ -21,15 +21,10 @@ export class PDFCreator {
     };
   }
 
-  /**
-   * Initialize new PDF document (not used when loading templates)
-   * @returns {Promise<void>}
-   */
   async initialize() {
     try {
       this.document = await PDFDocument.create();
       
-      // Set document metadata
       this.document.setTitle(this.config.pdf.title);
       this.document.setAuthor(this.config.pdf.author);
       this.document.setSubject(this.config.pdf.subject);
@@ -38,7 +33,6 @@ export class PDFCreator {
       this.document.setCreationDate(this.config.pdf.creationDate);
       this.document.setModificationDate(this.config.pdf.modificationDate);
       
-      // Preload standard fonts
       await this.preloadStandardFonts();
       
       console.log('PDF document initialized with metadata');
@@ -48,22 +42,14 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Add a new page to the document
-   * @param {Object} options - Page configuration
-   * @returns {Object} - Page object
-   */
   addPage(options = {}) {
     try {
-      // Get page dimensions from config
       const size = options.size || this.config.page.size;
       const orientation = options.orientation || this.config.page.orientation;
       const dimensions = getPageDimensions(size, orientation);
       
-      // Add page to document
       const page = this.document.addPage(dimensions);
       
-      // Set as current page
       this.currentPage = page;
       this.currentPageIndex = this.document.getPageCount() - 1;
       this.stats.pageCount++;
@@ -76,12 +62,6 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Add text to current page
-   * @param {string} text - Text content
-   * @param {Object} options - Text formatting options
-   * @returns {Promise<Object>} - Text placement result
-   */
   async addText(text, options = {}) {
     if (!this.currentPage) {
       throw new Error('No current page. Add a page first.');
@@ -98,13 +78,9 @@ export class PDFCreator {
         lineHeight = 1.2
       } = options;
 
-      // Load font if needed
       const pdfFont = await this.loadFont(font);
-      
-      // Convert color
       const textColor = this.parseColor(color);
       
-      // Handle text wrapping if maxWidth specified
       let textToRender = text;
       let actualWidth = pdfFont.widthOfTextAtSize(text, size);
       let lines = 1;
@@ -134,7 +110,6 @@ export class PDFCreator {
           wrappedLines.push(currentLine);
         }
         
-        // Render each line
         for (let i = 0; i < wrappedLines.length; i++) {
           const lineY = y - (i * size * lineHeight);
           this.currentPage.drawText(wrappedLines[i], {
@@ -152,7 +127,6 @@ export class PDFCreator {
         ));
         
       } else {
-        // Single line text
         this.currentPage.drawText(text, {
           x,
           y,
@@ -175,27 +149,18 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Add image to current page
-   * @param {string} imagePath - Path to image file
-   * @param {Object} options - Image placement options
-   * @returns {Promise<Object>} - Image placement result
-   */
   async addImage(imagePath, options = {}) {
     if (!this.currentPage) {
       throw new Error('No current page. Add a page first.');
     }
 
     try {
-      // Check if image exists
       if (!await fs.pathExists(imagePath)) {
         throw new Error(`Image not found: ${imagePath}`);
       }
 
-      // Read image bytes
       const imageBytes = await fs.readFile(imagePath);
       
-      // Determine image type and embed
       let image;
       const ext = imagePath.toLowerCase().split('.').pop();
       
@@ -207,25 +172,19 @@ export class PDFCreator {
         throw new Error(`Unsupported image format: ${ext}`);
       }
 
-      // Get dimensions
       const imageDims = image.size();
       
-      // Calculate placement dimensions
       let { x = 100, y = 600, width, height } = options;
       
       if (!width && !height) {
-        // Use original dimensions
         width = imageDims.width;
         height = imageDims.height;
       } else if (width && !height) {
-        // Maintain aspect ratio based on width
         height = (width / imageDims.width) * imageDims.height;
       } else if (height && !width) {
-        // Maintain aspect ratio based on height
         width = (height / imageDims.height) * imageDims.width;
       }
 
-      // Draw image
       this.currentPage.drawImage(image, {
         x,
         y,
@@ -247,11 +206,6 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Add rectangle shape to current page
-   * @param {Object} options - Rectangle options
-   * @returns {Object} - Rectangle placement result
-   */
   drawRectangle(options = {}) {
     if (!this.currentPage) {
       throw new Error('No current page. Add a page first.');
@@ -277,13 +231,11 @@ export class PDFCreator {
         opacity
       };
 
-      // Add border if specified
       if (borderWidth > 0) {
         drawOptions.borderColor = this.parseColor(borderColor);
         drawOptions.borderWidth = borderWidth;
       }
 
-      // Add fill if specified
       if (fillColor) {
         drawOptions.color = this.parseColor(fillColor);
       }
@@ -297,11 +249,6 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Add line to current page
-   * @param {Object} options - Line options
-   * @returns {Object} - Line placement result
-   */
   drawLine(options = {}) {
     if (!this.currentPage) {
       throw new Error('No current page. Add a page first.');
@@ -331,13 +278,7 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Load and cache fonts
-   * @param {string} fontName - Font name from FONTS constants
-   * @returns {Promise<Object>} - PDF font object
-   */
   async loadFont(fontName) {
-    // Return cached font if already loaded
     if (this.loadedFonts[fontName]) {
       return this.loadedFonts[fontName];
     }
@@ -345,7 +286,6 @@ export class PDFCreator {
     try {
       let font;
       
-      // Map font names to StandardFonts
       switch (fontName) {
         case FONTS.HELVETICA:
           font = await this.document.embedFont(StandardFonts.Helvetica);
@@ -384,12 +324,10 @@ export class PDFCreator {
           font = await this.document.embedFont(StandardFonts.CourierBoldOblique);
           break;
         default:
-          // Default to Helvetica
           font = await this.document.embedFont(StandardFonts.Helvetica);
           console.warn(`Unknown font '${fontName}', using Helvetica`);
       }
       
-      // Cache the font
       this.loadedFonts[fontName] = font;
       this.stats.fontsLoaded++;
       
@@ -400,10 +338,6 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Preload standard fonts for performance
-   * @returns {Promise<void>}
-   */
   async preloadStandardFonts() {
     const fontsToLoad = [
       FONTS.HELVETICA,
@@ -417,17 +351,11 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Parse color string to PDF-lib RGB color
-   * @param {string} colorString - Color in hex format (#RRGGBB)
-   * @returns {Object} - RGB color object
-   */
   parseColor(colorString) {
     if (typeof colorString !== 'string') {
-      return rgb(0, 0, 0); // Default black
+      return rgb(0, 0, 0);
     }
 
-    // Remove # if present
     const hex = colorString.replace('#', '');
     
     if (hex.length !== 6) {
@@ -448,10 +376,6 @@ export class PDFCreator {
     }
   }
 
-  /**
-   * Get current page information
-   * @returns {Object} - Current page details
-   */
   getCurrentPageInfo() {
     if (!this.currentPage) {
       return { 
@@ -472,10 +396,6 @@ export class PDFCreator {
     };
   }
 
-  /**
-   * Set current page for content addition
-   * @param {number} pageNumber - Page number (1-based)
-   */
   setCurrentPage(pageNumber) {
     const totalPages = this.document.getPageCount();
     
@@ -488,10 +408,6 @@ export class PDFCreator {
     this.currentPageIndex = pageIndex;
   }
 
-  /**
-   * Get document statistics
-   * @returns {Object} - Document statistics
-   */
   getDocumentStats() {
     return {
       pageCount: this.document ? this.document.getPageCount() : 0,
@@ -501,18 +417,10 @@ export class PDFCreator {
     };
   }
 
-  /**
-   * Get page margins for positioning calculations
-   * @returns {Object} - Page margins
-   */
   getPageMargins() {
     return this.config.page.margins;
   }
 
-  /**
-   * Calculate safe positioning area (within margins)
-   * @returns {Object} - Safe area dimensions
-   */
   getSafeArea() {
     if (!this.currentPage) {
       return null;
