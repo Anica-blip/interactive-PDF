@@ -1,3 +1,4 @@
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
 import { PDFGenerator } from './pdf-generator.js';
 import { PDFStorageManager } from './pdf-storage-manager.js';
 import { randomUUID } from 'crypto';
@@ -24,7 +25,6 @@ const s3Client = new S3Client({
 const pdfStore = new Map();
 
 export default async function handler(req, res) {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -33,49 +33,41 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  try {
-    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
-    
-    if (pathname === '/api/generate-pdf' && req.method === 'POST') {
-      return await generatePDF(req, res);
-    }
-    
-    if (pathname.startsWith('/api/view/') && req.method === 'GET') {
-      const pdfId = pathname.split('/').pop();
-      return await servePDF(req, res, pdfId);
-    }
-    
-    if (pathname === '/api/health' && req.method === 'GET') {
-      return await healthCheck(req, res);
-    }
-
-    if (pathname === '/api/' && req.method === 'GET') {
-      return res.json({ 
-        status: 'active', 
-        message: 'Interactive PDF Creator API - Media URL Architecture',
-        timestamp: new Date().toISOString(),
-        endpoints: {
-          health: '/api/health',
-          generatePdf: 'POST /api/generate-pdf',
-          viewPdf: 'GET /api/view/{id}'
-        }
-      });
-    }
-
-    return res.status(404).json({ error: 'Not found' });
-
-  } catch (error) {
-    console.error('Handler error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+  
+  if (pathname === '/api/generate-pdf' && req.method === 'POST') {
+    return await generatePDF(req, res);
   }
+  
+  if (pathname.startsWith('/api/view/') && req.method === 'GET') {
+    const pdfId = pathname.split('/').pop();
+    return await servePDF(req, res, pdfId);
+  }
+  
+  if (pathname === '/api/health' && req.method === 'GET') {
+    return await healthCheck(req, res);
+  }
+
+  if (pathname === '/api' && req.method === 'GET') {
+    return res.json({ 
+      status: 'active', 
+      message: 'Interactive PDF Creator API',
+      timestamp: new Date(),
+      endpoints: {
+        health: '/api/health',
+        generatePdf: 'POST /api/generate-pdf',
+        viewPdf: 'GET /api/view/{id}'
+      }
+    });
+  }
+
+  res.status(404).json({ error: 'Not found' });
 }
 
 async function generatePDF(req, res) {
   try {
-    console.log('Processing PDF generation request...');
-
     const body = await parseMultipartData(req);
-    const { pdfName, elements, originalPdf, mediaFiles, folder } = body;
+    const { pdfName, elements, originalPdf, mediaFiles } = body;
 
     if (!originalPdf) {
       return res.status(400).json({ 
@@ -84,174 +76,87 @@ async function generatePDF(req, res) {
       });
     }
 
-    const targetFolder = folder || wasabiConfig.defaultFolder;
-
-    const mediaUrls = [];
-    if (mediaFiles && mediaFiles.length > 0) {
-      for (let i = 0; i < mediaFiles.length; i++) {
-        const mediaId = randomUUID();
-        const fileExt = getFileExtension(mediaFiles[i]);
-        const mediaFilename = `${targetFolder}/media/${mediaId}${fileExt}`;
-        
-        await uploadToWasabi(mediaFiles[i], mediaFilename, getContentType(fileExt));
-        const mediaUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${mediaFilename}`;
-        mediaUrls.push(mediaUrl);
+    // Initialize storage manager
+    const storage = new PDFStorageManager({
+      wasabi: {
+        endpoint: wasabiConfig.endpoint,
+        region: wasabiConfig.region,
+        accessKeyId: wasabiConfig.accessKeyId,
+        secretAccessKey: wasabiConfig.secretAccessKey,
+        bucketName: wasabiConfig.bucketName
       }
-    }
+    });
 
-    const existingPdfBytes = Buffer.isBuffer(originalPdf) ? originalPdf : Buffer.from(originalPdf);
-    const pdfDoc = await PDFDocument.load(existingPdfBytes);
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    
+    // Initialize PDF generator
+    const generator = new PDFGenerator({
+      output: { directory: '/tmp', filename: 'temp.pdf' }
+    });
+
+    // Create temporary file for original PDF
+    const tempPdfPath = `/tmp/original-${Date.now()}.pdf`;
+    require('fs').writeFileSync(tempPdfPath, originalPdf);
+
+    await generator.initialize({ templatePdf: tempPdfPath });
+
     const parsedElements = JSON.parse(elements || '[]');
     
-    const form = pdfDoc.getForm();
-    
     for (const element of parsedElements) {
-      const pages = pdfDoc.getPages();
-      const page = pages[(element.page || 1) - 1];
-      
-      if (!page) continue;
+      if (element.page) {
+        generator.setCurrentPage(element.page);
+      }
 
       switch (element.type) {
-        case 'audio':
-          const audioUrl = element.mediaIndex !== undefined ? mediaUrls[element.mediaIndex] : element.audioUrl;
-          if (audioUrl) {
-            await addAudioButton(pdfDoc, page, helveticaFont, {
-              x: element.x || 100,
-              y: element.y || 100,
-              width: element.width || 120,
-              height: element.height || 30,
-              text: element.text || '🔊 Play Audio',
-              audioUrl: audioUrl
-            });
-          }
-          break;
-
-        case 'video':
-          const videoUrl = element.mediaIndex !== undefined ? mediaUrls[element.mediaIndex] : element.videoUrl;
-          if (videoUrl) {
-            await addVideoLink(pdfDoc, page, helveticaFont, {
-              x: element.x || 100,
-              y: element.y || 100,
-              width: element.width || 200,
-              height: element.height || 30,
-              text: element.text || '▶️ Play Video',
-              videoUrl: videoUrl
-            });
-          }
-          break;
-
         case 'textField':
-          const textField = form.createTextField(element.name || `field_${Math.random()}`);
-          textField.addToPage(page, {
-            x: element.x || 100,
-            y: element.y || 100,
+          generator.addTextField({
+            name: element.name || `field_${Math.random()}`,
+            x: element.x, 
+            y: element.y,
             width: element.width || 200,
-            height: element.height || 25
+            height: element.height || 25,
+            placeholder: element.placeholder
           });
-          if (element.placeholder) textField.setText(element.placeholder);
           break;
       }
     }
 
-    const pdfBuffer = await pdfDoc.save();
-    
-    const uniqueId = randomUUID();
-    const pdfFilename = `${targetFolder}/${uniqueId}.pdf`;
-    
-    console.log('Uploading enhanced PDF to Wasabi...');
-    await uploadToWasabi(pdfBuffer, pdfFilename, 'application/pdf');
+    const pdfBuffer = await generator.generateBuffer();
 
-    const metadata = {
+    const uniqueId = randomUUID();
+    const cloudFilename = `${wasabiConfig.defaultFolder}/${uniqueId}.pdf`;
+    
+    await uploadToWasabi(pdfBuffer, cloudFilename);
+
+    const pdfData = {
       id: uniqueId,
       name: pdfName || 'interactive-pdf',
-      filename: pdfFilename,
-      created: new Date().toISOString(),
+      filename: cloudFilename,
+      created: new Date(),
       size: pdfBuffer.length,
-      elements: parsedElements.length,
-      mediaFiles: mediaUrls,
-      folder: targetFolder
+      elements: parsedElements.length
     };
-
-    const metadataFilename = `${targetFolder}/${uniqueId}.json`;
-    await uploadToWasabi(JSON.stringify(metadata, null, 2), metadataFilename, 'application/json');
     
-    pdfStore.set(uniqueId, metadata);
+    pdfStore.set(uniqueId, pdfData);
 
-    const browserUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${pdfFilename}`;
+    const browserUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${cloudFilename}`;
     const apiViewUrl = `https://${req.headers.host}/api/view/${uniqueId}`;
-    const metadataUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${metadataFilename}`;
 
-    console.log(`PDF generated successfully: ${uniqueId}`);
-
-    return res.json({
+    res.json({
       success: true,
       id: uniqueId,
       browserUrl: browserUrl,
       apiViewUrl: apiViewUrl,
-      metadataUrl: metadataUrl,
-      name: metadata.name,
+      name: pdfData.name,
       size: pdfBuffer.length,
       elements: parsedElements.length,
-      mediaFiles: mediaUrls.length,
-      message: 'PDF generated with media URL references and uploaded successfully'
+      message: 'PDF generated and uploaded successfully'
     });
 
   } catch (error) {
-    console.error('PDF generation failed:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message
     });
   }
-}
-
-async function addAudioButton(pdfDoc, page, font, options) {
-  const { x, y, width, height, text, audioUrl } = options;
-  
-  page.drawRectangle({
-    x: x,
-    y: y,
-    width: width,
-    height: height,
-    color: rgb(0.2, 0.7, 0.3),
-  });
-
-  page.drawText(text, {
-    x: x + 5,
-    y: y + height/2 - 6,
-    size: 10,
-    font: font,
-    color: rgb(1, 1, 1),
-  });
-
-  const form = pdfDoc.getForm();
-  const button = form.createButton(`audio_${Date.now()}`);
-  button.addToPage(page, { x, y, width, height });
-  
-  button.enableReadOnly();
-}
-
-async function addVideoLink(pdfDoc, page, font, options) {
-  const { x, y, width, height, text, videoUrl } = options;
-  
-  page.drawRectangle({
-    x: x,
-    y: y,
-    width: width,
-    height: height,
-    color: rgb(0.1, 0.1, 0.8),
-  });
-
-  page.drawText(text, {
-    x: x + 5,
-    y: y + height/2 - 6,
-    size: 10,
-    font: font,
-    color: rgb(1, 1, 1),
-  });
 }
 
 async function servePDF(req, res, pdfId) {
@@ -265,7 +170,6 @@ async function servePDF(req, res, pdfId) {
       });
     }
 
-    console.log(`Serving PDF: ${pdfId}`);
     const pdfBuffer = await fetchFromWasabi(pdfData.filename);
     
     res.setHeader('Content-Type', 'application/pdf');
@@ -273,11 +177,10 @@ async function servePDF(req, res, pdfId) {
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'public, max-age=31536000');
 
-    return res.send(Buffer.from(pdfBuffer));
+    res.send(pdfBuffer);
 
   } catch (error) {
-    console.error('Error serving PDF:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Error loading PDF'
     });
@@ -293,9 +196,9 @@ async function healthCheck(req, res) {
 
     await s3Client.send(new ListObjectsCommand(testParams));
 
-    return res.json({
+    res.json({
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       services: {
         wasabi: 'connected',
         pdfs: pdfStore.size
@@ -303,26 +206,24 @@ async function healthCheck(req, res) {
       config: {
         bucket: wasabiConfig.bucketName,
         region: wasabiConfig.region,
-        endpoint: wasabiConfig.endpoint,
-        defaultFolder: wasabiConfig.defaultFolder
-      },
-      architecture: 'Media URLs embedded, files stored separately'
+        endpoint: wasabiConfig.endpoint
+      }
     });
   } catch (error) {
-    return res.status(500).json({
+    res.status(500).json({
       status: 'unhealthy',
       error: error.message
     });
   }
 }
 
-async function uploadToWasabi(data, filename, contentType = 'application/octet-stream') {
+async function uploadToWasabi(pdfBuffer, filename) {
   const uploadParams = {
     Bucket: wasabiConfig.bucketName,
     Key: filename,
-    Body: data,
-    ContentType: contentType,
-    ContentDisposition: contentType === 'application/pdf' ? 'inline' : undefined,
+    Body: pdfBuffer,
+    ContentType: 'application/pdf',
+    ContentDisposition: 'inline',
     ACL: 'public-read',
     Metadata: {
       'upload-timestamp': Date.now().toString(),
@@ -363,28 +264,6 @@ async function parseMultipartData(req) {
     pdfName: 'interactive-pdf',
     elements: '[]',
     originalPdf: buffer,
-    mediaFiles: [],
-    folder: null
+    mediaFiles: []
   };
-}
-
-function getFileExtension(buffer) {
-  if (buffer[0] === 0xFF && buffer[1] === 0xD8) return '.jpg';
-  if (buffer[0] === 0x89 && buffer[1] === 0x50) return '.png';
-  if (buffer[0] === 0x47 && buffer[1] === 0x49) return '.gif';
-  if (buffer.slice(0, 4).toString() === 'ftyp') return '.mp4';
-  if (buffer.slice(0, 3).toString() === 'ID3') return '.mp3';
-  return '.bin';
-}
-
-function getContentType(extension) {
-  const types = {
-    '.jpg': 'image/jpeg',
-    '.png': 'image/png', 
-    '.gif': 'image/gif',
-    '.mp4': 'video/mp4',
-    '.mp3': 'audio/mpeg',
-    '.bin': 'application/octet-stream'
-  };
-  return types[extension] || 'application/octet-stream';
 }
