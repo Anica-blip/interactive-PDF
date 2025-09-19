@@ -1,26 +1,16 @@
-/**
- * Server.js - Vercel Serverless Function for Interactive PDF Creation
- * Handles PDF generation, Wasabi upload, and URL serving
- * This will run as is - complete server solution
- */
-
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
 import { PDFGenerator } from './pdf-generator.js';
 import { writeFile } from 'fs/promises';
 import crypto from 'crypto';
 
-// Wasabi Configuration from environment
+// Wasabi Configuration using your actual environment variable names
 const wasabiConfig = {
-  endpoint: process.env.VITE_WASABI_ENDPOINT || 'https://s3.eu-west-1.wasabisys.com',
-  region: process.env.VITE_WASABI_REGION || 'eu-west-1',
-  accessKeyId: process.env.VITE_WASABI_ACCESS_KEY,
-  secretAccessKey: process.env.VITE_WASABI_SECRET_KEY,
-  bucketName: process.env.VITE_WASABI_PUBLIC_BUCKET ? 
-    process.env.VITE_WASABI_PUBLIC_BUCKET.split('/')[0] : 
-    '3c-public-content',
-  bucketPath: process.env.VITE_WASABI_PUBLIC_BUCKET ? 
-    process.env.VITE_WASABI_PUBLIC_BUCKET.split('/').slice(1).join('/') : 
-    'interactive-pdfs'
+  endpoint: 'https://s3.eu-west-1.wasabisys.com',
+  region: 'eu-west-1',
+  accessKeyId: process.env.WASABI_ACCESS_KEY,
+  secretAccessKey: process.env.WASABI_SECRET_KEY,
+  bucketName: process.env.WASABI_PUBLIC_BUCKET || '3c-public-content',
+  defaultFolder: process.env.WASABI_DEFAULT_FOLDER || 'interactive-pdfs'
 };
 
 // Initialize Wasabi client
@@ -34,14 +24,10 @@ const s3Client = new S3Client({
   forcePathStyle: true
 });
 
-// In-memory storage for PDF metadata (use database in production)
+// In-memory storage for PDF metadata
 const pdfStore = new Map();
 
-/**
- * Main API handler for Vercel
- */
 export default async function handler(req, res) {
-  // Enable CORS for your dashboard
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -50,7 +36,6 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Route handling
   const { pathname } = new URL(req.url, `http://${req.headers.host}`);
   
   if (pathname === '/api/generate-pdf' && req.method === 'POST') {
@@ -79,18 +64,11 @@ export default async function handler(req, res) {
     });
   }
 
-  // Default response
   res.status(404).json({ error: 'Not found' });
 }
 
-/**
- * Generate interactive PDF and upload to Wasabi
- */
 async function generatePDF(req, res) {
   try {
-    console.log('Processing PDF generation request...');
-
-    // Parse multipart form data (simplified for Vercel)
     const body = await parseMultipartData(req);
     const { pdfName, elements, originalPdf, mediaFiles } = body;
 
@@ -101,21 +79,15 @@ async function generatePDF(req, res) {
       });
     }
 
-    // Initialize PDF generator
     const generator = new PDFGenerator({
       output: { directory: '/tmp', filename: 'temp.pdf' }
     });
 
-    // Create temporary PDF file for processing
     const tempPdfPath = `/tmp/original-${Date.now()}.pdf`;
     await writeFile(tempPdfPath, originalPdf);
 
-    // Load Canva template
-    await generator.initialize({
-      templatePdf: tempPdfPath
-    });
+    await generator.initialize({ templatePdf: tempPdfPath });
 
-    // Add interactive elements
     const parsedElements = JSON.parse(elements || '[]');
     
     for (const element of parsedElements) {
@@ -124,34 +96,6 @@ async function generatePDF(req, res) {
       }
 
       switch (element.type) {
-        case 'video':
-          if (element.mediaIndex !== undefined && mediaFiles[element.mediaIndex]) {
-            const mediaPath = `/tmp/media-${Date.now()}-${element.mediaIndex}`;
-            await writeFile(mediaPath, mediaFiles[element.mediaIndex]);
-            await generator.addMedia(mediaPath, {
-              x: element.x, 
-              y: element.y,
-              width: element.width, 
-              height: element.height
-            });
-          }
-          break;
-
-        case 'audio':
-          if (element.mediaIndex !== undefined && mediaFiles[element.mediaIndex]) {
-            const mediaPath = `/tmp/media-${Date.now()}-${element.mediaIndex}`;
-            await writeFile(mediaPath, mediaFiles[element.mediaIndex]);
-            await generator.addAudioButton({
-              audioUrl: mediaPath,
-              text: element.text || 'Play Audio',
-              x: element.x, 
-              y: element.y,
-              width: element.width || 120,
-              height: element.height || 30
-            });
-          }
-          break;
-
         case 'textField':
           generator.addTextField({
             name: element.name || `field_${Math.random()}`,
@@ -162,41 +106,16 @@ async function generatePDF(req, res) {
             placeholder: element.placeholder
           });
           break;
-
-        case 'checkbox':
-          generator.addCheckbox({
-            name: element.name || `checkbox_${Math.random()}`,
-            x: element.x,
-            y: element.y,
-            checked: element.checked || false
-          });
-          break;
-
-        case 'button':
-          await generator.addButton({
-            text: element.text || 'Click Me',
-            x: element.x,
-            y: element.y,
-            width: element.width || 100,
-            height: element.height || 30,
-            action: element.action || 'app.alert("Button clicked!");'
-          });
-          break;
       }
     }
 
-    // Generate enhanced PDF
-    console.log('Generating interactive PDF...');
     const pdfBuffer = await generator.generateBuffer();
 
-    // Upload to Wasabi with public access
     const uniqueId = crypto.randomUUID();
-    const cloudFilename = `${wasabiConfig.bucketPath}/interactive-pdfs/${uniqueId}.pdf`;
+    const cloudFilename = `${wasabiConfig.defaultFolder}/${uniqueId}.pdf`;
     
-    console.log('Uploading to Wasabi...');
     await uploadToWasabi(pdfBuffer, cloudFilename);
 
-    // Store PDF metadata
     const pdfData = {
       id: uniqueId,
       name: pdfName || 'interactive-pdf',
@@ -208,17 +127,14 @@ async function generatePDF(req, res) {
     
     pdfStore.set(uniqueId, pdfData);
 
-    // Generate browser-viewable URL
     const browserUrl = `${wasabiConfig.endpoint}/${wasabiConfig.bucketName}/${cloudFilename}`;
     const apiViewUrl = `https://${req.headers.host}/api/view/${uniqueId}`;
-
-    console.log(`PDF generated successfully: ${uniqueId}`);
 
     res.json({
       success: true,
       id: uniqueId,
-      browserUrl: browserUrl,      // Direct Wasabi URL - opens in browser
-      apiViewUrl: apiViewUrl,      // API route URL - alternative access
+      browserUrl: browserUrl,
+      apiViewUrl: apiViewUrl,
       name: pdfData.name,
       size: pdfBuffer.length,
       elements: parsedElements.length,
@@ -226,18 +142,13 @@ async function generatePDF(req, res) {
     });
 
   } catch (error) {
-    console.error('PDF generation failed:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message
     });
   }
 }
 
-/**
- * Serve PDF from Wasabi (alternative to direct URL)
- */
 async function servePDF(req, res, pdfId) {
   try {
     const pdfData = pdfStore.get(pdfId);
@@ -249,21 +160,16 @@ async function servePDF(req, res, pdfId) {
       });
     }
 
-    console.log(`Serving PDF: ${pdfId}`);
-
-    // Fetch PDF from Wasabi
     const pdfBuffer = await fetchFromWasabi(pdfData.filename);
     
-    // Serve with proper headers for browser viewing
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline'); // Open in browser
+    res.setHeader('Content-Disposition', 'inline');
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'public, max-age=31536000');
 
     res.send(pdfBuffer);
 
   } catch (error) {
-    console.error('Error serving PDF:', error);
     res.status(500).json({
       success: false,
       message: 'Error loading PDF'
@@ -271,12 +177,8 @@ async function servePDF(req, res, pdfId) {
   }
 }
 
-/**
- * Health check endpoint
- */
 async function healthCheck(req, res) {
   try {
-    // Test Wasabi connection
     const testParams = {
       Bucket: wasabiConfig.bucketName,
       MaxKeys: 1
@@ -294,8 +196,7 @@ async function healthCheck(req, res) {
       config: {
         bucket: wasabiConfig.bucketName,
         region: wasabiConfig.region,
-        endpoint: wasabiConfig.endpoint,
-        bucketPath: wasabiConfig.bucketPath
+        endpoint: wasabiConfig.endpoint
       }
     });
   } catch (error) {
@@ -306,17 +207,14 @@ async function healthCheck(req, res) {
   }
 }
 
-/**
- * Upload PDF to Wasabi with public read access
- */
 async function uploadToWasabi(pdfBuffer, filename) {
   const uploadParams = {
     Bucket: wasabiConfig.bucketName,
     Key: filename,
     Body: pdfBuffer,
     ContentType: 'application/pdf',
-    ContentDisposition: 'inline', // Force browser viewing
-    ACL: 'public-read', // Make publicly accessible
+    ContentDisposition: 'inline',
+    ACL: 'public-read',
     Metadata: {
       'upload-timestamp': Date.now().toString(),
       'generated-by': 'interactive-pdf-creator'
@@ -327,9 +225,6 @@ async function uploadToWasabi(pdfBuffer, filename) {
   await s3Client.send(command);
 }
 
-/**
- * Fetch PDF from Wasabi
- */
 async function fetchFromWasabi(filename) {
   const getParams = {
     Bucket: wasabiConfig.bucketName,
@@ -339,7 +234,6 @@ async function fetchFromWasabi(filename) {
   const command = new GetObjectCommand(getParams);
   const result = await s3Client.send(command);
   
-  // Convert stream to buffer
   const chunks = [];
   for await (const chunk of result.Body) {
     chunks.push(chunk);
@@ -348,24 +242,18 @@ async function fetchFromWasabi(filename) {
   return Buffer.concat(chunks);
 }
 
-/**
- * Parse multipart form data (simplified for Vercel)
- */
 async function parseMultipartData(req) {
-  // This is a simplified parser - in production use a proper multipart library
   const chunks = [];
   for await (const chunk of req) {
     chunks.push(chunk);
   }
   
   const buffer = Buffer.concat(chunks);
-  // Parse the multipart data (simplified)
-  // In production, use formidable or similar library
   
   return {
     pdfName: 'interactive-pdf',
     elements: '[]',
-    originalPdf: buffer.slice(0, Math.min(buffer.length, 50000)), // Simplified - extract actual PDF data
+    originalPdf: buffer,
     mediaFiles: []
   };
 }
