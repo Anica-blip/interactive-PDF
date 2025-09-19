@@ -18,11 +18,6 @@ export class InteractiveElements {
     };
   }
 
-  /**
-   * Parse color string to PDF-lib RGB color
-   * @param {string} colorString - Color in hex format (#RRGGBB)
-   * @returns {Object} - RGB color object
-   */
   parseColor(colorString) {
     if (typeof colorString !== 'string') {
       return rgb(0, 0, 0);
@@ -45,9 +40,6 @@ export class InteractiveElements {
     }
   }
 
-  /**
-   * Add interactive text field
-   */
   addTextField(options = {}) {
     if (!this.pdfCreator.currentPage) {
       throw new Error('No current page. Add a page first.');
