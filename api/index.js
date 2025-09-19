@@ -1,6 +1,6 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import crypto from 'crypto';
+import { randomUUID } from 'crypto';
 
 const wasabiConfig = {
   endpoint: 'https://s3.eu-west-1.wasabisys.com',
@@ -24,6 +24,7 @@ const s3Client = new S3Client({
 const pdfStore = new Map();
 
 export default async function handler(req, res) {
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -32,35 +33,41 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
-  
-  if (pathname === '/api/generate-pdf' && req.method === 'POST') {
-    return await generatePDF(req, res);
-  }
-  
-  if (pathname.startsWith('/api/view/') && req.method === 'GET') {
-    const pdfId = pathname.split('/').pop();
-    return await servePDF(req, res, pdfId);
-  }
-  
-  if (pathname === '/api/health' && req.method === 'GET') {
-    return await healthCheck(req, res);
-  }
+  try {
+    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+    
+    if (pathname === '/api/generate-pdf' && req.method === 'POST') {
+      return await generatePDF(req, res);
+    }
+    
+    if (pathname.startsWith('/api/view/') && req.method === 'GET') {
+      const pdfId = pathname.split('/').pop();
+      return await servePDF(req, res, pdfId);
+    }
+    
+    if (pathname === '/api/health' && req.method === 'GET') {
+      return await healthCheck(req, res);
+    }
 
-  if (pathname === '/api/' && req.method === 'GET') {
-    return res.json({ 
-      status: 'active', 
-      message: 'Interactive PDF Creator API - Media URL Architecture',
-      timestamp: new Date(),
-      endpoints: {
-        health: '/api/health',
-        generatePdf: 'POST /api/generate-pdf',
-        viewPdf: 'GET /api/view/{id}'
-      }
-    });
-  }
+    if (pathname === '/api/' && req.method === 'GET') {
+      return res.json({ 
+        status: 'active', 
+        message: 'Interactive PDF Creator API - Media URL Architecture',
+        timestamp: new Date().toISOString(),
+        endpoints: {
+          health: '/api/health',
+          generatePdf: 'POST /api/generate-pdf',
+          viewPdf: 'GET /api/view/{id}'
+        }
+      });
+    }
 
-  res.status(404).json({ error: 'Not found' });
+    return res.status(404).json({ error: 'Not found' });
+
+  } catch (error) {
+    console.error('Handler error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }
 
 async function generatePDF(req, res) {
@@ -82,7 +89,7 @@ async function generatePDF(req, res) {
     const mediaUrls = [];
     if (mediaFiles && mediaFiles.length > 0) {
       for (let i = 0; i < mediaFiles.length; i++) {
-        const mediaId = crypto.randomUUID();
+        const mediaId = randomUUID();
         const fileExt = getFileExtension(mediaFiles[i]);
         const mediaFilename = `${targetFolder}/media/${mediaId}${fileExt}`;
         
@@ -150,7 +157,7 @@ async function generatePDF(req, res) {
 
     const pdfBuffer = await pdfDoc.save();
     
-    const uniqueId = crypto.randomUUID();
+    const uniqueId = randomUUID();
     const pdfFilename = `${targetFolder}/${uniqueId}.pdf`;
     
     console.log('Uploading enhanced PDF to Wasabi...');
@@ -178,7 +185,7 @@ async function generatePDF(req, res) {
 
     console.log(`PDF generated successfully: ${uniqueId}`);
 
-    res.json({
+    return res.json({
       success: true,
       id: uniqueId,
       browserUrl: browserUrl,
@@ -193,7 +200,7 @@ async function generatePDF(req, res) {
 
   } catch (error) {
     console.error('PDF generation failed:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -224,7 +231,6 @@ async function addAudioButton(pdfDoc, page, font, options) {
   const button = form.createButton(`audio_${Date.now()}`);
   button.addToPage(page, { x, y, width, height });
   
-  const jsAction = `app.launchURL('${audioUrl}', true);`;
   button.enableReadOnly();
 }
 
@@ -246,19 +252,6 @@ async function addVideoLink(pdfDoc, page, font, options) {
     font: font,
     color: rgb(1, 1, 1),
   });
-
-  page.node.set('Annots', pdfDoc.context.obj([
-    pdfDoc.context.obj({
-      Type: 'Annot',
-      Subtype: 'Link',
-      Rect: [x, y, x + width, y + height],
-      A: pdfDoc.context.obj({
-        Type: 'Action',
-        S: 'URI',
-        URI: videoUrl
-      })
-    })
-  ]));
 }
 
 async function servePDF(req, res, pdfId) {
@@ -280,11 +273,11 @@ async function servePDF(req, res, pdfId) {
     res.setHeader('Content-Length', pdfBuffer.length);
     res.setHeader('Cache-Control', 'public, max-age=31536000');
 
-    res.send(Buffer.from(pdfBuffer));
+    return res.send(Buffer.from(pdfBuffer));
 
   } catch (error) {
     console.error('Error serving PDF:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Error loading PDF'
     });
@@ -300,9 +293,9 @@ async function healthCheck(req, res) {
 
     await s3Client.send(new ListObjectsCommand(testParams));
 
-    res.json({
+    return res.json({
       status: 'healthy',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       services: {
         wasabi: 'connected',
         pdfs: pdfStore.size
@@ -316,7 +309,7 @@ async function healthCheck(req, res) {
       architecture: 'Media URLs embedded, files stored separately'
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       status: 'unhealthy',
       error: error.message
     });
