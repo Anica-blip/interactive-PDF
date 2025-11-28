@@ -37,6 +37,23 @@ export default {
         return await handleMediaUpload(request, env, corsHeaders);
       }
 
+      // Upload video to Cloudflare Stream
+      if (path === '/api/upload-stream' && request.method === 'POST') {
+        return await handleStreamUpload(request, env, corsHeaders);
+      }
+
+      // Get Stream video details
+      if (path.startsWith('/api/stream/') && request.method === 'GET') {
+        const videoId = path.replace('/api/stream/', '');
+        return await handleGetStreamVideo(videoId, env, corsHeaders);
+      }
+
+      // Delete Stream video
+      if (path.startsWith('/api/stream/') && request.method === 'DELETE') {
+        const videoId = path.replace('/api/stream/', '');
+        return await handleDeleteStreamVideo(videoId, env, corsHeaders);
+      }
+
       // Delete file from R2
       if (path === '/api/delete' && request.method === 'DELETE') {
         return await handleDelete(request, env, corsHeaders);
@@ -86,6 +103,7 @@ function handleHealthCheck(env, corsHeaders) {
       r2: env.R2_BUCKET ? 'configured' : 'not configured',
       supabase: env.SUPABASE_URL ? 'configured' : 'not configured',
       supabaseAuth: env.SUPABASE_SERVICE_KEY ? 'service-key' : 'anon-key',
+      cloudflareStream: env.CLOUDFLARE_STREAM_TOKEN ? 'configured' : 'not configured',
     },
     config: {
       bucket: env.R2_BUCKET ? 'connected' : 'not connected',
@@ -457,6 +475,169 @@ async function handleLoadProject(request, env, corsHeaders) {
     );
   } catch (error) {
     console.error('Load project error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Handle Cloudflare Stream video upload
+ */
+async function handleStreamUpload(request, env, corsHeaders) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const metadata = {
+      name: formData.get('name') || file.name,
+      projectId: formData.get('projectId'),
+      pageNumber: formData.get('pageNumber'),
+    };
+
+    if (!file) {
+      return new Response(JSON.stringify({ error: 'No file provided' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Upload to Cloudflare Stream
+    const streamFormData = new FormData();
+    streamFormData.append('file', file);
+    if (metadata.name) streamFormData.append('meta[name]', metadata.name);
+    if (metadata.projectId) streamFormData.append('meta[projectId]', metadata.projectId);
+    if (metadata.pageNumber) streamFormData.append('meta[pageNumber]', metadata.pageNumber);
+
+    const streamResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.CLOUDFLARE_STREAM_TOKEN}`,
+        },
+        body: streamFormData,
+      }
+    );
+
+    if (!streamResponse.ok) {
+      const error = await streamResponse.json();
+      throw new Error(`Stream upload failed: ${error.errors?.[0]?.message || 'Unknown error'}`);
+    }
+
+    const streamData = await streamResponse.json();
+    const video = streamData.result;
+
+    // Generate URLs
+    const embedUrl = `<stream src="${video.uid}" controls></stream>`;
+    const iframeUrl = `https://customer-${env.CLOUDFLARE_STREAM_SUBDOMAIN}.cloudflarestream.com/${video.uid}/iframe`;
+    const thumbnailUrl = `https://customer-${env.CLOUDFLARE_STREAM_SUBDOMAIN}.cloudflarestream.com/${video.uid}/thumbnails/thumbnail.jpg`;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        videoId: video.uid,
+        embedCode: embedUrl,
+        iframeUrl: iframeUrl,
+        thumbnailUrl: thumbnailUrl,
+        playbackUrl: video.playback?.hls || null,
+        duration: video.duration,
+        status: video.status?.state || 'processing',
+        metadata: metadata,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('Stream upload error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Get Cloudflare Stream video details
+ */
+async function handleGetStreamVideo(videoId, env, corsHeaders) {
+  try {
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream/${videoId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${env.CLOUDFLARE_STREAM_TOKEN}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to get video details');
+    }
+
+    const data = await response.json();
+    const video = data.result;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        video: {
+          id: video.uid,
+          status: video.status?.state,
+          duration: video.duration,
+          thumbnailUrl: `https://customer-${env.CLOUDFLARE_STREAM_SUBDOMAIN}.cloudflarestream.com/${video.uid}/thumbnails/thumbnail.jpg`,
+          playbackUrl: video.playback?.hls,
+          created: video.created,
+          metadata: video.meta,
+        },
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('Get stream video error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Delete Cloudflare Stream video
+ */
+async function handleDeleteStreamVideo(videoId, env, corsHeaders) {
+  try {
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/stream/${videoId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${env.CLOUDFLARE_STREAM_TOKEN}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to delete video');
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Video deleted successfully',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('Delete stream video error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

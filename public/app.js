@@ -289,26 +289,51 @@ function uploadAsset(type) {
             const file = e.target.files[0];
             if (!file) return;
             
-            showStatus(`📤 Uploading ${file.name}...`, 'info');
+            showStatus(`📤 Uploading ${file.name} to Cloudflare...`, 'info');
             
-            // For now, convert to data URL (later we'll upload to Wasabi)
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const asset = {
-                    id: Date.now(),
-                    type: type,
-                    url: event.target.result,
-                    name: file.name,
-                    thumbnail: event.target.result,
-                    embedded: embeddedMode // Use current mode setting
-                };
-                
-                assets.push(asset);
-                renderAssetLibrary();
-                const modeText = embeddedMode ? ' (embedded)' : ' (link)';
-                showStatus(`✅ ${file.name} added to library${modeText}`, 'success');
-            };
-            reader.readAsDataURL(file);
+            // Upload video to Cloudflare Stream
+            if (type === 'video') {
+                try {
+                    const streamData = await uploadToStream(file);
+                    const asset = {
+                        id: Date.now(),
+                        type: 'cloudflare-stream',
+                        streamId: streamData.videoId,
+                        url: streamData.iframeUrl,
+                        thumbnailUrl: streamData.thumbnailUrl,
+                        name: file.name,
+                        thumbnail: streamData.thumbnailUrl,
+                        embedded: true // Stream videos are always embedded
+                    };
+                    
+                    assets.push(asset);
+                    renderAssetLibrary();
+                    showStatus(`✅ ${file.name} uploaded to Cloudflare Stream!`, 'success');
+                } catch (error) {
+                    console.error('Stream upload failed:', error);
+                    showStatus(`❌ Upload failed: ${error.message}`, 'error');
+                }
+            } else {
+                // For non-video files, upload to R2
+                try {
+                    const r2Data = await uploadToR2(file, type);
+                    const asset = {
+                        id: Date.now(),
+                        type: type,
+                        url: r2Data.url,
+                        name: file.name,
+                        thumbnail: type === 'gif' ? r2Data.url : getAssetThumbnail(type),
+                        embedded: embeddedMode
+                    };
+                    
+                    assets.push(asset);
+                    renderAssetLibrary();
+                    showStatus(`✅ ${file.name} uploaded to R2!`, 'success');
+                } catch (error) {
+                    console.error('R2 upload failed:', error);
+                    showStatus(`❌ Upload failed: ${error.message}`, 'error');
+                }
+            }
         };
         input.click();
     }
@@ -745,6 +770,49 @@ function showStatus(message, type) {
             statusArea.classList.add('hidden');
         }, 5000);
     }
+}
+
+/**
+ * Upload video to Cloudflare Stream
+ */
+async function uploadToStream(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', file.name);
+    
+    const response = await fetch(`${API_BASE}/api/upload-stream`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Upload media to R2
+ */
+async function uploadToR2(file, type) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'interactive-pdfs');
+    
+    const response = await fetch(`${API_BASE}/api/upload-media`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+    }
+    
+    const data = await response.json();
+    return { url: data.url };
 }
 
 function showResults(result) {

@@ -14,6 +14,7 @@ bucket_name = "3c-library-files"
 # Environment Variables
 [vars]
 R2_PUBLIC_URL = "https://files.3c-public-library.org"
+CLOUDFLARE_STREAM_SUBDOMAIN = "your-stream-subdomain"
 
 # Production Environment
 [env.production]
