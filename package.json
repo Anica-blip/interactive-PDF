@@ -7,12 +7,7 @@
   "scripts": {
     "start": "node dev-server.js",
     "dev": "node dev-server.js",
-    "test": "node test/test-runner.js",
-    "build": "npm run validate && npm run examples",
-    "validate": "node test/validate-pdf.js",
-    "examples": "node examples/create-interactive-pdf.js",
-    "vercel:dev": "vercel dev",
-    "vercel:deploy": "vercel --prod"
+    "build": "echo 'No build step required for Cloudflare Worker'"
   },
   "keywords": [
     "pdf",
