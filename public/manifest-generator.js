@@ -16,6 +16,7 @@ function generateManifest(projectData) {
         title: projectData.title || 'Interactive PDF',
         author: projectData.author || 'PDF Creator',
         created: new Date().toISOString(),
+        flipbookMode: projectData.flipbookMode || false,
         pages: []
     };
 

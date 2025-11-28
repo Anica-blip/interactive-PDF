@@ -6,6 +6,7 @@ let draggedElement = null;
 let dragOffset = { x: 0, y: 0 };
 let resizing = false;
 let embeddedMode = false; // Toggle between embedded and link mode
+let flipbookMode = false; // Toggle for magazine-style flipbook
 
 // API Configuration
 const API_BASE = window.location.hostname === 'localhost' 
@@ -59,6 +60,22 @@ function toggleEmbeddedMode() {
         '🔗 Link mode: Works in all viewers', 
         'info'
     );
+}
+
+// Toggle flipbook mode
+function toggleFlipbookMode() {
+    flipbookMode = document.getElementById('flipbookMode').checked;
+    const description = document.getElementById('flipbookDescription');
+    
+    if (flipbookMode) {
+        description.textContent = '📖 Magazine-style page turning enabled!';
+        description.classList.add('text-purple-700', 'font-semibold');
+        showStatus('📖 Flipbook mode ON: Realistic page turning like a magazine!', 'success');
+    } else {
+        description.textContent = '📖 Realistic page turning like a magazine';
+        description.classList.remove('text-purple-700', 'font-semibold');
+        showStatus('📄 Standard PDF mode', 'info');
+    }
 }
 
 // ============================================
