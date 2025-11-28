@@ -245,8 +245,16 @@ function handleHotspotClick(hotspot) {
         playVideo(hotspot);
     } else if (hotspot.type === 'audio') {
         playAudio(hotspot);
-    } else if (hotspot.type === 'link') {
-        window.open(hotspot.url, '_blank');
+    } else if (hotspot.type === 'gif') {
+        showGif(hotspot);
+    } else if (hotspot.type === 'link' || hotspot.type === 'button' || hotspot.type === 'hotspot') {
+        if (hotspot.action === 'internal') {
+            // Link to another document in your library
+            window.location.href = hotspot.url;
+        } else {
+            // External link
+            window.open(hotspot.url, '_blank');
+        }
     }
 }
 
@@ -309,6 +317,23 @@ function playAudio(hotspot) {
     audio.style.width = '100%';
     
     videoPlayerWrapper.appendChild(audio);
+    videoOverlay.classList.add('active');
+}
+
+/**
+ * Show animated GIF in overlay
+ */
+function showGif(hotspot) {
+    videoTitle.textContent = hotspot.title || 'Animated Image';
+    videoPlayerWrapper.innerHTML = '';
+    
+    const img = document.createElement('img');
+    img.src = hotspot.mediaUrl || hotspot.url;
+    img.style.width = '100%';
+    img.style.height = 'auto';
+    img.style.borderRadius = '12px';
+    
+    videoPlayerWrapper.appendChild(img);
     videoOverlay.classList.add('active');
 }
 
