@@ -15,9 +15,9 @@ R2_PUBLIC_URL = "https://files.3c-public-library.org"
 # Production Environment
 [env.production]
 name = "interactive-pdf"
-vars = { ENVIRONMENT = "production" }
+vars = { ENVIRONMENT = "production", R2_PUBLIC_URL = "https://files.3c-public-library.org" }
 
 # Preview Environment (for branch deployments)
 [env.preview]
 name = "interactive-pdf-preview"
-vars = { ENVIRONMENT = "preview" }
+vars = { ENVIRONMENT = "preview", R2_PUBLIC_URL = "https://files.3c-public-library.org" }
