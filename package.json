@@ -1,0 +1,49 @@
+{
+  "name": "interactive-pdf",
+  "version": "1.0.0",
+  "description": "A JavaScript library for creating interactive PDF documents with embedded multimedia elements, form controls, and clickable actions",
+  "main": "pdf-generator.js",
+  "type": "module",
+  "scripts": {
+    "start": "node dev-server.js",
+    "dev": "node dev-server.js",
+    "test": "node test/test-runner.js",
+    "build": "npm run validate && npm run examples",
+    "validate": "node test/validate-pdf.js",
+    "examples": "node examples/create-interactive-pdf.js",
+    "vercel:dev": "vercel dev",
+    "vercel:deploy": "vercel --prod"
+  },
+  "keywords": [
+    "pdf",
+    "interactive",
+    "multimedia",
+    "javascript",
+    "pdf-creation",
+    "forms",
+    "annotations",
+    "pdf-lib"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "fs-extra": "^11.1.1",
+    "@aws-sdk/client-s3": "^3.400.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/interactive-pdf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/interactive-pdf/issues"
+  },
+  "homepage": "https://github.com/yourusername/interactive-pdf#readme"
+}
