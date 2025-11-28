@@ -85,6 +85,7 @@ function handleHealthCheck(env, corsHeaders) {
       worker: 'operational',
       r2: env.R2_BUCKET ? 'configured' : 'not configured',
       supabase: env.SUPABASE_URL ? 'configured' : 'not configured',
+      supabaseAuth: env.SUPABASE_SERVICE_KEY ? 'service-key' : 'anon-key',
     },
     config: {
       bucket: env.R2_BUCKET ? 'connected' : 'not connected',
@@ -364,13 +365,16 @@ async function handleSaveProject(request, env, corsHeaders) {
   try {
     const projectData = await request.json();
 
+    // Use service key to bypass RLS if available, otherwise use anon key
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
     // Call Supabase API to save project
     const response = await fetch(`${env.SUPABASE_URL}/rest/v1/pdf_projects`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': env.SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+        'apikey': authKey,
+        'Authorization': `Bearer ${authKey}`,
         'Prefer': 'return=representation',
       },
       body: JSON.stringify(projectData),
@@ -411,6 +415,9 @@ async function handleLoadProject(request, env, corsHeaders) {
     const url = new URL(request.url);
     const projectId = url.pathname.replace('/api/load-project/', '');
 
+    // Use service key to bypass RLS if available, otherwise use anon key
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
     // Call Supabase API to load project
     const response = await fetch(
       `${env.SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${projectId}`,
@@ -418,8 +425,8 @@ async function handleLoadProject(request, env, corsHeaders) {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': env.SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+          'apikey': authKey,
+          'Authorization': `Bearer ${authKey}`,
         },
       }
     );

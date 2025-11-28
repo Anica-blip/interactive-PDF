@@ -28,6 +28,9 @@ export const ENV_CONFIG = {
       : '',
     anonKey: typeof process !== 'undefined' && process.env?.SUPABASE_ANON_KEY 
       ? process.env.SUPABASE_ANON_KEY 
+      : '',
+    serviceKey: typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY 
+      ? process.env.SUPABASE_SERVICE_KEY 
       : ''
   },
   app: {
