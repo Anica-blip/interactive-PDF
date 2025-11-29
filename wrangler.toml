@@ -1,23 +1,23 @@
-# Cloudflare Pages Configuration for Interactive PDF Builder
-# This file tells Cloudflare how to deploy your Pages project from GitHub
+# Cloudflare Worker Configuration for Interactive PDF Builder API
+# This handles the API endpoints for PDF generation and R2 uploads
+# Deploy this separately from the Pages project
 
-name = "interactive-pdf"
+name = "interactive-pdf-api"
+main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# Pages Configuration
-pages_build_output_dir = "public"
+# R2 Bucket Binding
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "3c-library-files"
 
-# Environment Variables (set these in Cloudflare Dashboard)
-# These are just placeholders - actual values are set in Cloudflare Pages settings
+# Environment Variables
 [vars]
 R2_PUBLIC_URL = "https://files.3c-public-library.org"
+CLOUDFLARE_STREAM_SUBDOMAIN = "your-stream-subdomain"
+ENVIRONMENT = "production"
 
-# Production Environment
-[env.production]
-name = "interactive-pdf"
-vars = { ENVIRONMENT = "production", R2_PUBLIC_URL = "https://files.3c-public-library.org" }
-
-# Preview Environment (for branch deployments)
-[env.preview]
-name = "interactive-pdf-preview"
-vars = { ENVIRONMENT = "preview", R2_PUBLIC_URL = "https://files.3c-public-library.org" }
+# Routes - Connect to your custom domain
+[[routes]]
+pattern = "builder.3c-public-library.org/api/*"
+zone_name = "3c-public-library.org"
