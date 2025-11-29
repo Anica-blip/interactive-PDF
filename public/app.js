@@ -314,120 +314,145 @@ async function handleBackgroundUpload(event) {
 // ASSET LIBRARY
 // ============================================
 
-function uploadAsset(type) {
-    let url, text, file;
+// Add media from URL
+function addMediaFromURL() {
+    const urlInput = document.getElementById('mediaUrl');
+    const url = urlInput.value.trim();
     
-    // Special handling for buttons and hotspots
-    if (type === 'button' || type === 'hotspot') {
-        url = prompt(`Enter URL for ${type}:`);
-        if (!url) return;
-        
-        if (type === 'button') {
-            text = prompt('Enter button text:') || 'Click Here';
-        } else {
-            text = prompt('Enter hotspot name (for reference):') || 'Hotspot';
-        }
-        
-        const asset = {
-            id: Date.now(),
-            type: type,
-            url: url,
-            name: text,
-            thumbnail: getAssetThumbnail(type, url),
-            embedded: false // Buttons and hotspots are always links
-        };
-        
-        assets.push(asset);
-        renderAssetLibrary();
-        showStatus(`✅ ${type} added`, 'success');
+    if (!url) {
+        showStatus('⚠️ Please enter a URL', 'warning');
         return;
     }
     
-    const choice = prompt(`Add ${type}:\n1. Paste URL\n2. Upload file\n\nEnter 1 or 2:`);
+    // Detect media type from URL
+    let type = 'link';
+    if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+        type = 'image';
+    } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+        type = 'video';
+    } else if (url.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+        type = 'audio';
+    }
     
-    if (choice === '1') {
-        // URL input
-        url = prompt(`Enter ${type} URL:`);
-        if (!url) return;
-        text = prompt('Enter display name:') || type.toUpperCase();
+    const fileName = url.split('/').pop().split('?')[0] || 'Media';
+    
+    const asset = {
+        id: Date.now(),
+        type: type,
+        url: url,
+        name: fileName,
+        thumbnail: type === 'image' ? url : getAssetThumbnail(type, url),
+        embedded: embeddedMode
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    urlInput.value = ''; // Clear input
+    
+    const modeText = embeddedMode ? ' (embedded)' : ' (link)';
+    showStatus(`✅ ${type} added from URL${modeText}`, 'success');
+}
+
+// Upload media file
+function uploadMediaFile(type) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = getAcceptType(type);
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         
-        const asset = {
-            id: Date.now(),
-            type: type,
-            url: url,
-            name: text,
-            thumbnail: getAssetThumbnail(type, url),
-            embedded: embeddedMode // Use current mode setting
-        };
+        showStatus(`📤 Uploading ${file.name} to Cloudflare...`, 'info');
         
-        assets.push(asset);
-        renderAssetLibrary();
-        const modeText = embeddedMode ? ' (embedded)' : ' (link)';
-        showStatus(`✅ ${type} asset added${modeText}`, 'success');
-        
-    } else if (choice === '2') {
-        // File upload
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = getAcceptType(type);
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            showStatus(`📤 Uploading ${file.name} to Cloudflare...`, 'info');
-            
+        try {
             // Upload video to Cloudflare Stream
             if (type === 'video') {
-                try {
-                    const streamData = await uploadToStream(file);
-                    const asset = {
-                        id: Date.now(),
-                        type: 'cloudflare-stream',
-                        streamId: streamData.videoId,
-                        url: streamData.iframeUrl,
-                        thumbnailUrl: streamData.thumbnailUrl,
-                        name: file.name,
-                        thumbnail: streamData.thumbnailUrl,
-                        embedded: true // Stream videos are always embedded
-                    };
-                    
-                    assets.push(asset);
-                    renderAssetLibrary();
-                    showStatus(`✅ ${file.name} uploaded to Cloudflare Stream!`, 'success');
-                } catch (error) {
-                    console.error('Stream upload failed:', error);
-                    showStatus(`❌ Upload failed: ${error.message}`, 'error');
-                }
+                const streamData = await uploadToStream(file);
+                const asset = {
+                    id: Date.now(),
+                    type: 'video',
+                    streamId: streamData.videoId,
+                    url: streamData.iframeUrl,
+                    thumbnailUrl: streamData.thumbnailUrl,
+                    name: file.name,
+                    thumbnail: streamData.thumbnailUrl,
+                    embedded: true // Stream videos are always embedded
+                };
+                
+                assets.push(asset);
+                renderAssetLibrary();
+                showStatus(`✅ ${file.name} uploaded to Cloudflare Stream!`, 'success');
             } else {
-                // For non-video files, upload to R2
-                try {
-                    const r2Data = await uploadToR2(file, type);
-                    const asset = {
-                        id: Date.now(),
-                        type: type,
-                        url: r2Data.url,
-                        name: file.name,
-                        thumbnail: type === 'gif' ? r2Data.url : getAssetThumbnail(type),
-                        embedded: embeddedMode
-                    };
-                    
-                    assets.push(asset);
-                    renderAssetLibrary();
-                    showStatus(`✅ ${file.name} uploaded to R2!`, 'success');
-                } catch (error) {
-                    console.error('R2 upload failed:', error);
-                    showStatus(`❌ Upload failed: ${error.message}`, 'error');
-                }
+                // For images and audio, upload to R2
+                const r2Data = await uploadToR2(file, type);
+                const asset = {
+                    id: Date.now(),
+                    type: type,
+                    url: r2Data.url,
+                    name: file.name,
+                    thumbnail: type === 'image' ? r2Data.url : getAssetThumbnail(type),
+                    embedded: embeddedMode
+                };
+                
+                assets.push(asset);
+                renderAssetLibrary();
+                showStatus(`✅ ${file.name} uploaded to R2!`, 'success');
             }
-        };
-        input.click();
-    }
+        } catch (error) {
+            console.error('Upload failed:', error);
+            showStatus(`❌ Upload failed: ${error.message}`, 'error');
+        }
+    };
+    input.click();
+}
+
+// Add button (interactive element)
+function addButton() {
+    const url = prompt('Enter URL for button:');
+    if (!url) return;
+    
+    const text = prompt('Enter button text:') || 'Click Here';
+    
+    const asset = {
+        id: Date.now(),
+        type: 'button',
+        url: url,
+        name: text,
+        thumbnail: getAssetThumbnail('button', url),
+        embedded: false // Buttons are always links
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ Button added`, 'success');
+}
+
+// Add hotspot (interactive element)
+function addHotspot() {
+    const url = prompt('Enter URL for hotspot:');
+    if (!url) return;
+    
+    const text = prompt('Enter hotspot name (for reference):') || 'Hotspot';
+    
+    const asset = {
+        id: Date.now(),
+        type: 'hotspot',
+        url: url,
+        name: text,
+        thumbnail: getAssetThumbnail('hotspot', url),
+        embedded: false // Hotspots are always links
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ Hotspot added`, 'success');
 }
 
 function getAcceptType(type) {
     const accepts = {
         video: 'video/*',
         audio: 'audio/*',
+        image: 'image/*',
         gif: 'image/gif,image/*',
         link: '*'
     };
@@ -464,12 +489,15 @@ function renderAssetLibrary() {
         assetDiv.ondragstart = (e) => startAssetDrag(e, asset);
         assetDiv.onclick = () => addAssetToPage(asset);
         
-        if (asset.url.startsWith('data:image')) {
+        // Show image thumbnail for images (both uploaded and URLs)
+        if (asset.type === 'image' || asset.thumbnail.startsWith('http') || asset.url.startsWith('data:image')) {
+            const imgSrc = asset.thumbnail.startsWith('http') ? asset.thumbnail : asset.url;
             assetDiv.innerHTML = `
-                <img src="${asset.url}" class="w-full h-16 object-cover rounded mb-1">
+                <img src="${imgSrc}" class="w-full h-16 object-cover rounded mb-1">
                 <p class="text-xs font-medium text-gray-700 truncate">${asset.name}</p>
             `;
         } else {
+            // Show icon for other media types
             const icon = getAssetThumbnail(asset.type, asset.url);
             assetDiv.innerHTML = `
                 <div class="flex items-center justify-center h-16">
@@ -586,7 +614,8 @@ function createElementDiv(element) {
             </div>
             <div class="resize-handle"></div>
         `;
-    } else if (element.url && element.url.startsWith('data:image')) {
+    } else if (element.type === 'image' || (element.url && (element.url.startsWith('data:image') || element.url.startsWith('http')))) {
+        // Show actual image for image elements
         div.innerHTML = `
             <div class="element-controls">
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
