@@ -186,6 +186,9 @@ function renderPageThumbnails() {
     container.innerHTML = '';
     
     pages.forEach((page, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'page-thumbnail-wrapper';
+        
         const thumb = document.createElement('div');
         thumb.className = `page-thumbnail ${index === currentPageIndex ? 'active' : ''}`;
         thumb.onclick = () => switchToPage(index);
@@ -198,7 +201,32 @@ function renderPageThumbnails() {
             thumb.textContent = '';
         }
         
-        container.appendChild(thumb);
+        wrapper.appendChild(thumb);
+        
+        // Add page controls
+        const controls = document.createElement('div');
+        controls.className = 'page-controls';
+        controls.innerHTML = `
+            <button onclick="movePageUp(${index})" 
+                    ${index === 0 ? 'disabled' : ''}
+                    class="btn-page-control" title="Move Up">
+                <i class="fas fa-arrow-up"></i>
+            </button>
+            <button onclick="movePageDown(${index})" 
+                    ${index === pages.length - 1 ? 'disabled' : ''}
+                    class="btn-page-control" title="Move Down">
+                <i class="fas fa-arrow-down"></i>
+            </button>
+            ${pages.length > 1 ? `
+            <button onclick="deletePage(${index})" 
+                    class="btn-page-control btn-delete" title="Delete">
+                <i class="fas fa-trash"></i>
+            </button>
+            ` : ''}
+        `;
+        
+        wrapper.appendChild(controls);
+        container.appendChild(wrapper);
     });
 }
 
@@ -209,6 +237,46 @@ function updatePageCounter() {
 
 function updateAllPageSizes() {
     renderPages();
+}
+
+// ============================================
+// PAGE REORDERING
+// ============================================
+
+function movePageUp(pageIndex) {
+    if (pageIndex === 0) return; // Already at top
+    
+    // Swap pages
+    [pages[pageIndex - 1], pages[pageIndex]] = [pages[pageIndex], pages[pageIndex - 1]];
+    
+    // Update current page index if needed
+    if (currentPageIndex === pageIndex) {
+        currentPageIndex = pageIndex - 1;
+    } else if (currentPageIndex === pageIndex - 1) {
+        currentPageIndex = pageIndex;
+    }
+    
+    renderPages();
+    renderPageThumbnails();
+    showStatus('✅ Page moved up', 'success');
+}
+
+function movePageDown(pageIndex) {
+    if (pageIndex === pages.length - 1) return; // Already at bottom
+    
+    // Swap pages
+    [pages[pageIndex], pages[pageIndex + 1]] = [pages[pageIndex + 1], pages[pageIndex]];
+    
+    // Update current page index if needed
+    if (currentPageIndex === pageIndex) {
+        currentPageIndex = pageIndex + 1;
+    } else if (currentPageIndex === pageIndex + 1) {
+        currentPageIndex = pageIndex;
+    }
+    
+    renderPages();
+    renderPageThumbnails();
+    showStatus('✅ Page moved down', 'success');
 }
 
 // ============================================
@@ -724,6 +792,15 @@ async function generatePDF() {
         showStatus(`✅ ${pages.length}-page PDF generated successfully!`, 'success');
         showResults(result);
         
+        // Show PDF preview
+        if (result.browserUrl || result.apiViewUrl) {
+            const pdfUrl = result.browserUrl || `${API_BASE}${result.apiViewUrl}`;
+            showPDFPreview(pdfUrl);
+        }
+        
+        // Save to Supabase
+        await savePDFToDatabase(result);
+        
     } catch (error) {
         console.error('Generation error:', error);
         showStatus('❌ Error: ' + error.message, 'error');
@@ -836,6 +913,9 @@ function showResults(result) {
     const resultArea = document.getElementById('resultArea');
     resultArea.classList.remove('hidden');
     
+    const pdfUrl = result.browserUrl || `${API_BASE}${result.apiViewUrl}`;
+    const filename = result.filename || 'interactive-pdf.pdf';
+    
     resultArea.innerHTML = `
         <h4 class="text-sm font-bold text-gray-800 mb-2">✅ PDF Ready!</h4>
         <div class="space-y-2">
@@ -845,10 +925,10 @@ function showResults(result) {
                     <i class="fas fa-external-link-alt mr-1"></i>Open in Browser
                 </a>
             ` : ''}
-            <a href="${API_BASE}${result.apiViewUrl}" target="_blank" 
+            <button onclick="downloadPDF('${pdfUrl}', '${filename}')" 
                 class="block w-full bg-blue-500 text-white px-3 py-2 rounded text-xs text-center hover:bg-blue-600">
                 <i class="fas fa-download mr-1"></i>Download PDF
-            </a>
+            </button>
         </div>
         <div class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-600">
             <p><strong>Pages:</strong> ${pages.length}</p>
@@ -860,6 +940,120 @@ function showResults(result) {
 function hideResults() {
     const resultArea = document.getElementById('resultArea');
     resultArea.classList.add('hidden');
+}
+
+// ============================================
+// PDF PREVIEW AND DOWNLOAD
+// ============================================
+
+function showPDFPreview(pdfUrl) {
+    const previewSection = document.getElementById('pdfPreview');
+    previewSection.innerHTML = `
+        <div class="pdf-preview-container">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-eye text-purple-600 mr-2"></i>PDF Preview
+                </h3>
+                <button onclick="closePDFPreview()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <iframe src="${pdfUrl}" width="100%" height="600px"></iframe>
+        </div>
+    `;
+    previewSection.style.display = 'block';
+    
+    // Scroll to preview
+    previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closePDFPreview() {
+    const previewSection = document.getElementById('pdfPreview');
+    previewSection.style.display = 'none';
+    previewSection.innerHTML = '';
+}
+
+function downloadPDF(pdfUrl, filename) {
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showStatus('📥 Download started!', 'success');
+}
+
+async function savePDFToDatabase(pdfData) {
+    try {
+        const projectData = {
+            title: document.getElementById('pdfTitle').value || 'Untitled PDF',
+            pdf_url: pdfData.browserUrl || pdfData.apiViewUrl,
+            filename: pdfData.filename || 'interactive-pdf.pdf',
+            file_size: pdfData.size || 0,
+            page_count: pages.length,
+            embedded_mode: embeddedMode,
+            flipbook_mode: flipbookMode,
+            project_json: JSON.stringify({ 
+                pages: pages.map(p => ({
+                    ...p,
+                    backgroundData: p.backgroundData ? '[base64 data]' : null // Don't save full base64
+                })),
+                settings: { 
+                    embeddedMode, 
+                    flipbookMode,
+                    pageSize: document.getElementById('pageSize').value,
+                    orientation: document.getElementById('orientation').value
+                } 
+            }),
+            created_at: new Date().toISOString()
+        };
+        
+        const response = await fetch(`${API_BASE}/api/save-project`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(projectData)
+        });
+        
+        if (response.ok) {
+            console.log('✅ Project saved to database');
+        } else {
+            console.warn('⚠️ Failed to save to database:', await response.text());
+        }
+    } catch (error) {
+        console.error('Database save error:', error);
+        // Don't show error to user - this is a background operation
+    }
+}
+
+// ============================================
+// FLIPBOOK PREVIEW
+// ============================================
+
+function previewFlipbook() {
+    if (!flipbookMode) {
+        showStatus('⚠️ Enable Flipbook Mode first', 'warning');
+        return;
+    }
+    
+    if (pages.length === 0) {
+        showStatus('⚠️ Add some pages first', 'warning');
+        return;
+    }
+    
+    // Save current state
+    const previewData = {
+        pages: pages,
+        title: document.getElementById('pdfTitle').value || 'Flipbook Preview'
+    };
+    
+    // Store in sessionStorage
+    sessionStorage.setItem('flipbookPreview', JSON.stringify(previewData));
+    
+    // Open preview in new tab
+    window.open('/flipbook.html?preview=true', '_blank');
+    
+    showStatus('📖 Opening flipbook preview...', 'info');
 }
 
 // Initialize collapsible sections
