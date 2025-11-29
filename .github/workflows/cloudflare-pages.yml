@@ -4,9 +4,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'public/**'
+      - 'wrangler.toml'
+      - '.github/workflows/cloudflare-pages.yml'
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
