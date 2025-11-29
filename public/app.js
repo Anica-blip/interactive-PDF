@@ -7,6 +7,8 @@ let dragOffset = { x: 0, y: 0 };
 let resizing = false;
 let embeddedMode = false; // Toggle between embedded and link mode
 let flipbookMode = false; // Toggle for magazine-style flipbook
+let currentProjectId = null; // Track current project for updates
+let currentPdfUrl = null; // Track current PDF URL
 
 // API Configuration
 const API_BASE = window.location.hostname === 'localhost' 
@@ -21,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add first page automatically
     addNewPage();
+    
+    // Check if loading existing project
+    loadProjectFromURL();
 });
 
 // Health check
@@ -827,9 +832,6 @@ async function generatePDF() {
             showPDFPreview(pdfUrl);
         }
         
-        // Save to Supabase
-        await savePDFToDatabase(result);
-        
     } catch (error) {
         console.error('Generation error:', error);
         showStatus('❌ Error: ' + error.message, 'error');
@@ -945,19 +947,30 @@ function showResults(result) {
     const pdfUrl = result.browserUrl || `${API_BASE}${result.apiViewUrl}`;
     const filename = result.filename || 'interactive-pdf.pdf';
     
+    // Store current PDF URL
+    currentPdfUrl = pdfUrl;
+    
+    const projectInfo = currentProjectId ? 
+        `<p class="text-xs text-purple-600 font-medium"><i class="fas fa-info-circle mr-1"></i>Project ID: ${currentProjectId}</p>` : '';
+    
     resultArea.innerHTML = `
-        <h4 class="text-sm font-bold text-gray-800 mb-2">✅ PDF Ready!</h4>
+        <h4 class="text-sm font-bold text-gray-800 mb-2">✅ PDF Generated!</h4>
+        ${projectInfo}
         <div class="space-y-2">
+            <button onclick="saveToDashboard()" 
+                class="block w-full bg-green-500 text-white px-3 py-2 rounded text-xs text-center hover:bg-green-600 font-medium">
+                <i class="fas fa-save mr-1"></i>${currentProjectId ? 'Update in Dashboard' : 'Save to Dashboard'}
+            </button>
+            <button onclick="downloadPDF('${pdfUrl}', '${filename}')" 
+                class="block w-full bg-blue-500 text-white px-3 py-2 rounded text-xs text-center hover:bg-blue-600">
+                <i class="fas fa-download mr-1"></i>Download PDF
+            </button>
             ${result.browserUrl ? `
                 <a href="${result.browserUrl}" target="_blank" 
                     class="block w-full bg-purple-500 text-white px-3 py-2 rounded text-xs text-center hover:bg-purple-600">
                     <i class="fas fa-external-link-alt mr-1"></i>Open in Browser
                 </a>
             ` : ''}
-            <button onclick="downloadPDF('${pdfUrl}', '${filename}')" 
-                class="block w-full bg-blue-500 text-white px-3 py-2 rounded text-xs text-center hover:bg-blue-600">
-                <i class="fas fa-download mr-1"></i>Download PDF
-            </button>
         </div>
         <div class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-600">
             <p><strong>Pages:</strong> ${pages.length}</p>
@@ -1013,45 +1026,134 @@ function downloadPDF(pdfUrl, filename) {
     showStatus('📥 Download started!', 'success');
 }
 
-async function savePDFToDatabase(pdfData) {
+// Save to Dashboard
+async function saveToDashboard() {
     try {
+        showStatus('💾 Saving to dashboard...', 'info');
+        
+        if (!currentPdfUrl) {
+            showStatus('⚠️ Please generate PDF first', 'warning');
+            return;
+        }
+        
+        const title = document.getElementById('pdfTitle').value || 'Untitled PDF';
+        
         const projectData = {
-            title: document.getElementById('pdfTitle').value || 'Untitled PDF',
-            pdf_url: pdfData.browserUrl || pdfData.apiViewUrl,
-            filename: pdfData.filename || 'interactive-pdf.pdf',
-            file_size: pdfData.size || 0,
+            id: currentProjectId, // Will be null for new projects
+            title: title,
+            pdf_url: currentPdfUrl,
             page_count: pages.length,
             embedded_mode: embeddedMode,
             flipbook_mode: flipbookMode,
             project_json: JSON.stringify({ 
-                pages: pages.map(p => ({
-                    ...p,
-                    backgroundData: p.backgroundData ? '[base64 data]' : null // Don't save full base64
-                })),
+                pages: pages,
+                assets: assets,
                 settings: { 
                     embeddedMode, 
                     flipbookMode,
                     pageSize: document.getElementById('pageSize').value,
-                    orientation: document.getElementById('orientation').value
+                    orientation: document.getElementById('orientation').value,
+                    author: document.getElementById('pdfAuthor').value
                 } 
             }),
-            created_at: new Date().toISOString()
+            updated_at: new Date().toISOString()
         };
         
-        const response = await fetch(`${API_BASE}/api/save-project`, {
+        const endpoint = currentProjectId ? '/api/update-project' : '/api/save-project';
+        const response = await fetch(`${API_BASE}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(projectData)
         });
         
         if (response.ok) {
-            console.log('✅ Project saved to database');
+            const result = await response.json();
+            
+            // Store project ID for future updates
+            if (!currentProjectId && result.id) {
+                currentProjectId = result.id;
+            }
+            
+            const action = currentProjectId ? 'updated' : 'saved';
+            showStatus(`✅ Project ${action} to dashboard! ID: ${currentProjectId}`, 'success');
+            
+            // Update button text
+            showResults({ browserUrl: currentPdfUrl, size: 0 });
+            
+            // Update URL without reload
+            const newUrl = `${window.location.pathname}?project=${currentProjectId}`;
+            window.history.pushState({ projectId: currentProjectId }, '', newUrl);
+            
         } else {
-            console.warn('⚠️ Failed to save to database:', await response.text());
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to save');
         }
     } catch (error) {
-        console.error('Database save error:', error);
-        // Don't show error to user - this is a background operation
+        console.error('Save error:', error);
+        showStatus('❌ Failed to save: ' + error.message, 'error');
+    }
+}
+
+// Load project from URL or ID
+async function loadProjectFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('project');
+    
+    if (projectId) {
+        await loadProject(projectId);
+    }
+}
+
+async function loadProject(projectId) {
+    try {
+        showStatus('📂 Loading project...', 'info');
+        
+        const response = await fetch(`${API_BASE}/api/load-project/${projectId}`);
+        
+        if (!response.ok) {
+            throw new Error('Project not found');
+        }
+        
+        const data = await response.json();
+        const project = data.project || data;
+        
+        // Set project ID
+        currentProjectId = project.id;
+        currentPdfUrl = project.pdf_url;
+        
+        // Load project data
+        const projectJson = JSON.parse(project.project_json);
+        
+        // Restore pages and assets
+        pages = projectJson.pages || [];
+        assets = projectJson.assets || [];
+        currentPageIndex = 0;
+        
+        // Restore settings
+        if (projectJson.settings) {
+            embeddedMode = projectJson.settings.embeddedMode || false;
+            flipbookMode = projectJson.settings.flipbookMode || false;
+            document.getElementById('pageSize').value = projectJson.settings.pageSize || 'A4';
+            document.getElementById('orientation').value = projectJson.settings.orientation || 'portrait';
+            document.getElementById('pdfTitle').value = project.title || 'Untitled PDF';
+            document.getElementById('pdfAuthor').value = projectJson.settings.author || 'PDF Creator';
+            
+            // Update toggles
+            document.getElementById('embeddedMode').checked = embeddedMode;
+            document.getElementById('flipbookMode').checked = flipbookMode;
+        }
+        
+        // Render everything
+        renderPages();
+        renderPageThumbnails();
+        renderAssetLibrary();
+        updatePageCounter();
+        
+        showStatus(`✅ Project loaded: ${project.title}`, 'success');
+        
+    } catch (error) {
+        console.error('Load error:', error);
+        showStatus('❌ Failed to load project: ' + error.message, 'error');
     }
 }
 

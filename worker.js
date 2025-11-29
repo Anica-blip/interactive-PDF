@@ -74,6 +74,11 @@ export default {
         return await handleSaveProject(request, env, corsHeaders);
       }
 
+      // Update project in Supabase
+      if (path === '/api/update-project' && request.method === 'POST') {
+        return await handleUpdateProject(request, env, corsHeaders);
+      }
+
       // Load project from Supabase
       if (path.startsWith('/api/load-project/') && request.method === 'GET') {
         return await handleLoadProject(request, env, corsHeaders);
@@ -404,11 +409,13 @@ async function handleSaveProject(request, env, corsHeaders) {
     }
 
     const savedProject = await response.json();
+    const project = Array.isArray(savedProject) ? savedProject[0] : savedProject;
 
     return new Response(
       JSON.stringify({
         success: true,
-        project: savedProject,
+        id: project.id,
+        project: project,
         message: 'Project saved successfully',
       }),
       {
@@ -418,6 +425,71 @@ async function handleSaveProject(request, env, corsHeaders) {
     );
   } catch (error) {
     console.error('Save project error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Handle update project in Supabase
+ */
+async function handleUpdateProject(request, env, corsHeaders) {
+  try {
+    const projectData = await request.json();
+    const projectId = projectData.id;
+
+    if (!projectId) {
+      return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Remove id from update data
+    const { id, ...updateData } = projectData;
+
+    // Use service key to bypass RLS if available, otherwise use anon key
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
+    // Call Supabase API to update project
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${projectId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': authKey,
+          'Authorization': `Bearer ${authKey}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(updateData),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Supabase error: ${error}`);
+    }
+
+    const updatedProject = await response.json();
+    const project = Array.isArray(updatedProject) ? updatedProject[0] : updatedProject;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        id: projectId,
+        project: project,
+        message: 'Project updated successfully',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('Update project error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
