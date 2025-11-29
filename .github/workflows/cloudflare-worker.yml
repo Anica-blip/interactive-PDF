@@ -8,9 +8,6 @@ on:
       - 'worker.js'
       - 'wrangler-worker.toml'
       - '.github/workflows/cloudflare-worker.yml'
-    paths-ignore:
-      - 'public/**'
-      - 'wrangler.toml'
   workflow_dispatch:
 
 jobs:
