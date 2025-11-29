@@ -7,6 +7,7 @@ on:
     paths:
       - 'worker.js'
       - 'wrangler-worker.toml'
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -21,4 +22,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler-worker.toml
+          command: deploy
+          workingDirectory: "."
+          wranglerVersion: "3.78.0"
+        env:
+          WRANGLER_CONFIG: wrangler-worker.toml
