@@ -84,6 +84,16 @@ export default {
         return await handleLoadProject(request, env, corsHeaders);
       }
 
+      // List all projects from Supabase
+      if (path === '/api/list-projects' && request.method === 'GET') {
+        return await handleListProjects(request, env, corsHeaders);
+      }
+
+      // Delete project from Supabase
+      if (path.startsWith('/api/delete-project/') && request.method === 'DELETE') {
+        return await handleDeleteProject(request, env, corsHeaders);
+      }
+
       return new Response('Not Found', { status: 404, headers: corsHeaders });
     } catch (error) {
       console.error('Worker error:', error);
@@ -710,6 +720,113 @@ async function handleDeleteStreamVideo(videoId, env, corsHeaders) {
     );
   } catch (error) {
     console.error('Delete stream video error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Handle list all projects from Supabase
+ */
+async function handleListProjects(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const limit = url.searchParams.get('limit') || '100';
+    const offset = url.searchParams.get('offset') || '0';
+
+    // Use service key to bypass RLS if available, otherwise use anon key
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
+    // Call Supabase API to list projects (ordered by updated_at desc)
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/pdf_projects?select=*&order=updated_at.desc&limit=${limit}&offset=${offset}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': authKey,
+          'Authorization': `Bearer ${authKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Supabase error: ${error}`);
+    }
+
+    const projects = await response.json();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        projects: projects,
+        count: projects.length,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('List projects error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Handle delete project from Supabase
+ */
+async function handleDeleteProject(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const projectId = url.pathname.replace('/api/delete-project/', '');
+
+    if (!projectId) {
+      return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use service key to bypass RLS if available, otherwise use anon key
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
+    // Call Supabase API to delete project
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${projectId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': authKey,
+          'Authorization': `Bearer ${authKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Supabase error: ${error}`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Project deleted successfully',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('Delete project error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
