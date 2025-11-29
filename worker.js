@@ -2,6 +2,7 @@
  * Cloudflare Worker for Interactive PDF Builder
  * Handles PDF generation, uploads to R2, and API endpoints
  * Domain: builder.3c-public-library.org
+ * Updated: 2024-11-29 - Full interactive PDF functionality
  */
 
 export default {
