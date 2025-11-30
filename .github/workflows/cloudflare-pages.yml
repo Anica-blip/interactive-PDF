@@ -6,30 +6,28 @@ on:
       - main
     paths:
       - 'public/**'
-      - 'wrangler.toml'
+      - 'wrangler-pages.toml'
       - '.github/workflows/cloudflare-pages.yml'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
     name: Deploy to Cloudflare Pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: interactive-pdf
-          directory: public
-          # Optional: Use wrangler.toml for configuration
-          wranglerVersion: '3'
+          node-version: '20'
+      
+      - name: Install Wrangler
+        run: npm install -g wrangler@3.78.0
+      
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: wrangler pages deploy public --project-name=interactive-pdf
