@@ -1305,3 +1305,183 @@ setTimeout(() => {
     document.getElementById('assetLibrary').style.maxHeight = '500px';
     document.getElementById('settings').style.maxHeight = '0px';
 }, 100);
+
+// ============================================
+// CUSTOM 3C BUTTON/EMOJI UPLOAD
+// ============================================
+
+function handleCustom3CUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const url = prompt('Enter URL for this custom 3C asset (optional - leave empty for decoration only):');
+    const name = prompt('Enter a name for this asset:', file.name.replace(/\.[^/.]+$/, ""));
+    
+    if (!name) {
+        showStatus('❌ Asset name is required', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const asset = {
+            id: Date.now(),
+            type: url ? '3c-custom' : '3c-custom-decoration',
+            url: url || null,
+            imagePath: e.target.result, // Base64 data URL
+            name: name,
+            thumbnail: e.target.result,
+            embedded: false
+        };
+        
+        assets.push(asset);
+        renderAssetLibrary();
+        showStatus(`✅ ${name} uploaded${url ? ' with URL' : ' as decoration'}`, 'success');
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset file input
+    event.target.value = '';
+}
+
+// ============================================
+// PDF PREVIEW
+// ============================================
+
+function previewPDF() {
+    if (pages.length === 0) {
+        showStatus('⚠️ Add at least one page first', 'warning');
+        return;
+    }
+    
+    showStatus('🔍 Preparing preview...', 'info');
+    
+    // Create preview overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'pdfPreviewOverlay';
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-8';
+    overlay.onclick = (e) => {
+        if (e.target === overlay) closePDFPreview();
+    };
+    
+    const container = document.createElement('div');
+    container.className = 'bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-full overflow-hidden flex flex-col';
+    
+    // Header
+    const header = document.createElement('div');
+    header.className = 'bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between';
+    header.innerHTML = `
+        <h2 class="text-xl font-bold">
+            <i class="fas fa-eye mr-2"></i>PDF Preview
+        </h2>
+        <button onclick="closePDFPreview()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition">
+            <i class="fas fa-times"></i> Close
+        </button>
+    `;
+    
+    // Preview content
+    const content = document.createElement('div');
+    content.className = 'p-6 overflow-y-auto flex-1';
+    content.innerHTML = `
+        <div class="space-y-6">
+            ${pages.map((page, index) => `
+                <div class="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">
+                        Page ${index + 1}
+                    </h3>
+                    <div class="bg-white border-2 border-dashed border-gray-300 rounded-lg overflow-hidden" style="aspect-ratio: ${document.getElementById('orientation').value === 'landscape' ? '1.414/1' : '1/1.414'};">
+                        ${page.backgroundImage ? `<img src="${page.backgroundImage}" class="w-full h-full object-contain" alt="Page ${index + 1}">` : '<div class="w-full h-full flex items-center justify-center text-gray-400"><i class="fas fa-image text-4xl"></i></div>'}
+                        <div class="absolute inset-0 pointer-events-none">
+                            ${page.elements.map(el => `
+                                <div style="position: absolute; left: ${el.x}px; top: ${el.y}px; width: ${el.width}px; height: ${el.height}px; border: 2px dashed ${el.type.includes('button') ? 'blue' : el.type === 'hotspot' ? 'orange' : 'purple'}; background: ${el.type.includes('button') || el.type.includes('emoji') ? 'rgba(0,0,255,0.1)' : 'rgba(255,165,0,0.1)'}; display: flex; align-items: center; justify-center; font-size: 10px; color: gray;">
+                                    ${el.type.toUpperCase()}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="mt-3 text-sm text-gray-600">
+                        <p><strong>Elements:</strong> ${page.elements.length}</p>
+                        <p><strong>Background:</strong> ${page.backgroundImage ? 'Yes' : 'No'}</p>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    // Footer
+    const footer = document.createElement('div');
+    footer.className = 'bg-gray-100 p-4 flex items-center justify-between border-t';
+    footer.innerHTML = `
+        <div class="text-sm text-gray-600">
+            <p><strong>${pages.length}</strong> page${pages.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button onclick="generatePDF()" class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">
+            <i class="fas fa-file-pdf mr-2"></i>Generate PDF
+        </button>
+    `;
+    
+    container.appendChild(header);
+    container.appendChild(content);
+    container.appendChild(footer);
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+    
+    showStatus('✅ Preview ready', 'success');
+}
+
+function closePDFPreview() {
+    const overlay = document.getElementById('pdfPreviewOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// ============================================
+// EXTERNAL LINK WARNING POPUP
+// ============================================
+
+function showExternalLinkWarning(url) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+        
+        const popup = document.createElement('div');
+        popup.className = 'bg-white rounded-lg shadow-2xl max-w-md w-full p-6 relative';
+        popup.innerHTML = `
+            <button onclick="this.closest('.fixed').remove()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="text-center mb-4">
+                <i class="fas fa-external-link-alt text-5xl text-blue-600 mb-3"></i>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">External Link</h3>
+                <p class="text-sm text-gray-600 mb-3">You are about to open an external link:</p>
+                <div class="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                    <p class="text-sm text-blue-800 break-all">${url}</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded font-medium transition">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button id="proceedLink" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition">
+                    <i class="fas fa-check mr-1"></i>Continue
+                </button>
+            </div>
+        `;
+        
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+        
+        document.getElementById('proceedLink').onclick = () => {
+            overlay.remove();
+            resolve(true);
+        };
+        
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+                resolve(false);
+            }
+        };
+    });
+}
