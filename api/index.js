@@ -359,7 +359,66 @@ async function generateMultiPagePDF(req, res) {
         
         for (const element of pageData.elements) {
           try {
-            if (element.type === 'button') {
+            if (element.type === '3c-button') {
+              // 3C Button with image and clickable link
+              if (element.imagePath) {
+                try {
+                  // Fetch the button image from the server
+                  const fs = await import('fs/promises');
+                  const path = await import('path');
+                  const imagePath = path.join(process.cwd(), 'public', element.imagePath);
+                  const imageBytes = await fs.readFile(imagePath);
+                  
+                  // Embed the image
+                  const image = await pdfDoc.embedPng(imageBytes);
+                  
+                  // Draw the button image
+                  page.drawImage(image, {
+                    x: element.x || 50,
+                    y: element.y || 400,
+                    width: element.width || 200,
+                    height: element.height || 80
+                  });
+                  
+                  // Add clickable link annotation over the button
+                  const annots = page.node.get('Annots') || pdfDoc.context.obj([]);
+                  const annotsArray = Array.isArray(annots) ? annots : [annots];
+                  
+                  annotsArray.push(pdfDoc.context.obj({
+                    Type: 'Annot',
+                    Subtype: 'Link',
+                    Rect: [element.x, element.y, element.x + element.width, element.y + element.height],
+                    Border: [0, 0, 0],
+                    A: {
+                      S: 'URI',
+                      URI: pdfDoc.context.obj(element.url || '')
+                    }
+                  }));
+                  
+                  page.node.set('Annots', pdfDoc.context.obj(annotsArray));
+                } catch (imageError) {
+                  console.error('Error loading 3C button image:', imageError);
+                  // Fallback to regular button if image fails
+                  page.drawRectangle({
+                    x: element.x || 50,
+                    y: element.y || 400,
+                    width: element.width || 200,
+                    height: element.height || 80,
+                    color: rgb(0.2, 0.4, 0.8),
+                    borderColor: rgb(0.1, 0.3, 0.7),
+                    borderWidth: 2
+                  });
+                  
+                  page.drawText(element.text || '3C Button', {
+                    x: element.x + 10,
+                    y: element.y + element.height / 2 - 5,
+                    size: 14,
+                    font: pdfFont,
+                    color: rgb(1, 1, 1)
+                  });
+                }
+              }
+            } else if (element.type === 'button') {
               // Draw visible button
               page.drawRectangle({
                 x: element.x || 50,
@@ -380,18 +439,63 @@ async function generateMultiPagePDF(req, res) {
               });
               
               // Add link annotation
-              page.node.set('Annots', pdfDoc.context.obj([
-                pdfDoc.context.obj({
-                  Type: 'Annot',
-                  Subtype: 'Link',
-                  Rect: [element.x, element.y, element.x + element.width, element.y + element.height],
-                  Border: [0, 0, 0],
-                  A: {
-                    S: 'URI',
-                    URI: pdfDoc.context.obj(element.url || '')
+              const annots = page.node.get('Annots') || pdfDoc.context.obj([]);
+              const annotsArray = Array.isArray(annots) ? annots : [annots];
+              
+              annotsArray.push(pdfDoc.context.obj({
+                Type: 'Annot',
+                Subtype: 'Link',
+                Rect: [element.x, element.y, element.x + element.width, element.y + element.height],
+                Border: [0, 0, 0],
+                A: {
+                  S: 'URI',
+                  URI: pdfDoc.context.obj(element.url || '')
+                }
+              }));
+              
+              page.node.set('Annots', pdfDoc.context.obj(annotsArray));
+            } else if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
+              // 3C Emoji Badge (circular badge)
+              if (element.imagePath) {
+                try {
+                  const fs = await import('fs/promises');
+                  const path = await import('path');
+                  const imagePath = path.join(process.cwd(), 'public', element.imagePath);
+                  const imageBytes = await fs.readFile(imagePath);
+                  
+                  // Embed the emoji badge image
+                  const image = await pdfDoc.embedPng(imageBytes);
+                  
+                  // Draw the emoji badge
+                  page.drawImage(image, {
+                    x: element.x || 50,
+                    y: element.y || 400,
+                    width: element.width || 120,
+                    height: element.height || 120
+                  });
+                  
+                  // Add clickable link if URL is provided
+                  if (element.url) {
+                    const annots = page.node.get('Annots') || pdfDoc.context.obj([]);
+                    const annotsArray = Array.isArray(annots) ? annots : [annots];
+                    
+                    annotsArray.push(pdfDoc.context.obj({
+                      Type: 'Annot',
+                      Subtype: 'Link',
+                      Rect: [element.x, element.y, element.x + element.width, element.y + element.height],
+                      Border: [0, 0, 0],
+                      A: {
+                        S: 'URI',
+                        URI: pdfDoc.context.obj(element.url)
+                      }
+                    }));
+                    
+                    page.node.set('Annots', pdfDoc.context.obj(annotsArray));
                   }
-                })
-              ]));
+                } catch (imageError) {
+                  console.error('Error loading 3C emoji badge:', imageError);
+                }
+              }
             } else if (element.type === 'hotspot') {
               // Invisible clickable area (no visual in PDF)
               page.node.set('Annots', pdfDoc.context.obj([

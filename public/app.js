@@ -411,6 +411,79 @@ function uploadMediaFile(type) {
     input.click();
 }
 
+// Add 3C button (branded button with image)
+function add3CButton(buttonType) {
+    const url = prompt('Enter URL for this 3C button:');
+    if (!url) return;
+    
+    // Map button types to their image files
+    const buttonImages = {
+        'generic': '/3C Buttons/3C Web Buttons - Generic.png',
+        'clubhouse': '/3C Buttons/3C Web Buttons - ClubHouse.png',
+        'training': '/3C Buttons/3C Web Buttons - Trainning.png',
+        'reframe': '/3C Buttons/3C Web Buttons - Reframe.png'
+    };
+    
+    const buttonNames = {
+        'generic': '3C Generic',
+        'clubhouse': '3C ClubHouse',
+        'training': '3C Training',
+        'reframe': '3C Reframe'
+    };
+    
+    const imagePath = buttonImages[buttonType];
+    const buttonName = buttonNames[buttonType];
+    
+    const asset = {
+        id: Date.now(),
+        type: '3c-button',
+        url: url,
+        imagePath: imagePath,
+        name: buttonName,
+        thumbnail: imagePath,
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ ${buttonName} added with URL`, 'success');
+}
+
+// Add 3C emoji badge (circular emoji badges)
+function add3CEmoji(emojiType) {
+    const url = prompt('Enter URL for this 3C emoji badge (optional - leave empty for decoration only):');
+    
+    // Map emoji types to their image files
+    const emojiImages = {
+        'clubhouse': '/3C Buttons/Emoji/3C Emoji - ClubHouse.png',
+        'training': '/3C Buttons/Emoji/3C Emoji - Training.png',
+        'diamond': '/3C Buttons/Emoji/3C Emoji - Diamond.png'
+    };
+    
+    const emojiNames = {
+        'clubhouse': '3C ClubHouse Badge',
+        'training': '3C Training Badge',
+        'diamond': '3C Diamond Badge'
+    };
+    
+    const imagePath = emojiImages[emojiType];
+    const emojiName = emojiNames[emojiType];
+    
+    const asset = {
+        id: Date.now(),
+        type: url ? '3c-emoji' : '3c-emoji-decoration',
+        url: url || null,
+        imagePath: imagePath,
+        name: emojiName,
+        thumbnail: imagePath,
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ ${emojiName} added${url ? ' with URL' : ' as decoration'}`, 'success');
+}
+
 // Add button (interactive element)
 function addButton() {
     const url = prompt('Enter URL for button:');
@@ -494,8 +567,18 @@ function renderAssetLibrary() {
         assetDiv.ondragstart = (e) => startAssetDrag(e, asset);
         assetDiv.onclick = () => addAssetToPage(asset);
         
-        // Show image thumbnail for images (both uploaded and URLs)
-        if (asset.type === 'image' || asset.thumbnail.startsWith('http') || asset.url.startsWith('data:image')) {
+        // Show image thumbnail for 3C buttons, emojis, and images
+        if (asset.type === '3c-button') {
+            assetDiv.innerHTML = `
+                <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded mb-1">
+                <p class="text-xs font-medium text-blue-700 truncate">${asset.name}</p>
+            `;
+        } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
+            assetDiv.innerHTML = `
+                <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded-full mb-1">
+                <p class="text-xs font-medium text-purple-700 truncate">${asset.name}</p>
+            `;
+        } else if (asset.type === 'image' || asset.thumbnail.startsWith('http') || asset.url.startsWith('data:image')) {
             const imgSrc = asset.thumbnail.startsWith('http') ? asset.thumbnail : asset.url;
             assetDiv.innerHTML = `
                 <img src="${imgSrc}" class="w-full h-16 object-cover rounded mb-1">
@@ -541,7 +624,13 @@ function addAssetToPage(asset) {
     let width, height;
     
     // Set default sizes based on type
-    if (asset.type === 'button') {
+    if (asset.type === '3c-button') {
+        width = 200;
+        height = 80;
+    } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
+        width = 120;
+        height = 120;
+    } else if (asset.type === 'button') {
         width = 150;
         height = 50;
     } else if (asset.type === 'hotspot') {
@@ -564,7 +653,8 @@ function addAssetToPage(asset) {
         y: 100,
         width: width,
         height: height,
-        embedded: asset.embedded || false
+        embedded: asset.embedded || false,
+        imagePath: asset.imagePath || null
     };
     
     pages[currentPageIndex].elements.push(element);
@@ -589,7 +679,30 @@ function createElementDiv(element) {
     // Element content
     const icon = getAssetThumbnail(element.type, element.url);
     
-    if (element.type === 'button') {
+    if (element.type === '3c-button') {
+        // 3C Button with image
+        div.innerHTML = `
+            <div class="element-controls">
+                <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <img src="${element.imagePath}" class="w-full h-full object-contain cursor-pointer" title="${element.text} → ${element.url}">
+            <div class="resize-handle"></div>
+        `;
+    } else if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
+        // 3C Emoji Badge (circular)
+        const title = element.url ? `${element.text} → ${element.url}` : element.text;
+        div.innerHTML = `
+            <div class="element-controls">
+                <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <img src="${element.imagePath}" class="w-full h-full object-contain rounded-full cursor-pointer" title="${title}">
+            <div class="resize-handle"></div>
+        `;
+    } else if (element.type === 'button') {
         // Visible button with styling
         div.innerHTML = `
             <div class="element-controls">
