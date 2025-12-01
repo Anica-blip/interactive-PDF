@@ -572,11 +572,13 @@ function renderAssetLibrary() {
             assetDiv.innerHTML = `
                 <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded mb-1">
                 <p class="text-xs font-medium text-blue-700 truncate">${asset.name}</p>
+                ${asset.url ? `<p class="text-xs text-blue-500 truncate" title="${asset.url}">🔗 ${asset.url}</p>` : ''}
             `;
         } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
             assetDiv.innerHTML = `
                 <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded-full mb-1">
                 <p class="text-xs font-medium text-purple-700 truncate">${asset.name}</p>
+                ${asset.url ? `<p class="text-xs text-purple-500 truncate" title="${asset.url}">🔗 ${asset.url}</p>` : '<p class="text-xs text-gray-400">Decoration only</p>'}
             `;
         } else if (asset.type === 'image' || asset.thumbnail.startsWith('http') || asset.url.startsWith('data:image')) {
             const imgSrc = asset.thumbnail.startsWith('http') ? asset.thumbnail : asset.url;
@@ -585,13 +587,14 @@ function renderAssetLibrary() {
                 <p class="text-xs font-medium text-gray-700 truncate">${asset.name}</p>
             `;
         } else {
-            // Show icon for other media types
+            // Show icon for other media types with URL
             const icon = getAssetThumbnail(asset.type, asset.url);
             assetDiv.innerHTML = `
                 <div class="flex items-center justify-center h-16">
                     <i class="${icon} text-3xl"></i>
                 </div>
                 <p class="text-xs font-medium text-gray-700 truncate">${asset.name}</p>
+                ${asset.url ? `<p class="text-xs text-blue-500 truncate" title="${asset.url}">🔗 ${asset.url}</p>` : ''}
             `;
         }
         
@@ -1485,3 +1488,170 @@ function showExternalLinkWarning(url) {
         };
     });
 }
+
+// ============================================
+// PREVIEW MODAL WITH PAGE NAVIGATION
+// ============================================
+
+let previewCurrentPage = 0;
+
+function previewPDF() {
+    if (pages.length === 0) {
+        showStatus('⚠️ No pages to preview. Add a page first!', 'warning');
+        return;
+    }
+    
+    previewCurrentPage = 0;
+    const modal = document.getElementById('previewModal');
+    modal.classList.add('active');
+    
+    updatePreviewPage();
+    showStatus('📖 Preview mode - Use navigation to flip through pages', 'info');
+}
+
+function closePreview() {
+    const modal = document.getElementById('previewModal');
+    modal.classList.remove('active');
+}
+
+function updatePreviewPage() {
+    const container = document.getElementById('previewPageContainer');
+    const currentPageSpan = document.getElementById('previewCurrentPage');
+    const totalPagesSpan = document.getElementById('previewTotalPages');
+    const prevBtn = document.getElementById('previewPrevBtn');
+    const nextBtn = document.getElementById('previewNextBtn');
+    
+    // Update page counter
+    currentPageSpan.textContent = previewCurrentPage + 1;
+    totalPagesSpan.textContent = pages.length;
+    
+    // Update navigation buttons
+    prevBtn.disabled = previewCurrentPage === 0;
+    nextBtn.disabled = previewCurrentPage === pages.length - 1;
+    
+    // Render current page
+    const page = pages[previewCurrentPage];
+    const pageSize = getPageDimensions();
+    
+    container.innerHTML = '';
+    container.style.width = pageSize.width + 'px';
+    container.style.height = pageSize.height + 'px';
+    container.style.position = 'relative';
+    container.style.overflow = 'hidden';
+    
+    // Add background
+    if (page.backgroundData) {
+        container.style.backgroundImage = `url('${page.backgroundData}')`;
+        container.style.backgroundSize = 'cover';
+        container.style.backgroundPosition = 'center';
+    } else {
+        container.style.backgroundColor = '#ffffff';
+    }
+    
+    // Add elements
+    page.elements.forEach(element => {
+        const el = document.createElement('div');
+        el.style.position = 'absolute';
+        el.style.left = element.x + 'px';
+        el.style.top = element.y + 'px';
+        el.style.width = element.width + 'px';
+        el.style.height = element.height + 'px';
+        el.style.cursor = element.url ? 'pointer' : 'default';
+        
+        if (element.type === '3c-button' || element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
+            const img = document.createElement('img');
+            img.src = element.imagePath;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'contain';
+            if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
+                img.style.borderRadius = '50%';
+            }
+            el.appendChild(img);
+        } else if (element.type === 'button') {
+            el.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            el.style.color = 'white';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.borderRadius = '8px';
+            el.style.fontWeight = 'bold';
+            el.style.fontSize = '14px';
+            el.textContent = element.text;
+        } else if (element.type === 'image') {
+            const img = document.createElement('img');
+            img.src = element.url;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'contain';
+            el.appendChild(img);
+        } else if (element.type === 'video') {
+            el.style.background = 'rgba(0, 0, 0, 0.8)';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.color = 'white';
+            el.style.fontSize = '12px';
+            el.style.borderRadius = '8px';
+            el.innerHTML = '<i class="fas fa-play-circle text-3xl mb-2"></i><br>Video';
+        } else if (element.type === 'audio') {
+            el.style.background = 'rgba(59, 130, 246, 0.1)';
+            el.style.border = '2px solid #3b82f6';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.color = '#3b82f6';
+            el.style.fontSize = '12px';
+            el.style.borderRadius = '8px';
+            el.innerHTML = '<i class="fas fa-music text-2xl"></i>';
+        } else if (element.type === 'hotspot') {
+            el.style.background = 'transparent';
+            el.style.border = '2px dashed rgba(255, 165, 0, 0.3)';
+        }
+        
+        // Add click handler for elements with URLs
+        if (element.url) {
+            el.title = `Click to visit: ${element.url}`;
+            el.onclick = () => {
+                window.open(element.url, '_blank');
+            };
+            el.style.transition = 'transform 0.2s';
+            el.onmouseenter = () => {
+                el.style.transform = 'scale(1.05)';
+            };
+            el.onmouseleave = () => {
+                el.style.transform = 'scale(1)';
+            };
+        }
+        
+        container.appendChild(el);
+    });
+}
+
+function previousPreviewPage() {
+    if (previewCurrentPage > 0) {
+        previewCurrentPage--;
+        updatePreviewPage();
+    }
+}
+
+function nextPreviewPage() {
+    if (previewCurrentPage < pages.length - 1) {
+        previewCurrentPage++;
+        updatePreviewPage();
+    }
+}
+
+// Handle keyboard navigation in preview
+document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('previewModal');
+    if (!modal.classList.contains('active')) return;
+    
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        previousPreviewPage();
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        nextPreviewPage();
+    } else if (e.key === 'Escape') {
+        closePreview();
+    }
+});

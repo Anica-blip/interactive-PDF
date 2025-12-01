@@ -17,7 +17,7 @@
         }
         
         .sidebar {
-            width: 300px;
+            width: 320px;
             height: calc(100vh - 70px);
             overflow-y: auto;
             position: fixed;
@@ -25,15 +25,18 @@
             top: 70px;
             background: #f8f9fa;
             border-right: 2px solid #e2e8f0;
-            padding-bottom: 100px;
+            padding-bottom: 20px;
         }
         
         .main-canvas {
-            margin-left: 300px;
+            margin-left: 320px;
             height: calc(100vh - 70px);
             overflow: auto;
             background: #e5e7eb;
             padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
         }
         
         .pdf-page {
@@ -46,11 +49,31 @@
             margin: 0 auto 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             overflow: hidden;
+            transform-origin: top center;
         }
         
         .pdf-page.landscape {
             width: 842px;
             height: 595px;
+        }
+        
+        /* Scale pages to fit screen */
+        @media (max-width: 1400px) {
+            .pdf-page {
+                transform: scale(0.8);
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .pdf-page {
+                transform: scale(0.7);
+            }
+        }
+        
+        @media (max-width: 1000px) {
+            .pdf-page {
+                transform: scale(0.6);
+            }
         }
         
         .pdf-page.active {
@@ -246,18 +269,108 @@
             border-color: #ef4444;
         }
         
-        /* PDF Preview */
-        .pdf-preview-container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+        /* PDF Preview Modal */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            overflow: hidden;
         }
         
-        .pdf-preview-container iframe {
-            border: 2px solid #e2e8f0;
-            border-radius: 4px;
+        .preview-modal.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .preview-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+        
+        .preview-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        
+        .preview-page {
+            background: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            max-width: 90vw;
+            max-height: 80vh;
+            position: relative;
+        }
+        
+        .preview-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px 24px;
+            border-radius: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .preview-nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        
+        .preview-nav-btn:hover:not(:disabled) {
+            background: #764ba2;
+            transform: scale(1.05);
+        }
+        
+        .preview-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .preview-page-indicator {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 0 10px;
+        }
+        
+        .close-preview-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .close-preview-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
@@ -273,13 +386,16 @@
                 </div>
             </div>
             <div class="flex items-center space-x-3">
-                <a href="projects.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm transition">
+                <a href="projects.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-folder-open mr-1"></i>My Projects
                 </a>
-                <button id="healthCheck" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm transition">
+                <button id="healthCheck" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-heartbeat mr-1"></i>Health Check
                 </button>
-                <button id="generateBtn" onclick="generatePDF()" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-purple-50 transition">
+                <button onclick="previewPDF()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
+                    <i class="fas fa-eye mr-1"></i>Preview PDF
+                </button>
+                <button id="generateBtn" onclick="generatePDF()" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-purple-50 transition shadow-md">
                     <i class="fas fa-magic mr-1"></i>Generate PDF
                 </button>
             </div>
@@ -391,28 +507,28 @@
                         </div>
                         
                         <!-- Upload Files -->
-                        <div class="space-y-2 mb-3">
-                            <p class="text-xs font-bold text-gray-700 mb-1">
-                                <i class="fas fa-upload mr-1"></i>Upload Files:
+                        <div class="space-y-2 mb-4">
+                            <p class="text-xs font-bold text-gray-800 mb-2">
+                                <i class="fas fa-upload mr-1 text-purple-600"></i>Upload Media Files:
                             </p>
-                            <button onclick="uploadMediaFile('image')" class="w-full bg-purple-50 hover:bg-purple-100 text-gray-800 px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="uploadMediaFile('image')" class="w-full bg-purple-50 hover:bg-purple-100 text-gray-800 px-3 py-2.5 rounded text-xs font-medium transition border border-purple-200">
                                 <i class="fas fa-image mr-1"></i>Upload Image/GIF
                             </button>
-                            <button onclick="uploadMediaFile('video')" class="w-full bg-red-50 hover:bg-red-100 text-gray-800 px-2 py-2 rounded text-xs">
+                            <button onclick="uploadMediaFile('video')" class="w-full bg-red-50 hover:bg-red-100 text-gray-800 px-3 py-2.5 rounded text-xs font-medium transition border border-red-200">
                                 <i class="fas fa-video mr-1"></i>Upload Video
                             </button>
-                            <button onclick="uploadMediaFile('audio')" class="w-full bg-blue-50 hover:bg-blue-100 text-gray-800 px-2 py-2 rounded text-xs">
+                            <button onclick="uploadMediaFile('audio')" class="w-full bg-blue-50 hover:bg-blue-100 text-gray-800 px-3 py-2.5 rounded text-xs font-medium transition border border-blue-200">
                                 <i class="fas fa-music mr-1"></i>Upload Audio
                             </button>
                         </div>
                         
                         <!-- Upload Custom 3C Images -->
-                        <div class="mb-3 bg-gradient-to-r from-yellow-50 to-orange-50 p-2 rounded border-2 border-yellow-300">
+                        <div class="mb-4 bg-gradient-to-r from-yellow-50 to-orange-50 p-3 rounded border-2 border-yellow-300">
                             <p class="text-xs font-bold text-gray-800 mb-2">
                                 <i class="fas fa-upload mr-1 text-orange-600"></i>Upload Custom 3C Assets:
                             </p>
                             <input type="file" id="custom3CUpload" accept="image/*" class="hidden" onchange="handleCustom3CUpload(event)">
-                            <button onclick="document.getElementById('custom3CUpload').click()" class="w-full bg-orange-500 hover:bg-orange-600 text-white px-2 py-2 rounded text-xs font-medium mb-2">
+                            <button onclick="document.getElementById('custom3CUpload').click()" class="w-full bg-orange-500 hover:bg-orange-600 text-white px-3 py-2.5 rounded text-xs font-medium mb-2 transition shadow-sm">
                                 <i class="fas fa-image mr-1"></i>Upload Custom Button/Emoji
                             </button>
                             <p class="text-xs text-gray-600">
@@ -421,49 +537,49 @@
                         </div>
                         
                         <!-- 3C Buttons -->
-                        <div class="space-y-2 mb-3 bg-gradient-to-r from-blue-50 to-purple-50 p-2 rounded border-2 border-blue-200">
-                            <p class="text-xs font-bold text-gray-800 mb-1">
+                        <div class="space-y-2 mb-4 bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded border-2 border-blue-200">
+                            <p class="text-xs font-bold text-gray-800 mb-2">
                                 <i class="fas fa-star mr-1 text-blue-600"></i>3C Buttons:
                             </p>
-                            <button onclick="add3CButton('generic')" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CButton('generic')" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-globe mr-1"></i>Generic Button
                             </button>
-                            <button onclick="add3CButton('clubhouse')" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CButton('clubhouse')" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-users mr-1"></i>ClubHouse Button
                             </button>
-                            <button onclick="add3CButton('training')" class="w-full bg-green-500 hover:bg-green-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CButton('training')" class="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-graduation-cap mr-1"></i>Training Button
                             </button>
-                            <button onclick="add3CButton('reframe')" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CButton('reframe')" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-sync-alt mr-1"></i>Reframe Button
                             </button>
                         </div>
                         
                         <!-- 3C Emoji Badges -->
-                        <div class="space-y-2 mb-3 bg-gradient-to-r from-purple-50 to-pink-50 p-2 rounded border-2 border-purple-200">
-                            <p class="text-xs font-bold text-gray-800 mb-1">
+                        <div class="space-y-2 mb-4 bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded border-2 border-purple-200">
+                            <p class="text-xs font-bold text-gray-800 mb-2">
                                 <i class="fas fa-smile-beam mr-1 text-purple-600"></i>3C Emoji Badges:
                             </p>
-                            <button onclick="add3CEmoji('clubhouse')" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CEmoji('clubhouse')" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-users mr-1"></i>ClubHouse Emoji
                             </button>
-                            <button onclick="add3CEmoji('training')" class="w-full bg-green-500 hover:bg-green-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CEmoji('training')" class="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-graduation-cap mr-1"></i>Training Emoji
                             </button>
-                            <button onclick="add3CEmoji('diamond')" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="add3CEmoji('diamond')" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-3 py-2.5 rounded text-xs font-medium transition shadow-sm">
                                 <i class="fas fa-gem mr-1"></i>Diamond Emoji
                             </button>
                         </div>
                         
                         <!-- Interactive Elements -->
-                        <div class="space-y-2 mb-3">
-                            <p class="text-xs font-bold text-gray-700 mb-1">
-                                <i class="fas fa-mouse-pointer mr-1"></i>Interactive:
+                        <div class="space-y-2 mb-4">
+                            <p class="text-xs font-bold text-gray-800 mb-2">
+                                <i class="fas fa-mouse-pointer mr-1 text-indigo-600"></i>Interactive Elements:
                             </p>
-                            <button onclick="addButton()" class="w-full bg-indigo-50 hover:bg-indigo-100 text-gray-800 px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="addButton()" class="w-full bg-indigo-50 hover:bg-indigo-100 text-gray-800 px-3 py-2.5 rounded text-xs font-medium transition border border-indigo-200">
                                 <i class="fas fa-hand-pointer mr-1"></i>Add Button
                             </button>
-                            <button onclick="addHotspot()" class="w-full bg-orange-50 hover:bg-orange-100 text-gray-800 px-2 py-2 rounded text-xs font-medium">
+                            <button onclick="addHotspot()" class="w-full bg-orange-50 hover:bg-orange-100 text-gray-800 px-3 py-2.5 rounded text-xs font-medium transition border border-orange-200">
                                 <i class="fas fa-crosshairs mr-1"></i>Add Hotspot (Invisible)
                             </button>
                         </div>
@@ -477,15 +593,6 @@
                     </div>
                 </div>
 
-                <!-- Preview & Generate -->
-                <div class="bg-gradient-to-r from-green-500 to-blue-500 rounded-lg shadow-lg p-4">
-                    <button onclick="previewPDF()" class="w-full bg-white hover:bg-gray-100 text-gray-800 px-4 py-3 rounded-lg text-sm font-bold mb-2 shadow-md transition">
-                        <i class="fas fa-eye mr-2 text-blue-600"></i>Preview PDF
-                    </button>
-                    <button onclick="generatePDF()" class="w-full bg-white hover:bg-gray-100 text-gray-800 px-4 py-3 rounded-lg text-sm font-bold shadow-md transition">
-                        <i class="fas fa-file-pdf mr-2 text-red-600"></i>Generate PDF
-                    </button>
-                </div>
 
                 <!-- Settings -->
                 <div class="bg-white rounded-lg shadow-sm">
@@ -538,11 +645,6 @@
 
         <!-- Main Canvas Area -->
         <div class="main-canvas">
-            <!-- PDF Preview Section -->
-            <div id="pdfPreview" style="display: none;">
-                <!-- Preview will be inserted here -->
-            </div>
-            
             <div id="pagesContainer">
                 <!-- PDF pages will be rendered here -->
                 <div class="text-center text-gray-400 py-20">
@@ -553,6 +655,35 @@
             </div>
         </div>
     </main>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-header">
+            <div>
+                <h2 class="text-xl font-bold">PDF Preview</h2>
+                <p class="text-sm opacity-90">Review your interactive PDF before generating</p>
+            </div>
+            <button class="close-preview-btn" onclick="closePreview()">
+                <i class="fas fa-times mr-1"></i> Close
+            </button>
+        </div>
+        <div class="preview-content">
+            <div id="previewPageContainer" class="preview-page">
+                <!-- Preview page will be rendered here -->
+            </div>
+        </div>
+        <div class="preview-controls">
+            <button class="preview-nav-btn" id="previewPrevBtn" onclick="previousPreviewPage()">
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <span class="preview-page-indicator">
+                Page <span id="previewCurrentPage">1</span> of <span id="previewTotalPages">1</span>
+            </span>
+            <button class="preview-nav-btn" id="previewNextBtn" onclick="nextPreviewPage()">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
