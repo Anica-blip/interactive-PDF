@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pdfTitle').value = 'My Interactive PDF';
     document.getElementById('pdfAuthor').value = 'PDF Creator';
     
+    // Set up folder path preview listeners
+    document.getElementById('pdfTitle')?.addEventListener('input', updateFolderPathPreview);
+    document.getElementById('folderName')?.addEventListener('input', updateFolderPathPreview);
+    document.getElementById('subfolderName')?.addEventListener('input', updateFolderPathPreview);
+    updateFolderPathPreview(); // Initial update
+    
     // Check if loading draft from projects page
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('loadDraft') === 'true') {
@@ -89,6 +95,71 @@ function toggleFlipbookMode() {
     }
 }
 
+// Increment version number
+function incrementVersion() {
+    const versionInput = document.getElementById('versionNumber');
+    const currentVersion = versionInput.value;
+    
+    // Parse version (e.g., "v1.0" -> [1, 0])
+    const match = currentVersion.match(/v(\d+)\.(\d+)/);
+    if (!match) {
+        versionInput.value = 'v1.0';
+        return;
+    }
+    
+    let major = parseInt(match[1]);
+    let minor = parseInt(match[2]);
+    
+    // Increment minor version
+    minor++;
+    
+    // If minor reaches 10, increment major and reset minor
+    if (minor >= 10) {
+        major++;
+        minor = 0;
+    }
+    
+    const newVersion = `v${major}.${minor}`;
+    versionInput.value = newVersion;
+    
+    showStatus(`📌 Version updated to ${newVersion}`, 'success');
+    
+    // Auto-save with new version
+    setTimeout(() => saveDraft(), 500);
+}
+
+// Update folder path preview
+function updateFolderPathPreview() {
+    const folderName = document.getElementById('folderName')?.value.trim() || '';
+    const subfolderName = document.getElementById('subfolderName')?.value.trim() || '';
+    const versionNumber = document.getElementById('versionNumber')?.value || 'v1.0';
+    const pdfTitle = document.getElementById('pdfTitle')?.value.trim() || 'untitled';
+    
+    // Clean up folder names (remove special chars, spaces to dashes)
+    const cleanFolder = folderName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    const cleanSubfolder = subfolderName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    const cleanTitle = pdfTitle.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    
+    // Build path
+    let path = '/interactive-pdfs/flipbooks/';
+    
+    if (cleanFolder) {
+        path += cleanFolder + '/';
+    }
+    
+    if (cleanSubfolder) {
+        path += cleanSubfolder + '/';
+    }
+    
+    path += `${cleanTitle}-${versionNumber}.pdf`;
+    
+    // Update preview
+    const preview = document.getElementById('folderPathPreview');
+    if (preview) {
+        preview.textContent = path;
+    }
+}
+
 // ============================================
 // SAVE/LOAD DRAFT FUNCTIONALITY
 // ============================================
@@ -104,7 +175,10 @@ function saveDraft() {
             pageSize: document.getElementById('pageSize').value,
             orientation: document.getElementById('orientation').value,
             embeddedMode: embeddedMode,
-            flipbookMode: flipbookMode
+            flipbookMode: flipbookMode,
+            versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            folderName: document.getElementById('folderName')?.value || '',
+            subfolderName: document.getElementById('subfolderName')?.value || ''
         },
         savedAt: new Date().toISOString()
     };
@@ -144,9 +218,27 @@ function loadDraft() {
             embeddedMode = draft.settings.embeddedMode || false;
             flipbookMode = draft.settings.flipbookMode || false;
             
+            // Restore organization fields
+            if (document.getElementById('versionNumber')) {
+                document.getElementById('versionNumber').value = draft.settings.versionNumber || 'v1.0';
+            }
+            if (document.getElementById('folderName')) {
+                document.getElementById('folderName').value = draft.settings.folderName || '';
+            }
+            if (document.getElementById('subfolderName')) {
+                document.getElementById('subfolderName').value = draft.settings.subfolderName || '';
+            }
+            
+            // Update UI toggles
             if (document.getElementById('embeddedMode')) {
                 document.getElementById('embeddedMode').checked = embeddedMode;
             }
+            if (document.getElementById('flipbookMode')) {
+                document.getElementById('flipbookMode').checked = flipbookMode;
+            }
+            
+            // Update folder path preview
+            updateFolderPathPreview();
         }
         
         // Re-render everything
@@ -1760,3 +1852,30 @@ document.addEventListener('keydown', (e) => {
         closePreview();
     }
 });
+
+// ============================================
+// COLLAPSIBLE SECTIONS
+// ============================================
+
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    const icon = document.getElementById(sectionId + 'Icon');
+    
+    if (!section) return;
+    
+    const isVisible = section.style.display !== 'none';
+    
+    if (isVisible) {
+        section.style.display = 'none';
+        if (icon) {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
+    } else {
+        section.style.display = 'block';
+        if (icon) {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        }
+    }
+}
