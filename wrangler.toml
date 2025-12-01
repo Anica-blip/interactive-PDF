@@ -1,12 +1,12 @@
 # Cloudflare Worker Configuration for Interactive PDF Builder API
-# This handles the API endpoints for PDF generation and R2 uploads
-# Deploy this separately from the Pages project
+# USES EXISTING INFRASTRUCTURE - Same bucket as library
+# Deploy to api.3c-public-library.org for consistency
 
 name = "interactive-pdf-api"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# R2 Bucket Binding
+# R2 Bucket Binding - SHARED with library
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "3c-library-files"
@@ -14,10 +14,17 @@ bucket_name = "3c-library-files"
 # Environment Variables
 [vars]
 R2_PUBLIC_URL = "https://files.3c-public-library.org"
-CLOUDFLARE_STREAM_SUBDOMAIN = "your-stream-subdomain"
 ENVIRONMENT = "production"
 
-# Routes - Connect to your custom domain
+# Routes - Use api.3c-public-library.org for consistency
+# All uploads go to: api.3c-public-library.org/pdf/*
 [[routes]]
-pattern = "builder.3c-public-library.org/api/*"
+pattern = "api.3c-public-library.org/pdf/*"
 zone_name = "3c-public-library.org"
+
+# Note: Supabase credentials set via secrets (not here)
+# Run: npx wrangler secret put SUPABASE_URL
+# Run: npx wrangler secret put SUPABASE_SERVICE_KEY
+# Run: npx wrangler secret put CLOUDFLARE_STREAM_TOKEN
+# Run: npx wrangler secret put CLOUDFLARE_ACCOUNT_ID
+# Run: npx wrangler secret put CLOUDFLARE_STREAM_SUBDOMAIN

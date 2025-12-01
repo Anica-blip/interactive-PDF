@@ -96,10 +96,10 @@
     </div>
 
     <script>
-        // API Configuration
+        // API Configuration - Use consistent URL pattern
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:3000' 
-            : '';
+            : 'https://api.3c-public-library.org/pdf';
 
         let allProjects = [];
         let projectToDelete = null;
@@ -112,13 +112,13 @@
         async function loadProjects() {
             try {
                 showStatus('Loading projects...', 'info');
+                allProjects = [];
                 
-                // Load from localStorage (local drafts)
+                // 1. Load local draft from localStorage
                 const localDraft = localStorage.getItem('pdfCreatorDraft');
-                
                 if (localDraft) {
                     const draft = JSON.parse(localDraft);
-                    const project = {
+                    allProjects.push({
                         id: 'local-draft',
                         title: draft.settings?.title || 'Untitled Draft',
                         page_count: draft.pages?.length || 0,
@@ -126,19 +126,39 @@
                         updated_at: draft.savedAt,
                         flipbook_mode: draft.settings?.flipbookMode || false,
                         embedded_mode: draft.settings?.embeddedMode || false,
-                        pdf_url: null
-                    };
-                    allProjects = [project];
-                } else {
-                    allProjects = [];
+                        pdf_url: null,
+                        source: 'draft'
+                    });
+                }
+                
+                // 2. Load published PDFs from API/Supabase
+                try {
+                    const response = await fetch(`${API_BASE}/api/list-projects`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const publishedProjects = (data.projects || []).map(p => ({
+                            ...p,
+                            source: 'published'
+                        }));
+                        allProjects = [...allProjects, ...publishedProjects];
+                    }
+                } catch (apiError) {
+                    console.log('API not available, showing drafts only:', apiError.message);
                 }
                 
                 renderProjects(allProjects);
                 hideStatus();
                 
-                // Show info about cloud sync
+                // Show helpful message
                 if (allProjects.length > 0) {
-                    showStatus('📝 Showing local drafts. Cloud sync requires backend setup.', 'info');
+                    const draftCount = allProjects.filter(p => p.source === 'draft').length;
+                    const publishedCount = allProjects.filter(p => p.source === 'published').length;
+                    
+                    if (publishedCount > 0) {
+                        showStatus(`✅ Loaded ${publishedCount} published PDF${publishedCount !== 1 ? 's' : ''}${draftCount > 0 ? ` and ${draftCount} draft${draftCount !== 1 ? 's' : ''}` : ''}`, 'success');
+                    } else if (draftCount > 0) {
+                        showStatus('📝 Showing local drafts. Generate PDFs to save to cloud.', 'info');
+                    }
                     setTimeout(() => hideStatus(), 4000);
                 }
                 

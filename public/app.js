@@ -10,10 +10,10 @@ let flipbookMode = false; // Toggle for magazine-style flipbook
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 
-// API Configuration
+// API Configuration - Use consistent URL pattern
 const API_BASE = window.location.hostname === 'localhost' 
     ? 'http://localhost:3000' 
-    : '';
+    : 'https://api.3c-public-library.org/pdf';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -76,7 +76,17 @@ function toggleEmbeddedMode() {
 // Toggle flipbook mode
 function toggleFlipbookMode() {
     flipbookMode = document.getElementById('flipbookMode')?.checked || false;
-    showStatus(flipbookMode ? '📖 Flipbook mode enabled' : '📄 Standard PDF mode', 'info');
+    const description = document.getElementById('flipbookDescription');
+    
+    if (flipbookMode) {
+        description.textContent = '📖 Flipbook mode ON - Will generate with page-turning effect';
+        description.classList.add('text-purple-700', 'font-semibold');
+        showStatus('📖 Flipbook mode enabled: Your PDF will have magazine-style page turning!', 'success');
+    } else {
+        description.textContent = '📖 Enable for magazine-style page turning';
+        description.classList.remove('text-purple-700', 'font-semibold');
+        showStatus('📄 Standard PDF mode: Normal page viewing', 'info');
+    }
 }
 
 // ============================================
