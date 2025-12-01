@@ -320,7 +320,12 @@ function renderPages() {
         const pageDiv = document.createElement('div');
         pageDiv.className = `pdf-page ${index === currentPageIndex ? 'active' : ''}`;
         pageDiv.id = `page-${page.id}`;
-        pageDiv.onclick = () => switchToPage(index);
+        // Only switch page when clicking on empty space, not on elements
+        pageDiv.onclick = (e) => {
+            if (e.target === pageDiv || e.target.classList.contains('page-background')) {
+                switchToPage(index);
+            }
+        };
         
         // Apply orientation
         const orientation = document.getElementById('orientation').value;
@@ -954,24 +959,31 @@ function createElementDiv(element) {
 }
 
 function startDrag(e) {
+    // Prevent dragging if clicking on controls, buttons, or resize handle
     if (e.target.classList.contains('resize-handle')) return;
     if (e.target.closest('.element-controls')) return;
     if (e.target.closest('button')) return;
+    if (e.target.tagName === 'BUTTON') return;
+    if (e.target.tagName === 'I' && e.target.closest('button')) return;
     
     draggedElement = e.currentTarget;
     const rect = draggedElement.getBoundingClientRect();
     const pageDiv = draggedElement.closest('.pdf-page');
+    if (!pageDiv) return;
+    
     const pageRect = pageDiv.getBoundingClientRect();
     
     dragOffset.x = e.clientX - rect.left;
     dragOffset.y = e.clientY - rect.top;
     
     draggedElement.classList.add('selected');
+    draggedElement.style.zIndex = '100'; // Bring to front while dragging
     
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', stopDrag);
     
     e.preventDefault();
+    e.stopPropagation();
 }
 
 function drag(e) {
@@ -1002,6 +1014,7 @@ function drag(e) {
 function stopDrag() {
     if (draggedElement) {
         draggedElement.classList.remove('selected');
+        draggedElement.style.zIndex = '10'; // Reset z-index
         draggedElement = null;
     }
     document.removeEventListener('mousemove', drag);

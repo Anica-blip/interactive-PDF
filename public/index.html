@@ -40,16 +40,16 @@
         }
         
         .pdf-page {
-            background: white;
-            border: 2px solid #cbd5e0;
-            border-radius: 8px;
             position: relative;
             width: 595px;
             height: 842px;
-            margin: 0 auto 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            overflow: hidden;
-            transform-origin: top center;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+            overflow: visible;
+            cursor: default;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
         }
         
         .pdf-page.landscape {
@@ -94,10 +94,14 @@
         
         .draggable-element {
             position: absolute;
+            border: 2px dashed rgba(139, 92, 246, 0.5);
+            background: rgba(255, 255, 255, 0.9);
             cursor: move;
-            border: 2px dashed #667eea;
-            background: rgba(102, 126, 234, 0.1);
-            padding: 8px;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            z-index: 10;
             border-radius: 4px;
             user-select: none;
             min-width: 80px;
