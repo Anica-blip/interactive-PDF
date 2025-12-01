@@ -113,17 +113,34 @@
             try {
                 showStatus('Loading projects...', 'info');
                 
-                const response = await fetch(`${API_BASE}/api/list-projects`);
+                // Load from localStorage (local drafts)
+                const localDraft = localStorage.getItem('pdfCreatorDraft');
                 
-                if (!response.ok) {
-                    throw new Error('Failed to load projects');
+                if (localDraft) {
+                    const draft = JSON.parse(localDraft);
+                    const project = {
+                        id: 'local-draft',
+                        title: draft.settings?.title || 'Untitled Draft',
+                        page_count: draft.pages?.length || 0,
+                        created_at: draft.savedAt,
+                        updated_at: draft.savedAt,
+                        flipbook_mode: draft.settings?.flipbookMode || false,
+                        embedded_mode: draft.settings?.embeddedMode || false,
+                        pdf_url: null
+                    };
+                    allProjects = [project];
+                } else {
+                    allProjects = [];
                 }
-                
-                const data = await response.json();
-                allProjects = data.projects || [];
                 
                 renderProjects(allProjects);
                 hideStatus();
+                
+                // Show info about cloud sync
+                if (allProjects.length > 0) {
+                    showStatus('📝 Showing local drafts. Cloud sync requires backend setup.', 'info');
+                    setTimeout(() => hideStatus(), 4000);
+                }
                 
             } catch (error) {
                 console.error('Load error:', error);
@@ -226,7 +243,12 @@
         }
 
         function openProject(projectId) {
-            window.location.href = `index.html?project=${projectId}`;
+            if (projectId === 'local-draft') {
+                // Load draft functionality will be handled by index.html on load
+                window.location.href = `index.html?loadDraft=true`;
+            } else {
+                window.location.href = `index.html?project=${projectId}`;
+            }
         }
 
         function showDeleteModal(projectId) {
@@ -246,15 +268,22 @@
                 showStatus('Deleting project...', 'info');
                 closeDeleteModal();
                 
-                const response = await fetch(`${API_BASE}/api/delete-project/${projectToDelete}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to delete project');
+                if (projectToDelete === 'local-draft') {
+                    // Delete from localStorage
+                    localStorage.removeItem('pdfCreatorDraft');
+                    showStatus('✅ Draft deleted successfully', 'success');
+                } else {
+                    // For API projects (when backend is set up)
+                    const response = await fetch(`${API_BASE}/api/delete-project/${projectToDelete}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to delete project');
+                    }
+                    
+                    showStatus('✅ Project deleted successfully', 'success');
                 }
-                
-                showStatus('✅ Project deleted successfully', 'success');
                 
                 // Reload projects
                 await loadProjects();

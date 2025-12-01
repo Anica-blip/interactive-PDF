@@ -21,11 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pdfTitle').value = 'My Interactive PDF';
     document.getElementById('pdfAuthor').value = 'PDF Creator';
     
-    // Add first page automatically
-    addNewPage();
-    
-    // Check if loading existing project
-    loadProjectFromURL();
+    // Check if loading draft from projects page
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('loadDraft') === 'true') {
+        loadDraft();
+    } else {
+        // Add first page automatically
+        addNewPage();
+        
+        // Check if loading existing project
+        loadProjectFromURL();
+    }
 });
 
 // Health check
@@ -69,19 +75,91 @@ function toggleEmbeddedMode() {
 
 // Toggle flipbook mode
 function toggleFlipbookMode() {
-    flipbookMode = document.getElementById('flipbookMode').checked;
-    const description = document.getElementById('flipbookDescription');
+    flipbookMode = document.getElementById('flipbookMode')?.checked || false;
+    showStatus(flipbookMode ? '📖 Flipbook mode enabled' : '📄 Standard PDF mode', 'info');
+}
+
+// ============================================
+// SAVE/LOAD DRAFT FUNCTIONALITY
+// ============================================
+
+function saveDraft() {
+    const draft = {
+        pages: pages,
+        assets: assets,
+        currentPageIndex: currentPageIndex,
+        settings: {
+            title: document.getElementById('pdfTitle').value,
+            author: document.getElementById('pdfAuthor').value,
+            pageSize: document.getElementById('pageSize').value,
+            orientation: document.getElementById('orientation').value,
+            embeddedMode: embeddedMode,
+            flipbookMode: flipbookMode
+        },
+        savedAt: new Date().toISOString()
+    };
     
-    if (flipbookMode) {
-        description.textContent = '📖 Magazine-style page turning enabled!';
-        description.classList.add('text-purple-700', 'font-semibold');
-        showStatus('📖 Flipbook mode ON: Realistic page turning like a magazine!', 'success');
-    } else {
-        description.textContent = '📖 Realistic page turning like a magazine';
-        description.classList.remove('text-purple-700', 'font-semibold');
-        showStatus('📄 Standard PDF mode', 'info');
+    try {
+        localStorage.setItem('pdfCreatorDraft', JSON.stringify(draft));
+        showStatus('💾 Draft saved successfully!', 'success');
+        console.log('Draft saved:', draft);
+    } catch (error) {
+        console.error('Failed to save draft:', error);
+        showStatus('❌ Failed to save draft: ' + error.message, 'error');
     }
 }
+
+function loadDraft() {
+    try {
+        const draftData = localStorage.getItem('pdfCreatorDraft');
+        
+        if (!draftData) {
+            showStatus('⚠️ No saved draft found', 'warning');
+            return;
+        }
+        
+        const draft = JSON.parse(draftData);
+        
+        // Restore pages and assets
+        pages = draft.pages || [];
+        assets = draft.assets || [];
+        currentPageIndex = draft.currentPageIndex || 0;
+        
+        // Restore settings
+        if (draft.settings) {
+            document.getElementById('pdfTitle').value = draft.settings.title || '';
+            document.getElementById('pdfAuthor').value = draft.settings.author || '';
+            document.getElementById('pageSize').value = draft.settings.pageSize || 'A4';
+            document.getElementById('orientation').value = draft.settings.orientation || 'portrait';
+            embeddedMode = draft.settings.embeddedMode || false;
+            flipbookMode = draft.settings.flipbookMode || false;
+            
+            if (document.getElementById('embeddedMode')) {
+                document.getElementById('embeddedMode').checked = embeddedMode;
+            }
+        }
+        
+        // Re-render everything
+        renderPages();
+        renderAssetLibrary();
+        
+        const savedDate = new Date(draft.savedAt).toLocaleString();
+        showStatus(`✅ Draft loaded! (Saved: ${savedDate})`, 'success');
+        console.log('Draft loaded:', draft);
+        
+    } catch (error) {
+        console.error('Failed to load draft:', error);
+        showStatus('❌ Failed to load draft: ' + error.message, 'error');
+    }
+}
+
+// Auto-save every 30 seconds
+setInterval(() => {
+    if (pages.length > 0) {
+        saveDraft();
+        console.log('Auto-saved draft');
+    }
+}, 30000);
 
 // ============================================
 // PAGE MANAGEMENT
@@ -1531,11 +1609,28 @@ function updatePreviewPage() {
     
     // Render current page
     const page = pages[previewCurrentPage];
-    const pageSize = getPageDimensions();
+    
+    // Get page dimensions
+    const pageSize = document.getElementById('pageSize')?.value || 'A4';
+    const orientation = document.getElementById('orientation')?.value || 'portrait';
+    
+    let width, height;
+    if (pageSize === 'A4') {
+        width = orientation === 'portrait' ? 595 : 842;
+        height = orientation === 'portrait' ? 842 : 595;
+    } else if (pageSize === 'Letter') {
+        width = orientation === 'portrait' ? 612 : 792;
+        height = orientation === 'portrait' ? 792 : 612;
+    } else {
+        width = 595;
+        height = 842;
+    }
+    
+    const pageDimensions = { width, height };
     
     container.innerHTML = '';
-    container.style.width = pageSize.width + 'px';
-    container.style.height = pageSize.height + 'px';
+    container.style.width = pageDimensions.width + 'px';
+    container.style.height = pageDimensions.height + 'px';
     container.style.position = 'relative';
     container.style.overflow = 'hidden';
     
