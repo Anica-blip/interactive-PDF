@@ -995,10 +995,7 @@ function drag(e) {
     let x = e.clientX - pageRect.left - dragOffset.x;
     let y = e.clientY - pageRect.top - dragOffset.y;
     
-    // Constrain to page
-    x = Math.max(0, Math.min(x, pageRect.width - draggedElement.offsetWidth));
-    y = Math.max(0, Math.min(y, pageRect.height - draggedElement.offsetHeight));
-    
+    // NO CONSTRAINTS - elements can move freely anywhere on the page
     draggedElement.style.left = x + 'px';
     draggedElement.style.top = y + 'px';
     
