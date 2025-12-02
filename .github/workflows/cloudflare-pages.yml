@@ -1,15 +1,14 @@
-name: Deploy to Cloudflare Pages (DISABLED - Deploy manually from local)
+name: Deploy to Cloudflare Pages
 
 on:
-  # Disabled automatic deployment - deploy manually with: npx wrangler pages deploy public --project-name=interactive-pdf
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'public/**'
-  #     - 'wrangler-pages.toml'
-  #     - '.github/workflows/cloudflare-pages.yml'
-  workflow_dispatch:  # Can still trigger manually from Actions tab if needed
+  push:
+    branches:
+      - main
+    paths:
+      - 'public/**'
+      - 'wrangler-pages.toml'
+      - '.github/workflows/cloudflare-pages.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
