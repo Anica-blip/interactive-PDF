@@ -990,12 +990,31 @@ function drag(e) {
     if (!draggedElement || resizing) return;
     
     const pageDiv = draggedElement.closest('.pdf-page');
-    const pageRect = pageDiv.getBoundingClientRect();
+    if (!pageDiv) return;
     
+    const pageRect = pageDiv.getBoundingClientRect();
+    const elementRect = draggedElement.getBoundingClientRect();
+    
+    // Calculate position relative to page
     let x = e.clientX - pageRect.left - dragOffset.x;
     let y = e.clientY - pageRect.top - dragOffset.y;
     
-    // NO CONSTRAINTS - elements can move freely anywhere on the page
+    // Get page dimensions
+    const pageWidth = pageDiv.offsetWidth;
+    const pageHeight = pageDiv.offsetHeight;
+    const elementWidth = elementRect.width;
+    const elementHeight = elementRect.height;
+    
+    // Apply soft constraints - allow elements to go slightly outside but keep them mostly visible
+    // Allow 50% of element to go outside the page boundaries
+    const minX = -(elementWidth * 0.5);
+    const maxX = pageWidth - (elementWidth * 0.5);
+    const minY = -(elementHeight * 0.5);
+    const maxY = pageHeight - (elementHeight * 0.5);
+    
+    x = Math.max(minX, Math.min(maxX, x));
+    y = Math.max(minY, Math.min(maxY, y));
+    
     draggedElement.style.left = x + 'px';
     draggedElement.style.top = y + 'px';
     
@@ -1538,96 +1557,8 @@ function handleCustom3CUpload(event) {
 }
 
 // ============================================
-// PDF PREVIEW
+// PDF PREVIEW - Removed duplicate, see line 1688 for actual implementation
 // ============================================
-
-function previewPDF() {
-    if (pages.length === 0) {
-        showStatus('⚠️ Add at least one page first', 'warning');
-        return;
-    }
-    
-    showStatus('🔍 Preparing preview...', 'info');
-    
-    // Create preview overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'pdfPreviewOverlay';
-    overlay.className = 'fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-8';
-    overlay.onclick = (e) => {
-        if (e.target === overlay) closePDFPreview();
-    };
-    
-    const container = document.createElement('div');
-    container.className = 'bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-full overflow-hidden flex flex-col';
-    
-    // Header
-    const header = document.createElement('div');
-    header.className = 'bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex items-center justify-between';
-    header.innerHTML = `
-        <h2 class="text-xl font-bold">
-            <i class="fas fa-eye mr-2"></i>PDF Preview
-        </h2>
-        <button onclick="closePDFPreview()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition">
-            <i class="fas fa-times"></i> Close
-        </button>
-    `;
-    
-    // Preview content
-    const content = document.createElement('div');
-    content.className = 'p-6 overflow-y-auto flex-1';
-    content.innerHTML = `
-        <div class="space-y-6">
-            ${pages.map((page, index) => `
-                <div class="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
-                    <h3 class="text-lg font-bold text-gray-800 mb-3">
-                        Page ${index + 1}
-                    </h3>
-                    <div class="bg-white border-2 border-dashed border-gray-300 rounded-lg overflow-hidden" style="aspect-ratio: ${document.getElementById('orientation').value === 'landscape' ? '1.414/1' : '1/1.414'};">
-                        ${page.backgroundImage ? `<img src="${page.backgroundImage}" class="w-full h-full object-contain" alt="Page ${index + 1}">` : '<div class="w-full h-full flex items-center justify-center text-gray-400"><i class="fas fa-image text-4xl"></i></div>'}
-                        <div class="absolute inset-0 pointer-events-none">
-                            ${page.elements.map(el => `
-                                <div style="position: absolute; left: ${el.x}px; top: ${el.y}px; width: ${el.width}px; height: ${el.height}px; border: 2px dashed ${el.type.includes('button') ? 'blue' : el.type === 'hotspot' ? 'orange' : 'purple'}; background: ${el.type.includes('button') || el.type.includes('emoji') ? 'rgba(0,0,255,0.1)' : 'rgba(255,165,0,0.1)'}; display: flex; align-items: center; justify-center; font-size: 10px; color: gray;">
-                                    ${el.type.toUpperCase()}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    <div class="mt-3 text-sm text-gray-600">
-                        <p><strong>Elements:</strong> ${page.elements.length}</p>
-                        <p><strong>Background:</strong> ${page.backgroundImage ? 'Yes' : 'No'}</p>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-    
-    // Footer
-    const footer = document.createElement('div');
-    footer.className = 'bg-gray-100 p-4 flex items-center justify-between border-t';
-    footer.innerHTML = `
-        <div class="text-sm text-gray-600">
-            <p><strong>${pages.length}</strong> page${pages.length !== 1 ? 's' : ''}</p>
-        </div>
-        <button onclick="generatePDF()" class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">
-            <i class="fas fa-file-pdf mr-2"></i>Generate PDF
-        </button>
-    `;
-    
-    container.appendChild(header);
-    container.appendChild(content);
-    container.appendChild(footer);
-    overlay.appendChild(container);
-    document.body.appendChild(overlay);
-    
-    showStatus('✅ Preview ready', 'success');
-}
-
-function closePDFPreview() {
-    const overlay = document.getElementById('pdfPreviewOverlay');
-    if (overlay) {
-        overlay.remove();
-    }
-}
 
 // ============================================
 // EXTERNAL LINK WARNING POPUP
