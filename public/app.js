@@ -516,30 +516,54 @@ function addMediaFromURL() {
     
     // Detect media type from URL
     let type = 'link';
-    if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-        type = 'image';
-    } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+    let iframeUrl = null;
+    let videoId = null;
+    
+    // Check for YouTube URLs
+    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+    if (youtubeMatch) {
         type = 'video';
-    } else if (url.match(/\.(mp3|wav|ogg|m4a)$/i)) {
-        type = 'audio';
+        videoId = youtubeMatch[1];
+        iframeUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
     }
     
-    const fileName = url.split('/').pop().split('?')[0] || 'Media';
+    // Check for Vimeo URLs
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) {
+        type = 'video';
+        videoId = vimeoMatch[1];
+        iframeUrl = `https://player.vimeo.com/video/${videoId}?autoplay=1`;
+    }
+    
+    // Check for file extensions
+    if (!iframeUrl) {
+        if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+            type = 'image';
+        } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+            type = 'video';
+        } else if (url.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+            type = 'audio';
+        }
+    }
+    
+    const fileName = url.split('/').pop().split('?')[0] || (iframeUrl ? `${type.charAt(0).toUpperCase() + type.slice(1)} from URL` : 'Media');
     
     const asset = {
         id: Date.now(),
         type: type,
         url: url,
+        iframeUrl: iframeUrl, // For YouTube/Vimeo embeds
+        videoId: videoId,
         name: fileName,
         thumbnail: type === 'image' ? url : getAssetThumbnail(type, url),
-        embedded: embeddedMode
+        embedded: embeddedMode || !!iframeUrl // YouTube/Vimeo are always embedded in popup
     };
     
     assets.push(asset);
     renderAssetLibrary();
     urlInput.value = ''; // Clear input
     
-    const modeText = embeddedMode ? ' (embedded)' : ' (link)';
+    const modeText = iframeUrl ? ' (will play in popup)' : (embeddedMode ? ' (embedded)' : ' (link)');
     showStatus(`✅ ${type} added from URL${modeText}`, 'success');
 }
 
