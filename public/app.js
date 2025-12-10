@@ -1029,12 +1029,13 @@ function drag(e) {
     const elementWidth = elementRect.width;
     const elementHeight = elementRect.height;
     
-    // Apply very soft constraints - allow elements to move freely with minimal restrictions
-    // Allow 80% of element to go outside the page boundaries for easier positioning
-    const minX = -(elementWidth * 0.8);
-    const maxX = pageWidth + (elementWidth * 0.3);
-    const minY = -(elementHeight * 0.8);
-    const maxY = pageHeight + (elementHeight * 0.3);
+    // Apply soft constraints - allow 80% of element to go outside on ALL sides
+    // This makes positioning easier, especially at page bottom
+    const allowance = 0.8;
+    const minX = -(elementWidth * allowance);
+    const maxX = pageWidth - (elementWidth * (1 - allowance));
+    const minY = -(elementHeight * allowance);
+    const maxY = pageHeight - (elementHeight * (1 - allowance));
     
     x = Math.max(minX, Math.min(maxX, x));
     y = Math.max(minY, Math.min(maxY, y));
