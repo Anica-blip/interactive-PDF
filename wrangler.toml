@@ -16,10 +16,10 @@ bucket_name = "3c-library-files"
 R2_PUBLIC_URL = "https://files.3c-public-library.org"
 ENVIRONMENT = "production"
 
-# Routes - Use api.3c-public-library.org for consistency
-# All uploads go to: api.3c-public-library.org/pdf/*
+# Routes - Worker API at builder.3c-public-library.org/api/*
+# This keeps API under the same domain as the builder interface
 [[routes]]
-pattern = "api.3c-public-library.org/pdf/*"
+pattern = "builder.3c-public-library.org/api/*"
 zone_name = "3c-public-library.org"
 
 # Note: Supabase credentials set via secrets (not here)
