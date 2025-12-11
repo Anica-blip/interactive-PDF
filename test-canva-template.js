@@ -10,21 +10,22 @@ async function processCanvaForSocialMedia() {
   console.log('🚀 COMPLETE WORKFLOW: Canva PDF → Interactive PDF → Social Media URL');
   
   try {
-    // STEP 1: Initialize storage manager with your Wasabi config
+    // STEP 1: Initialize storage manager with your Cloudflare R2 config
     const storage = new PDFStorageManager({
-      wasabi: {
-        endpoint: 'https://s3.wasabisys.com',
-        region: 'us-east-1',
-        accessKeyId: process.env.WASABI_ACCESS_KEY,
-        secretAccessKey: process.env.WASABI_SECRET_KEY,
-        bucketName: process.env.WASABI_BUCKET_NAME
+      r2: {
+        endpoint: process.env.R2_ENDPOINT || 'https://<account-id>.r2.cloudflarestorage.com',
+        region: 'auto',
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        bucketName: '3c-library-files',
+        publicUrl: 'https://files.3c-public-library.org'
       }
     });
 
     // Test connection first
     const connected = await storage.testConnection();
     if (!connected) {
-      throw new Error('Wasabi connection failed - check your credentials');
+      throw new Error('Cloudflare R2 connection failed - check your credentials');
     }
 
     // STEP 2: Initialize PDF generator (no local file output needed)
@@ -61,7 +62,7 @@ async function processCanvaForSocialMedia() {
     });
 
     // STEP 5: COMPLETE WORKFLOW - Generate and upload to cloud
-    console.log('🔄 Generating and uploading to Wasabi...');
+    console.log('🔄 Generating and uploading to Cloudflare R2...');
     const result = await storage.processAndStore(generator, templateInfo.filename);
 
     // STEP 6: YOUR SHAREABLE URLS
@@ -98,5 +99,5 @@ async function processCanvaForSocialMedia() {
   }
 }
 
-// Run the test
-testCanvaTemplate();
+// Run the workflow
+processCanvaForSocialMedia();
