@@ -8,7 +8,6 @@
 
 export default {
     async fetch(request, env) {
-        const url = new URL(request.url);
     // CORS headers for browser requests
     const corsHeaders = {
       'Access-Control-Allow-Origin': 'builder.3c-public-library.org', // Change to your domain in production
