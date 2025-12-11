@@ -16,10 +16,10 @@ bucket_name = "3c-library-files"
 R2_PUBLIC_URL = "https://files.3c-public-library.org"
 ENVIRONMENT = "production"
 
-# Routes - Worker API at builder.3c-public-library.org/api/*
-# This keeps API under the same domain as the builder interface
+# Routes - Worker API at api.3c-public-library.org/pdf/*
+# Matches SETUP.md infrastructure exactly
 [[routes]]
-pattern = "builder.3c-public-library.org/api/*"
+pattern = "api.3c-public-library.org/pdf/*"
 zone_name = "3c-public-library.org"
 
 # Note: Supabase credentials set via secrets (not here)
@@ -28,3 +28,4 @@ zone_name = "3c-public-library.org"
 # Run: npx wrangler secret put CLOUDFLARE_STREAM_TOKEN
 # Run: npx wrangler secret put CLOUDFLARE_ACCOUNT_ID
 # Run: npx wrangler secret put CLOUDFLARE_STREAM_SUBDOMAIN
+
