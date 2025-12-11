@@ -1,6 +1,6 @@
 /**
  * PDF Storage Manager - Complete cloud storage and access system
- * Handles: File naming, Wasabi upload, URL generation, organization
+ * Handles: File naming, Cloudflare R2 upload, URL generation, organization
  * This will run as is - complete storage solution for social media sharing
  */
 
@@ -12,12 +12,13 @@ import crypto from 'crypto';
 export class PDFStorageManager {
   constructor(config = {}) {
     this.config = {
-      wasabi: {
-        endpoint: config.wasabi?.endpoint || 'https://s3.wasabisys.com',
-        region: config.wasabi?.region || 'us-east-1',
-        accessKeyId: config.wasabi?.accessKeyId || process.env.WASABI_ACCESS_KEY,
-        secretAccessKey: config.wasabi?.secretAccessKey || process.env.WASABI_SECRET_KEY,
-        bucketName: config.wasabi?.bucketName || process.env.WASABI_BUCKET_NAME
+      r2: {
+        endpoint: config.r2?.endpoint || process.env.R2_ENDPOINT || 'https://<account-id>.r2.cloudflarestorage.com',
+        region: config.r2?.region || 'auto',
+        accessKeyId: config.r2?.accessKeyId || process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: config.r2?.secretAccessKey || process.env.R2_SECRET_ACCESS_KEY,
+        bucketName: config.r2?.bucketName || process.env.R2_BUCKET_NAME || '3c-library-files',
+        publicUrl: config.r2?.publicUrl || process.env.R2_PUBLIC_URL || 'https://files.3c-public-library.org'
       },
 
       organization: {
@@ -36,11 +37,11 @@ export class PDFStorageManager {
     };
 
     this.s3Client = new S3Client({
-      endpoint: this.config.wasabi.endpoint,
-      region: this.config.wasabi.region,
+      endpoint: this.config.r2.endpoint,
+      region: this.config.r2.region,
       credentials: {
-        accessKeyId: this.config.wasabi.accessKeyId,
-        secretAccessKey: this.config.wasabi.secretAccessKey
+        accessKeyId: this.config.r2.accessKeyId,
+        secretAccessKey: this.config.r2.secretAccessKey
       },
       forcePathStyle: true
     });
@@ -48,10 +49,10 @@ export class PDFStorageManager {
     this.uploadLog = [];
   }
 
-  async fetchFromWasabi(cloudFilename) {
+  async fetchFromR2(cloudFilename) {
     try {
       const getParams = {
-        Bucket: this.config.wasabi.bucketName,
+        Bucket: this.config.r2.bucketName,
         Key: cloudFilename
       };
       
@@ -65,7 +66,7 @@ export class PDFStorageManager {
       
       return Buffer.concat(chunks);
     } catch (error) {
-      throw new Error(`Failed to fetch from Wasabi: ${error.message}`);
+      throw new Error(`Failed to fetch from R2: ${error.message}`);
     }
   }
 
@@ -75,7 +76,7 @@ export class PDFStorageManager {
 
       const tempResult = await generator.generateBuffer();
       const cloudFilename = this.generateCloudFilename(originalFilename, options);
-      const uploadResult = await this.uploadToWasabi(tempResult, cloudFilename, options);
+      const uploadResult = await this.uploadToR2(tempResult, cloudFilename, options);
       const accessUrls = this.generateAccessUrls(cloudFilename);
       const logEntry = this.logUpload(originalFilename, cloudFilename, uploadResult, accessUrls);
       
@@ -108,7 +109,7 @@ export class PDFStorageManager {
       const pdfBuffer = await fs.readFile(localPdfPath);
       const cloudFilename = this.generateCloudFilename(originalFilename, options);
       
-      const uploadResult = await this.uploadToWasabi(pdfBuffer, cloudFilename, options);
+      const uploadResult = await this.uploadToR2(pdfBuffer, cloudFilename, options);
       const accessUrls = this.generateAccessUrls(cloudFilename);
       const logEntry = this.logUpload(originalFilename, cloudFilename, uploadResult, accessUrls);
 
@@ -172,19 +173,18 @@ export class PDFStorageManager {
     return `${folderPath}${filename}.pdf`;
   }
 
-  async uploadToWasabi(pdfBuffer, cloudFilename, options = {}) {
+  async uploadToR2(pdfBuffer, cloudFilename, options = {}) {
     try {
       const uploadParams = {
-        Bucket: this.config.wasabi.bucketName,
+        Bucket: this.config.r2.bucketName,
         Key: cloudFilename,
         Body: pdfBuffer,
         ContentType: 'application/pdf',
         ContentDisposition: options.forceDownload ? 'attachment' : 'inline'
       };
 
-      if (this.config.access.makePublic) {
-        uploadParams.ACL = 'public-read';
-      }
+      // R2 doesn't use ACL for public access - it's configured at bucket level
+      // Public access is controlled via bucket settings in Cloudflare dashboard
 
       uploadParams.Metadata = {
         'upload-timestamp': Date.now().toString(),
@@ -206,15 +206,15 @@ export class PDFStorageManager {
       };
 
     } catch (error) {
-      throw new Error(`Wasabi upload failed: ${error.message}`);
+      throw new Error(`R2 upload failed: ${error.message}`);
     }
   }
 
   generateAccessUrls(cloudFilename) {
-    const bucketName = this.config.wasabi.bucketName;
-    const endpoint = this.config.wasabi.endpoint;
+    const publicUrl = this.config.r2.publicUrl;
     
-    const directUrl = `${endpoint}/${bucketName}/${cloudFilename}`;
+    // Cloudflare R2 public URL (via custom domain)
+    const directUrl = `${publicUrl}/${cloudFilename}`;
     
     const customUrl = this.config.access.customDomain ? 
       `https://${this.config.access.customDomain}/${cloudFilename}` : directUrl;
@@ -283,7 +283,7 @@ export class PDFStorageManager {
   async deletePdf(cloudFilename) {
     try {
       const deleteParams = {
-        Bucket: this.config.wasabi.bucketName,
+        Bucket: this.config.r2.bucketName,
         Key: cloudFilename
       };
 
@@ -292,7 +292,7 @@ export class PDFStorageManager {
       this.uploadLog = this.uploadLog.filter(entry => entry.cloudFilename !== cloudFilename);
       await this.saveUploadLog();
       
-      console.log(`Deleted from cloud: ${cloudFilename}`);
+      console.log(`Deleted from R2: ${cloudFilename}`);
       return true;
 
     } catch (error) {
@@ -304,29 +304,30 @@ export class PDFStorageManager {
   async testConnection() {
     try {
       const testParams = {
-        Bucket: this.config.wasabi.bucketName,
+        Bucket: this.config.r2.bucketName,
         MaxKeys: 1
       };
 
       await this.s3Client.send(new ListObjectsCommand(testParams));
-      console.log('Wasabi connection successful');
+      console.log('Cloudflare R2 connection successful');
       return true;
 
     } catch (error) {
-      console.error(`Wasabi connection failed: ${error.message}`);
+      console.error(`R2 connection failed: ${error.message}`);
       return false;
     }
   }
 }
 
-export function createWasabiConfig() {
+export function createR2Config() {
   return {
-    wasabi: {
-      endpoint: 'https://s3.wasabisys.com',
-      region: 'us-east-1',
-      accessKeyId: 'YOUR_WASABI_ACCESS_KEY',
-      secretAccessKey: 'YOUR_WASABI_SECRET_KEY',
-      bucketName: 'your-pdf-bucket'
+    r2: {
+      endpoint: 'https://<account-id>.r2.cloudflarestorage.com',
+      region: 'auto',
+      accessKeyId: 'YOUR_R2_ACCESS_KEY_ID',
+      secretAccessKey: 'YOUR_R2_SECRET_ACCESS_KEY',
+      bucketName: '3c-library-files',
+      publicUrl: 'https://files.3c-public-library.org'
     },
     
     organization: {
@@ -338,7 +339,7 @@ export function createWasabiConfig() {
     
     access: {
       makePublic: true,
-      customDomain: 'pdfs.yoursite.com'
+      customDomain: 'files.3c-public-library.org'
     }
   };
 }
