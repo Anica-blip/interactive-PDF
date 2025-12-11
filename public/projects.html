@@ -133,7 +133,7 @@
                 
                 // 2. Load published PDFs from API/Supabase
                 try {
-                    const response = await fetch(`${API_BASE}/api/list-projects`);
+                    const response = await fetch(`${API_BASE}/list-projects`);
                     if (response.ok) {
                         const data = await response.json();
                         const publishedProjects = (data.projects || []).map(p => ({
@@ -294,7 +294,7 @@
                     showStatus('✅ Draft deleted successfully', 'success');
                 } else {
                     // For API projects (when backend is set up)
-                    const response = await fetch(`${API_BASE}/api/delete-project/${projectToDelete}`, {
+                    const response = await fetch(`${API_BASE}/delete-project/${projectToDelete}`, {
                         method: 'DELETE'
                     });
                     
@@ -341,3 +341,4 @@
     </script>
 </body>
 </html>
+
