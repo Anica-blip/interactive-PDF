@@ -42,8 +42,8 @@
         #pagesContainer {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 15px 10px 300px 10px;
+            gap: 5px;
+            padding: 20px 10px 300px 10px;
             width: 100%;
             align-items: center;
         }
@@ -66,37 +66,22 @@
             height: 595px;
         }
         
-        /* Scale pages to fit screen - WITH PROPER SPACING FIX */
+        /* Scale pages to fit screen */
         @media (max-width: 1400px) {
             .pdf-page {
                 transform: scale(0.8);
-                transform-origin: top center;
-                margin-bottom: -168px; /* Compensate for scale: (842px × 0.2) */
-            }
-            .pdf-page.landscape {
-                margin-bottom: -119px; /* Compensate for landscape: (595px × 0.2) */
             }
         }
         
         @media (max-width: 1200px) {
             .pdf-page {
                 transform: scale(0.7);
-                transform-origin: top center;
-                margin-bottom: -253px; /* Compensate for scale: (842px × 0.3) */
-            }
-            .pdf-page.landscape {
-                margin-bottom: -179px; /* Compensate for landscape: (595px × 0.3) */
             }
         }
         
         @media (max-width: 1000px) {
             .pdf-page {
                 transform: scale(0.6);
-                transform-origin: top center;
-                margin-bottom: -337px; /* Compensate for scale: (842px × 0.4) */
-            }
-            .pdf-page.landscape {
-                margin-bottom: -238px; /* Compensate for landscape: (595px × 0.4) */
             }
         }
         
@@ -418,6 +403,12 @@
                 </div>
             </div>
             <div class="flex items-center space-x-3">
+                <!-- Supabase Connection Indicator -->
+                <div id="supabaseStatus" class="bg-white bg-opacity-20 px-3 py-1.5 rounded text-sm flex items-center space-x-2" title="Click to test connection">
+                    <i id="supabaseIcon" class="fas fa-circle text-yellow-400 animate-pulse"></i>
+                    <span id="supabaseText" class="text-xs">Checking...</span>
+                </div>
+                
                 <button onclick="saveDraft()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-save mr-1"></i>Save Draft
                 </button>
@@ -427,6 +418,9 @@
                 <a href="projects.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-cloud mr-1"></i>My Projects
                 </a>
+                <button onclick="exportProjectJSON()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition" title="Export for 3C Library">
+                    <i class="fas fa-download mr-1"></i>Export JSON
+                </button>
                 <button onclick="previewPDF()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-eye mr-1"></i>Preview
                 </button>
@@ -778,5 +772,38 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+        // Check Supabase connection on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            const statusEl = document.getElementById('supabaseStatus');
+            const iconEl = document.getElementById('supabaseIcon');
+            const textEl = document.getElementById('supabaseText');
+            
+            if (statusEl) {
+                statusEl.style.cursor = 'pointer';
+                statusEl.onclick = testSupabaseConnection;
+            }
+            
+            // Auto-test connection
+            try {
+                const response = await fetch(`${API_BASE}/test-connection`);
+                const result = await response.json();
+                
+                if (result.connected) {
+                    iconEl.className = 'fas fa-circle text-green-400';
+                    textEl.textContent = 'Connected';
+                    textEl.title = 'Connected to Supabase';
+                } else {
+                    iconEl.className = 'fas fa-circle text-red-400';
+                    textEl.textContent = 'Disconnected';
+                    textEl.title = result.message || 'Not connected';
+                }
+            } catch (error) {
+                iconEl.className = 'fas fa-circle text-red-400';
+                textEl.textContent = 'Error';
+                textEl.title = error.message;
+            }
+        });
+    </script>
 </body>
 </html>
