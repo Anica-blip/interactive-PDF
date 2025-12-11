@@ -7,13 +7,15 @@ on:
     paths:
       - 'worker.js'
       - 'wrangler.toml'
-      - '.github/workflows/cloudflare-worker.yml'
+      - 'worker-api.js'
+      - 'r2-storage.js'
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy Worker
+    name: Deploy builder.3c-public-library.org/api/* worker
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
