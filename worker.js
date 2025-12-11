@@ -1,9 +1,9 @@
 /**
  * Cloudflare Worker for Interactive PDF Builder
  * Handles PDF generation, uploads to R2, and API endpoints
- * Domain: builder.3c-public-library.org
- * Updated: 2024-11-29 - Full interactive PDF functionality
- * Deploy: Force deployment with separated workflow
+ * Domain: api.3c-public-library.org/pdf/*
+ * Updated: December 11, 2024 - Fixed route patterns to match SETUP.md
+ * Deploy: GitHub Actions with wrangler
  */
 
 export default {
@@ -25,74 +25,74 @@ export default {
 
     try {
       // Health check endpoint
-      if (path === '/api/health' && request.method === 'GET') {
+      if (path === '/health' && request.method === 'GET') {
         return handleHealthCheck(env, corsHeaders);
       }
 
       // Upload PDF to R2
-      if (path === '/api/upload-pdf' && request.method === 'POST') {
+      if (path === '/upload-pdf' && request.method === 'POST') {
         return await handlePDFUpload(request, env, corsHeaders);
       }
 
       // Upload media (images, videos, audio) to R2
-      if (path === '/api/upload-media' && request.method === 'POST') {
+      if (path === '/upload-media' && request.method === 'POST') {
         return await handleMediaUpload(request, env, corsHeaders);
       }
 
       // Upload video to Cloudflare Stream
-      if (path === '/api/upload-stream' && request.method === 'POST') {
+      if (path === '/upload-stream' && request.method === 'POST') {
         return await handleStreamUpload(request, env, corsHeaders);
       }
 
       // Get Stream video details
-      if (path.startsWith('/api/stream/') && request.method === 'GET') {
-        const videoId = path.replace('/api/stream/', '');
+      if (path.startsWith('/stream/') && request.method === 'GET') {
+        const videoId = path.replace('/stream/', '');
         return await handleGetStreamVideo(videoId, env, corsHeaders);
       }
 
       // Delete Stream video
-      if (path.startsWith('/api/stream/') && request.method === 'DELETE') {
-        const videoId = path.replace('/api/stream/', '');
+      if (path.startsWith('/stream/') && request.method === 'DELETE') {
+        const videoId = path.replace('/stream/', '');
         return await handleDeleteStreamVideo(videoId, env, corsHeaders);
       }
 
       // Delete file from R2
-      if (path === '/api/delete' && request.method === 'DELETE') {
+      if (path === '/delete' && request.method === 'DELETE') {
         return await handleDelete(request, env, corsHeaders);
       }
 
       // List files in R2
-      if (path === '/api/list' && request.method === 'GET') {
+      if (path === '/list' && request.method === 'GET') {
         return await handleList(request, env, corsHeaders);
       }
 
       // Get file info from R2
-      if (path.startsWith('/api/info/') && request.method === 'GET') {
+      if (path.startsWith('/info/') && request.method === 'GET') {
         return await handleInfo(request, env, corsHeaders);
       }
 
       // Save project to Supabase
-      if (path === '/api/save-project' && request.method === 'POST') {
+      if (path === '/save-project' && request.method === 'POST') {
         return await handleSaveProject(request, env, corsHeaders);
       }
 
       // Update project in Supabase
-      if (path === '/api/update-project' && request.method === 'POST') {
+      if (path === '/update-project' && request.method === 'POST') {
         return await handleUpdateProject(request, env, corsHeaders);
       }
 
       // Load project from Supabase
-      if (path.startsWith('/api/load-project/') && request.method === 'GET') {
+      if (path.startsWith('/load-project/') && request.method === 'GET') {
         return await handleLoadProject(request, env, corsHeaders);
       }
 
       // List all projects from Supabase
-      if (path === '/api/list-projects' && request.method === 'GET') {
+      if (path === '/list-projects' && request.method === 'GET') {
         return await handleListProjects(request, env, corsHeaders);
       }
 
       // Delete project from Supabase
-      if (path.startsWith('/api/delete-project/') && request.method === 'DELETE') {
+      if (path.startsWith('/delete-project/') && request.method === 'DELETE') {
         return await handleDeleteProject(request, env, corsHeaders);
       }
 
@@ -358,7 +358,7 @@ async function handleList(request, env, corsHeaders) {
 async function handleInfo(request, env, corsHeaders) {
   try {
     const url = new URL(request.url);
-    const filename = url.pathname.replace('/api/info/', '');
+    const filename = url.pathname.replace('/info/', '');
 
     const object = await env.R2_BUCKET.head(filename);
 
@@ -515,7 +515,7 @@ async function handleUpdateProject(request, env, corsHeaders) {
 async function handleLoadProject(request, env, corsHeaders) {
   try {
     const url = new URL(request.url);
-    const projectId = url.pathname.replace('/api/load-project/', '');
+    const projectId = url.pathname.replace('/load-project/', '');
 
     // Use service key to bypass RLS if available, otherwise use anon key
     const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
@@ -787,7 +787,7 @@ async function handleListProjects(request, env, corsHeaders) {
 async function handleDeleteProject(request, env, corsHeaders) {
   try {
     const url = new URL(request.url);
-    const projectId = url.pathname.replace('/api/delete-project/', '');
+    const projectId = url.pathname.replace('/delete-project/', '');
 
     if (!projectId) {
       return new Response(JSON.stringify({ error: 'Project ID is required' }), {
