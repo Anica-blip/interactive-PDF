@@ -42,7 +42,7 @@
         #pagesContainer {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 10px;
             padding: 20px 10px 300px 10px;
             width: 100%;
             align-items: center;
@@ -66,22 +66,28 @@
             height: 595px;
         }
         
-        /* Scale pages to fit screen */
+        /* Scale pages to fit screen with proper spacing compensation */
         @media (max-width: 1400px) {
             .pdf-page {
                 transform: scale(0.8);
+                transform-origin: top center;
+                margin-bottom: -168px; /* 842 × 0.2 = 168px to collapse */
             }
         }
         
         @media (max-width: 1200px) {
             .pdf-page {
                 transform: scale(0.7);
+                transform-origin: top center;
+                margin-bottom: -253px; /* 842 × 0.3 = 253px to collapse */
             }
         }
         
         @media (max-width: 1000px) {
             .pdf-page {
                 transform: scale(0.6);
+                transform-origin: top center;
+                margin-bottom: -337px; /* 842 × 0.4 = 337px to collapse */
             }
         }
         
