@@ -10,10 +10,10 @@ let flipbookMode = false; // Toggle for magazine-style flipbook
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 
-// API Configuration - Worker API at builder.3c-public-library.org/api/*
+// API Configuration - Worker API at api.3c-public-library.org/pdf/*
 const API_BASE = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000' 
-    : 'https://builder.3c-public-library.org/api';
+    ? 'http://localhost:3000/api' 
+    : 'https://api.3c-public-library.org/pdf';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('healthCheck').addEventListener('click', async () => {
     try {
         showStatus('Checking API health...', 'info');
-        const response = await fetch(`${API_BASE}/api/health`);
+        const response = await fetch(`${API_BASE}/health`);
         const data = await response.json();
         
         if (data.status === 'healthy') {
@@ -1156,7 +1156,7 @@ async function generatePDF() {
         
         console.log('Sending PDF data:', pdfData);
         
-        const response = await fetch(`${API_BASE}/api/generate-pdf-multipage`, {
+        const response = await fetch(`${API_BASE}/generate-pdf-multipage`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1254,7 +1254,7 @@ async function uploadToStream(file) {
     formData.append('file', file);
     formData.append('name', file.name);
     
-    const response = await fetch(`${API_BASE}/api/upload-stream`, {
+    const response = await fetch(`${API_BASE}/upload-stream`, {
         method: 'POST',
         body: formData
     });
@@ -1275,7 +1275,7 @@ async function uploadToR2(file, type) {
     formData.append('file', file);
     formData.append('folder', 'interactive-pdfs');
     
-    const response = await fetch(`${API_BASE}/api/upload-media`, {
+    const response = await fetch(`${API_BASE}/upload-media`, {
         method: 'POST',
         body: formData
     });
@@ -1408,7 +1408,7 @@ async function saveToDashboard() {
             updated_at: new Date().toISOString()
         };
         
-        const endpoint = currentProjectId ? '/api/update-project' : '/api/save-project';
+        const endpoint = currentProjectId ? '/update-project' : '/save-project';
         const response = await fetch(`${API_BASE}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1457,7 +1457,7 @@ async function loadProject(projectId) {
     try {
         showStatus('📂 Loading project...', 'info');
         
-        const response = await fetch(`${API_BASE}/api/load-project/${projectId}`);
+        const response = await fetch(`${API_BASE}/load-project/${projectId}`);
         
         if (!response.ok) {
             throw new Error('Project not found');
