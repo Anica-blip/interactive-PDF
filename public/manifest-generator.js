@@ -139,10 +139,10 @@ async function saveManifest(manifest, pdfId) {
     formData.append('folder', 'interactive-pdfs/manifests');
 
     const API_BASE = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000' 
-        : '';
+        ? 'http://localhost:3000/api' 
+        : 'https://api.3c-public-library.org/pdf';
 
-    const response = await fetch(`${API_BASE}/api/upload-media`, {
+    const response = await fetch(`${API_BASE}/upload-media`, {
         method: 'POST',
         body: formData
     });
