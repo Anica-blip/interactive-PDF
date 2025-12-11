@@ -1,9 +1,9 @@
 /**
  * Cloudflare Worker for Interactive PDF Builder
  * Handles PDF generation, uploads to R2, and API endpoints
- * Domain: api.3c-public-library.org/pdf/*
- * Updated: December 11, 2024 - Fixed route patterns to match SETUP.md
- * Deploy: GitHub Actions with wrangler
+ * Domain: builder.3c-public-library.org
+ * Updated: 2024-11-29 - Full interactive PDF functionality
+ * Deploy: Force deployment with separated workflow
  */
 
 export default {
@@ -25,60 +25,60 @@ export default {
 
     try {
       // Health check endpoint
-      if (path === '/health' && request.method === 'GET') {
+      if (path === '/api/health' && request.method === 'GET') {
         return handleHealthCheck(env, corsHeaders);
       }
 
-      // Generate multi-page PDF with interactive elements
-      if (path === '/generate-pdf-multipage' && request.method === 'POST') {
-        return await handleGeneratePDFMultipage(request, env, corsHeaders);
-      }
-
       // Upload PDF to R2
-      if (path === '/upload-pdf' && request.method === 'POST') {
+      if (path === '/api/upload-pdf' && request.method === 'POST') {
         return await handlePDFUpload(request, env, corsHeaders);
       }
 
       // Upload media (images, videos, audio) to R2
-      if (path === '/upload-media' && request.method === 'POST') {
+      if (path === '/api/upload-media' && request.method === 'POST') {
         return await handleMediaUpload(request, env, corsHeaders);
       }
 
       // Upload video to Cloudflare Stream
-      if (path === '/upload-stream' && request.method === 'POST') {
+      if (path === '/api/upload-stream' && request.method === 'POST') {
         return await handleStreamUpload(request, env, corsHeaders);
       }
 
       // Get Stream video details
-      if (path.startsWith('/stream/') && request.method === 'GET') {
-        const videoId = path.replace('/stream/', '');
+      if (path.startsWith('/api/stream/') && request.method === 'GET') {
+        const videoId = path.replace('/api/stream/', '');
         return await handleGetStreamVideo(videoId, env, corsHeaders);
       }
 
       // Delete Stream video
-      if (path.startsWith('/stream/') && request.method === 'DELETE') {
-        const videoId = path.replace('/stream/', '');
+      if (path.startsWith('/api/stream/') && request.method === 'DELETE') {
+        const videoId = path.replace('/api/stream/', '');
         return await handleDeleteStreamVideo(videoId, env, corsHeaders);
       }
 
       // Delete file from R2
-      if (path === '/delete' && request.method === 'DELETE') {
+      if (path === '/api/delete' && request.method === 'DELETE') {
         return await handleDelete(request, env, corsHeaders);
       }
 
       // List files in R2
-      if (path === '/list' && request.method === 'GET') {
+      if (path === '/api/list' && request.method === 'GET') {
         return await handleList(request, env, corsHeaders);
       }
 
       // Get file info from R2
-      if (path.startsWith('/info/') && request.method === 'GET') {
+      if (path.startsWith('/api/info/') && request.method === 'GET') {
         return await handleInfo(request, env, corsHeaders);
       }
 
-      // Save project to Supabase
+      // Save project to Supabase (published)
       if (path === '/save-project' && request.method === 'POST') {
-        return await handleSaveProject(request, env, corsHeaders);
+        return await handleSaveProject(request, env, corsHeaders, 'published');
+      }
+
+      // Save draft to Supabase
+      if (path === '/save-draft' && request.method === 'POST') {
+        return await handleSaveProject(request, env, corsHeaders, 'draft');
       }
 
       // Update project in Supabase
@@ -94,6 +94,16 @@ export default {
       // List all projects from Supabase
       if (path === '/list-projects' && request.method === 'GET') {
         return await handleListProjects(request, env, corsHeaders);
+      }
+
+      // Export project as JSON for 3C Library
+      if (path.startsWith('/export-json/') && request.method === 'GET') {
+        return await handleExportJSON(request, env, corsHeaders);
+      }
+
+      // Test Supabase connection
+      if (path === '/test-connection' && request.method === 'GET') {
+        return await handleTestConnection(request, env, corsHeaders);
       }
 
       // Delete project from Supabase
@@ -137,293 +147,6 @@ function handleHealthCheck(env, corsHeaders) {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}
-
-/**
- * Generate multi-page PDF with interactive elements
- */
-async function handleGeneratePDFMultipage(request, env, corsHeaders) {
-  try {
-    const data = await request.json();
-    const { title, author, pages: pageData, pageSize, orientation, settings } = data;
-
-    if (!pageData || pageData.length === 0) {
-      return new Response(JSON.stringify({ error: 'No pages provided' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Import pdf-lib dynamically
-    const { PDFDocument, StandardFonts, rgb } = await import('https://cdn.skypack.dev/pdf-lib@^1.17.1');
-
-    // Create new PDF document
-    const pdfDoc = await PDFDocument.create();
-    
-    // Set document metadata
-    pdfDoc.setTitle(title || 'Interactive PDF');
-    pdfDoc.setAuthor(author || 'Interactive PDF Creator');
-    pdfDoc.setCreator('3C Public Library - Interactive PDF Builder');
-    pdfDoc.setProducer('Cloudflare Workers + pdf-lib');
-    pdfDoc.setCreationDate(new Date());
-
-    // Page size configurations (in points: 1 inch = 72 points)
-    const pageSizes = {
-      'A4': { width: 595.28, height: 841.89 },
-      'Letter': { width: 612, height: 792 },
-      'Legal': { width: 612, height: 1008 },
-      'A3': { width: 841.89, height: 1190.55 },
-      'Tabloid': { width: 792, height: 1224 }
-    };
-
-    const finalPageSize = pageSize || settings?.pageSize || 'A4';
-    const finalOrientation = orientation || settings?.orientation || 'portrait';
-    const size = pageSizes[finalPageSize] || pageSizes.A4;
-    
-    const pageWidth = finalOrientation === 'landscape' ? size.height : size.width;
-    const pageHeight = finalOrientation === 'landscape' ? size.width : size.height;
-
-    // Process each page
-    for (let i = 0; i < pageData.length; i++) {
-      const pageInfo = pageData[i];
-      
-      // Add page to document
-      const page = pdfDoc.addPage([pageWidth, pageHeight]);
-      
-      // If page has a background image/PDF, we'd embed it here
-      if (pageInfo.background) {
-        try {
-          // Handle base64 data URLs
-          let bgBytes;
-          if (pageInfo.background.startsWith('data:')) {
-            // Extract base64 data from data URL
-            const base64Data = pageInfo.background.split(',')[1];
-            const binaryString = atob(base64Data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            bgBytes = bytes.buffer;
-          } else {
-            // Fetch from URL
-            const bgResponse = await fetch(pageInfo.background);
-            if (bgResponse.ok) {
-              bgBytes = await bgResponse.arrayBuffer();
-            }
-          }
-
-          if (bgBytes) {
-            // Determine image type from data URL or URL
-            const isPng = pageInfo.background.includes('png');
-            const bgImage = isPng
-              ? await pdfDoc.embedPng(bgBytes)
-              : await pdfDoc.embedJpg(bgBytes);
-            
-            page.drawImage(bgImage, {
-              x: 0,
-              y: 0,
-              width: pageWidth,
-              height: pageHeight,
-            });
-          }
-        } catch (bgError) {
-          console.error('Failed to embed background:', bgError);
-        }
-      }
-
-      // Add interactive elements to this page
-      if (pageInfo.elements && pageInfo.elements.length > 0) {
-        const form = pdfDoc.getForm();
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        for (const element of pageInfo.elements) {
-          const { type, x, y, width, height, text, url, name, placeholder } = element;
-
-          try {
-            switch (type) {
-              case 'text':
-                // Draw text on page
-                page.drawText(text || '', {
-                  x: x || 50,
-                  y: y || 50,
-                  size: element.fontSize || 12,
-                  font: font,
-                  color: rgb(0, 0, 0),
-                });
-                break;
-
-              case 'image':
-                // Draw image (if URL provided)
-                if (element.imageUrl) {
-                  try {
-                    const imgResponse = await fetch(element.imageUrl);
-                    if (imgResponse.ok) {
-                      const imgBytes = await imgResponse.arrayBuffer();
-                      const image = element.imageUrl.toLowerCase().endsWith('.png')
-                        ? await pdfDoc.embedPng(imgBytes)
-                        : await pdfDoc.embedJpg(imgBytes);
-                      
-                      page.drawImage(image, {
-                        x: x || 50,
-                        y: y || 50,
-                        width: width || 100,
-                        height: height || 100,
-                      });
-                    }
-                  } catch (imgError) {
-                    console.error('Failed to embed image:', imgError);
-                  }
-                }
-                break;
-
-              case 'textField':
-                // Create text field
-                const textField = form.createTextField(name || `field_${i}_${Math.random()}`);
-                textField.addToPage(page, {
-                  x: x || 50,
-                  y: y || 50,
-                  width: width || 200,
-                  height: height || 25,
-                  borderWidth: 1,
-                  backgroundColor: rgb(1, 1, 1),
-                  borderColor: rgb(0.7, 0.7, 0.7),
-                });
-                if (placeholder) {
-                  textField.setText('');
-                }
-                break;
-
-              case 'button':
-                // Draw button as rectangle with text
-                page.drawRectangle({
-                  x: x || 50,
-                  y: y || 50,
-                  width: width || 100,
-                  height: height || 30,
-                  color: rgb(0.4, 0.49, 0.91),
-                  borderColor: rgb(0, 0.34, 0.7),
-                  borderWidth: 1,
-                });
-                page.drawText(text || 'Button', {
-                  x: (x || 50) + 10,
-                  y: (y || 50) + (height || 30) / 2 - 5,
-                  size: element.fontSize || 12,
-                  font: font,
-                  color: rgb(1, 1, 1),
-                });
-                break;
-
-              case 'link':
-                // Create clickable link annotation
-                if (url) {
-                  page.drawText(text || url, {
-                    x: x || 50,
-                    y: y || 50,
-                    size: element.fontSize || 12,
-                    font: font,
-                    color: rgb(0, 0, 0.8),
-                  });
-                  
-                  // Add link annotation
-                  page.node.set('Annots', pdfDoc.context.obj([
-                    pdfDoc.context.obj({
-                      Type: 'Annot',
-                      Subtype: 'Link',
-                      Rect: [x || 50, y || 50, (x || 50) + (width || 100), (y || 50) + (height || 20)],
-                      Border: [0, 0, 0],
-                      A: {
-                        Type: 'Action',
-                        S: 'URI',
-                        URI: url,
-                      },
-                    })
-                  ]));
-                }
-                break;
-
-              case 'video':
-              case 'audio':
-                // Create media annotation (clickable link to media)
-                if (element.mediaUrl) {
-                  page.drawRectangle({
-                    x: x || 50,
-                    y: y || 50,
-                    width: width || 200,
-                    height: height || 150,
-                    color: rgb(0.9, 0.9, 0.9),
-                    borderColor: rgb(0.5, 0.5, 0.5),
-                    borderWidth: 2,
-                  });
-                  
-                  const mediaText = type === 'video' ? '▶ Video' : '♪ Audio';
-                  page.drawText(mediaText, {
-                    x: (x || 50) + (width || 200) / 2 - 30,
-                    y: (y || 50) + (height || 150) / 2,
-                    size: 20,
-                    font: font,
-                    color: rgb(0.3, 0.3, 0.3),
-                  });
-                }
-                break;
-            }
-          } catch (elementError) {
-            console.error(`Failed to add element ${type}:`, elementError);
-          }
-        }
-      }
-    }
-
-    // Generate PDF bytes
-    const pdfBytes = await pdfDoc.save();
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(7);
-    const sanitizedTitle = (title || 'interactive-pdf').toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const filename = `interactive-pdfs/flipbooks/${sanitizedTitle}-${timestamp}-${randomStr}.pdf`;
-
-    // Upload to R2
-    await env.R2_BUCKET.put(filename, pdfBytes, {
-      httpMetadata: {
-        contentType: 'application/pdf',
-      },
-      customMetadata: {
-        originalName: `${title || 'interactive-pdf'}.pdf`,
-        uploadedAt: new Date().toISOString(),
-        pageCount: pageData.length.toString(),
-        type: 'interactive-pdf-multipage',
-        generatedBy: 'pdf-builder',
-      },
-    });
-
-    // Get public URL
-    const publicUrl = `${env.R2_PUBLIC_URL}/${filename}`;
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        url: publicUrl,
-        browserUrl: publicUrl,
-        filename: filename,
-        pageCount: pageData.length,
-        size: pdfBytes.length,
-        message: `${pageData.length}-page interactive PDF generated successfully`,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('PDF generation error:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Failed to generate multi-page PDF'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
 }
 
 /**
@@ -650,7 +373,7 @@ async function handleList(request, env, corsHeaders) {
 async function handleInfo(request, env, corsHeaders) {
   try {
     const url = new URL(request.url);
-    const filename = url.pathname.replace('/info/', '');
+    const filename = url.pathname.replace('/api/info/', '');
 
     const object = await env.R2_BUCKET.head(filename);
 
@@ -688,9 +411,17 @@ async function handleInfo(request, env, corsHeaders) {
 /**
  * Handle save project to Supabase
  */
-async function handleSaveProject(request, env, corsHeaders) {
+async function handleSaveProject(request, env, corsHeaders, status = 'published') {
   try {
     const projectData = await request.json();
+
+    // Ensure status is set correctly
+    projectData.status = status;
+
+    // If project_json is provided, also store it in metadata for compatibility
+    if (projectData.project_json && !projectData.metadata) {
+      projectData.metadata = { ...projectData.project_json };
+    }
 
     // Use service key to bypass RLS if available, otherwise use anon key
     const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
@@ -720,7 +451,7 @@ async function handleSaveProject(request, env, corsHeaders) {
         success: true,
         id: project.id,
         project: project,
-        message: 'Project saved successfully',
+        message: `Project ${status === 'draft' ? 'draft saved' : 'published'} successfully`,
       }),
       {
         status: 200,
@@ -1125,5 +856,187 @@ async function handleDeleteProject(request, env, corsHeaders) {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+}
+
+/**
+ * Handle export project as JSON for 3C Content Library
+ */
+async function handleExportJSON(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const projectId = url.pathname.replace('/export-json/', '');
+
+    if (!projectId) {
+      return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use service key to bypass RLS if available, otherwise use anon key
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
+    // Call Supabase API to get project
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${projectId}&select=*`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': authKey,
+          'Authorization': `Bearer ${authKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Supabase error: ${error}`);
+    }
+
+    const projects = await response.json();
+    
+    if (!projects || projects.length === 0) {
+      return new Response(JSON.stringify({ error: 'Project not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const project = projects[0];
+
+    // Create export package for 3C Content Library
+    const exportData = {
+      id: project.id,
+      title: project.title,
+      description: project.description || '',
+      author: project.author || '3C Thread To Success',
+      created_at: project.created_at,
+      updated_at: project.updated_at,
+      type: 'interactive-pdf',
+      status: project.status,
+      
+      // PDF details
+      pdf_url: project.pdf_url,
+      cloudflare_url: project.pdf_url, // Cloudflare R2 URL
+      page_count: project.total_pages || project.page_count || 1,
+      page_size: project.page_size || 'A4',
+      orientation: project.orientation || 'portrait',
+      
+      // Interactive features
+      flipbook_mode: project.flipbook_mode || false,
+      embedded_mode: project.embedded_mode || false,
+      
+      // Full project data for reconstruction
+      project_json: project.project_json || project.metadata || {},
+      
+      // Thumbnail
+      thumbnail_url: project.thumbnail_url || null,
+      
+      // Export metadata
+      export_timestamp: new Date().toISOString(),
+      export_version: '1.0',
+      compatible_with: '3C Content Library v2.0+',
+    };
+
+    return new Response(JSON.stringify(exportData, null, 2), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="${project.title || 'project'}-export.json"`,
+      },
+    });
+  } catch (error) {
+    console.error('Export JSON error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Test Supabase connection
+ */
+async function handleTestConnection(request, env, corsHeaders) {
+  try {
+    const authKey = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+
+    if (!env.SUPABASE_URL || !authKey) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          connected: false,
+          message: 'Supabase credentials not configured',
+          details: {
+            hasUrl: !!env.SUPABASE_URL,
+            hasKey: !!authKey,
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Test connection by querying pdf_projects table (limit 1)
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/pdf_projects?select=id&limit=1`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': authKey,
+          'Authorization': `Bearer ${authKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      return new Response(
+        JSON.stringify({
+          success: false,
+          connected: false,
+          message: 'Supabase connection failed',
+          error: error,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        connected: true,
+        message: 'Supabase connection successful',
+        supabase_url: env.SUPABASE_URL,
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('Test connection error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        connected: false,
+        message: 'Connection test failed',
+        error: error.message,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
