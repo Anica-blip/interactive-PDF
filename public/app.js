@@ -40,18 +40,29 @@ async function testSupabaseConnection() {
 
 // Export JSON
 async function exportProjectJSON() {
-    if (!currentProjectId && !currentPdfUrl) {
-        showStatus('⚠️ Save or generate PDF first', 'warning');
+    if (!currentProjectId) {
+        showStatus('⚠️ Save project first', 'warning');
         return;
     }
+    
     const data = {
-        id: currentProjectId || 'unsaved',
+        id: currentProjectId,
         title: document.getElementById('pdfTitle').value || 'Untitled',
-        pdf_url: currentPdfUrl || '',
         pages: pages,
         assets: assets,
+        settings: {
+            author: document.getElementById('pdfAuthor').value,
+            pageSize: document.getElementById('pageSize').value,
+            orientation: document.getElementById('orientation').value,
+            embeddedMode: embeddedMode,
+            flipbookMode: flipbookMode,
+            versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            folderName: document.getElementById('folderName')?.value || '',
+            subfolderName: document.getElementById('subfolderName')?.value || ''
+        },
         exported_at: new Date().toISOString()
     };
+    
     const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -59,7 +70,7 @@ async function exportProjectJSON() {
     a.download = `${data.title.replace(/[^a-z0-9]/gi, '-')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showStatus('✅ Exported!', 'success');
+    showStatus('✅ JSON exported! Upload to 3C Content Library.', 'success');
 }
 
 // Initialize
@@ -1232,53 +1243,70 @@ async function generatePDF() {
         }
         
         generateBtn.disabled = true;
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Generating...';
-        showStatus(`🔄 Generating ${pages.length}-page PDF...`, 'info');
-        hideResults();
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Publishing...';
         
-        // Prepare PDF data
-        const pdfData = {
-            title: document.getElementById('pdfTitle').value || 'Interactive PDF',
-            author: document.getElementById('pdfAuthor').value || 'PDF Creator',
-            pageSize: document.getElementById('pageSize').value,
-            orientation: document.getElementById('orientation').value,
-            pages: pages.map((page, index) => ({
-                pageNumber: index + 1,
-                background: page.backgroundData,
-                elements: page.elements.map(el => ({
-                    ...el,
-                    // Convert from top-left (canvas) to bottom-left (PDF)
-                    y: getPageHeight() - el.y - el.height
-                }))
-            }))
+        // Save current state and mark as published
+        showStatus('💾 Saving and publishing...', 'info');
+        
+        // First save current state
+        await saveDraft(true);
+        
+        if (!currentProjectId) {
+            throw new Error('Failed to save project');
+        }
+        
+        // Mark as published
+        const projectData = {
+            pages: pages,
+            assets: assets,
+            currentPageIndex: currentPageIndex,
+            settings: {
+                title: document.getElementById('pdfTitle').value,
+                author: document.getElementById('pdfAuthor').value,
+                pageSize: document.getElementById('pageSize').value,
+                orientation: document.getElementById('orientation').value,
+                embeddedMode: embeddedMode,
+                flipbookMode: flipbookMode,
+                versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+                folderName: document.getElementById('folderName')?.value || '',
+                subfolderName: document.getElementById('subfolderName')?.value || ''
+            }
         };
         
-        console.log('Sending PDF data:', pdfData);
+        // Update status to published (NO PDF generation)
+        await window.publishProjectDB(currentProjectId, null, projectData);
         
-        const response = await fetch(`${API_BASE}/api/generate-pdf-multipage`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(pdfData)
-        });
+        showStatus('✅ Project published! Click "Export JSON" to download.', 'success');
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to generate PDF');
+        // Show success message
+        const resultDiv = document.getElementById('resultArea');
+        if (resultDiv) {
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded p-4">
+                    <h3 class="font-bold text-green-800 mb-2">
+                        <i class="fas fa-check-circle mr-2"></i>Project Published!
+                    </h3>
+                    <p class="text-sm text-green-700 mb-3">
+                        Your interactive flipbook is ready. Click "Export JSON" to download 
+                        and upload to your 3C Content Library.
+                    </p>
+                    <button onclick="exportProjectJSON()" 
+                            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export JSON
+                    </button>
+                </div>
+            `;
         }
         
-        const result = await response.json();
-        console.log('PDF generated:', result);
-        
-        // Save PDF URL to database
-        if (result.browserUrl && currentProjectId) {
-            currentPdfUrl = result.browserUrl;
-            await savePublishedProject(result.browserUrl);
-        }
-        
-        showStatus(`✅ ${pages.length}-page PDF generated successfully!`, 'success');
-        showResults(result);
+    } catch (error) {
+        console.error('Publish error:', error);
+        showStatus('❌ Error: ' + error.message, 'error');
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = originalText;
+    }
+}
         
         // Show PDF preview
         if (result.browserUrl || result.apiViewUrl) {
