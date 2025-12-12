@@ -13,6 +13,51 @@ let currentPdfUrl = null; // Track current PDF URL
 // API Configuration - Cloudflare Worker
 const API_BASE = 'https://api.3c-public-library.org/pdf';
 
+// Test connection
+async function testSupabaseConnection() {
+    try {
+        showStatus('Testing connection...', 'info');
+        const response = await fetch(`${API_BASE}/api/health`);
+        if (!response.ok) throw new Error('Health check failed');
+        const data = await response.json();
+        showStatus('✅ Connected!', 'success');
+        const icon = document.getElementById('supabaseIcon');
+        const text = document.getElementById('supabaseText');
+        if (icon) icon.className = 'fas fa-circle text-green-400';
+        if (text) text.textContent = 'Connected';
+    } catch (error) {
+        showStatus('❌ Connection failed', 'error');
+        const icon = document.getElementById('supabaseIcon');
+        const text = document.getElementById('supabaseText');
+        if (icon) icon.className = 'fas fa-circle text-red-400';
+        if (text) text.textContent = 'Error';
+    }
+}
+
+// Export JSON
+async function exportProjectJSON() {
+    if (!currentProjectId && !currentPdfUrl) {
+        showStatus('⚠️ Save or generate PDF first', 'warning');
+        return;
+    }
+    const data = {
+        id: currentProjectId || 'unsaved',
+        title: document.getElementById('pdfTitle').value || 'Untitled',
+        pdf_url: currentPdfUrl || '',
+        pages: pages,
+        assets: assets,
+        exported_at: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.title.replace(/[^a-z0-9]/gi, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showStatus('✅ Exported!', 'success');
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Interactive PDF Creator v2 initialized');
@@ -38,51 +83,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Test Supabase connection
-async function testSupabaseConnection() {
+// Health check
+document.getElementById('healthCheck').addEventListener('click', async () => {
     try {
-        showStatus('Testing Supabase connection...', 'info');
-        const response = await fetch(`${API_BASE}/test-connection`);
+        showStatus('Checking API health...', 'info');
+        const response = await fetch(`${API_BASE}/api/health`);
         const data = await response.json();
         
-        if (data.connected) {
-            showStatus('✅ Supabase connected!', 'success');
-            return true;
+        if (data.status === 'healthy') {
+            showStatus('✅ API is healthy!', 'success');
         } else {
-            showStatus('⚠️ Supabase not connected: ' + data.message, 'warning');
-            return false;
+            showStatus('⚠️ API health check returned: ' + data.status, 'warning');
         }
+        console.log('Health check:', data);
     } catch (error) {
-        showStatus('❌ Failed to test connection: ' + error.message, 'error');
-        console.error('Connection test failed:', error);
-        return false;
+        showStatus('❌ Failed to connect to API: ' + error.message, 'error');
+        console.error('Health check failed:', error);
     }
-}
-
-// Export project as JSON for 3C Content Library
-async function exportProjectJSON() {
-    if (!currentProjectId) {
-        showStatus('⚠️ Please save or generate a PDF first', 'warning');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE}/export-json/${currentProjectId}`);
-        if (!response.ok) throw new Error('Export failed');
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${document.getElementById('pdfTitle').value || 'project'}-export.json`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        
-        showStatus('✅ JSON exported successfully!', 'success');
-    } catch (error) {
-        showStatus('❌ Export failed: ' + error.message, 'error');
-    }
-}
+});
 
 // Toggle embedded mode
 function toggleEmbeddedMode() {
@@ -191,243 +209,188 @@ function updateFolderPathPreview() {
 
 async function saveDraft(silent = false) {
     const projectData = {
-        title: document.getElementById('pdfTitle').value || 'Untitled Project',
-        description: '',
-        author: document.getElementById('pdfAuthor').value || '3C Thread To Success',
-        status: 'draft',
-        page_size: document.getElementById('pageSize').value,
-        orientation: document.getElementById('orientation').value,
-        total_pages: pages.length,
-        page_count: pages.length,
-        flipbook_mode: flipbookMode,
-        embedded_mode: embeddedMode,
         project_json: {
             pages: pages,
             assets: assets,
             currentPageIndex: currentPageIndex,
             settings: {
+                title: document.getElementById('pdfTitle').value,
+                author: document.getElementById('pdfAuthor').value,
+                pageSize: document.getElementById('pageSize').value,
+                orientation: document.getElementById('orientation').value,
+                embeddedMode: embeddedMode,
+                flipbookMode: flipbookMode,
                 versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
                 folderName: document.getElementById('folderName')?.value || '',
                 subfolderName: document.getElementById('subfolderName')?.value || ''
             }
         },
-        metadata: {
-            savedAt: new Date().toISOString()
-        }
+        status: 'draft'
     };
     
+    // Add ID if updating existing project
+    if (currentProjectId) {
+        projectData.id = currentProjectId;
+    }
+    
     try {
-        const endpoint = currentProjectId ? '/api/update-project' : '/api/save-project';
-        const body = currentProjectId ? { id: currentProjectId, ...projectData } : projectData;
+        if (!silent) showStatus('💾 Saving draft...', 'info');
         
+        const endpoint = currentProjectId ? '/api/update-project' : '/api/save-project';
         const response = await fetch(`${API_BASE}${endpoint}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(projectData)
         });
         
-        if (!response.ok) throw new Error('Failed to save draft');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error: ${errorText}`);
+        }
         
         const result = await response.json();
-        currentProjectId = result.id || result.project?.id;
         
-        // Update URL with project ID
-        const url = new URL(window.location);
-        url.searchParams.set('project', currentProjectId);
-        window.history.pushState({}, '', url);
-        
-        if (!silent) {
-            showStatus('💾 Draft saved to dashboard!', 'success');
+        if (result.success) {
+            // Store project ID for future updates
+            currentProjectId = result.id || result.project?.id;
+            
+            // Update URL with project ID
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('project', currentProjectId);
+            window.history.replaceState({}, '', newUrl);
+            
+            if (!silent) {
+                showStatus('✅ Draft saved!', 'success');
+            }
+            console.log('Draft saved to Supabase:', result);
+        } else {
+            throw new Error(result.error || 'Save failed');
         }
     } catch (error) {
         console.error('Failed to save draft:', error);
-        if (!silent) {
-            showStatus('❌ Failed to save draft: ' + error.message, 'error');
-        }
+        showStatus('❌ Failed to save: ' + error.message, 'error');
     }
 }
 
-// Save published project after PDF generation
 async function savePublishedProject(pdfUrl) {
+    if (!currentProjectId) {
+        console.warn('No project ID to update with PDF URL');
+        return;
+    }
+    
     const projectData = {
-        title: document.getElementById('pdfTitle').value || 'Untitled Project',
-        description: '',
-        author: document.getElementById('pdfAuthor').value || '3C Thread To Success',
-        status: 'published',
-        page_size: document.getElementById('pageSize').value,
-        orientation: document.getElementById('orientation').value,
-        total_pages: pages.length,
-        page_count: pages.length,
+        id: currentProjectId,
         pdf_url: pdfUrl,
-        flipbook_mode: flipbookMode,
-        embedded_mode: embeddedMode,
+        status: 'published',
         project_json: {
             pages: pages,
             assets: assets,
             currentPageIndex: currentPageIndex,
             settings: {
+                title: document.getElementById('pdfTitle').value,
+                author: document.getElementById('pdfAuthor').value,
+                pageSize: document.getElementById('pageSize').value,
+                orientation: document.getElementById('orientation').value,
+                embeddedMode: embeddedMode,
+                flipbookMode: flipbookMode,
                 versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
                 folderName: document.getElementById('folderName')?.value || '',
                 subfolderName: document.getElementById('subfolderName')?.value || ''
             }
-        },
-        metadata: {
-            publishedAt: new Date().toISOString()
         }
     };
     
     try {
-        const endpoint = currentProjectId ? '/api/update-project' : '/api/save-project';
-        const body = currentProjectId ? { id: currentProjectId, ...projectData } : projectData;
-        
-        const response = await fetch(`${API_BASE}${endpoint}`, {
+        const response = await fetch(`${API_BASE}/api/update-project`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(projectData)
         });
         
-        if (!response.ok) throw new Error('Failed to save published project');
+        if (!response.ok) {
+            throw new Error('Failed to update project with PDF URL');
+        }
         
         const result = await response.json();
-        currentProjectId = result.id || result.project?.id;
-        currentPdfUrl = pdfUrl;
-        
-        // Update URL
-        const url = new URL(window.location);
-        url.searchParams.set('project', currentProjectId);
-        window.history.pushState({}, '', url);
-        
-        console.log('✅ Project published to Supabase:', currentProjectId);
+        console.log('Project published:', result);
     } catch (error) {
         console.error('Failed to save published project:', error);
-        // Don't show error to user - PDF still generated successfully
     }
 }
 
-async function loadDraft() {
+function loadDraft() {
     try {
-        let projectId = currentProjectId;
+        const draftData = localStorage.getItem('pdfCreatorDraft');
         
-        // Check URL for project ID
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('project')) {
-            projectId = urlParams.get('project');
+        if (!draftData) {
+            showStatus('⚠️ No saved draft found', 'warning');
+            return;
         }
         
-        if (!projectId) {
-            projectId = prompt('Enter project ID to load:');
-            if (!projectId) return;
-        }
+        const draft = JSON.parse(draftData);
         
-        const response = await fetch(`${API_BASE}/api/load-project/${projectId}`);
-        if (!response.ok) throw new Error('Project not found');
-        
-        const result = await response.json();
-        const project = result.project;
-        
-        currentProjectId = project.id;
-        
-        // Restore from project_json
-        const projectData = project.project_json || project.metadata || {};
-        pages = projectData.pages || [];
-        assets = projectData.assets || [];
-        currentPageIndex = projectData.currentPageIndex || 0;
+        // Restore pages and assets
+        pages = draft.pages || [];
+        assets = draft.assets || [];
+        currentPageIndex = draft.currentPageIndex || 0;
         
         // Restore settings
-        document.getElementById('pdfTitle').value = project.title || '';
-        document.getElementById('pdfAuthor').value = project.author || '';
-        document.getElementById('pageSize').value = project.page_size || 'A4';
-        document.getElementById('orientation').value = project.orientation || 'portrait';
-        embeddedMode = project.embedded_mode || false;
-        flipbookMode = project.flipbook_mode || false;
-        
-        if (projectData.settings) {
+        if (draft.settings) {
+            document.getElementById('pdfTitle').value = draft.settings.title || '';
+            document.getElementById('pdfAuthor').value = draft.settings.author || '';
+            document.getElementById('pageSize').value = draft.settings.pageSize || 'A4';
+            document.getElementById('orientation').value = draft.settings.orientation || 'portrait';
+            embeddedMode = draft.settings.embeddedMode || false;
+            flipbookMode = draft.settings.flipbookMode || false;
+            
+            // Restore organization fields
             if (document.getElementById('versionNumber')) {
-                document.getElementById('versionNumber').value = projectData.settings.versionNumber || 'v1.0';
+                document.getElementById('versionNumber').value = draft.settings.versionNumber || 'v1.0';
             }
             if (document.getElementById('folderName')) {
-                document.getElementById('folderName').value = projectData.settings.folderName || '';
+                document.getElementById('folderName').value = draft.settings.folderName || '';
             }
             if (document.getElementById('subfolderName')) {
-                document.getElementById('subfolderName').value = projectData.settings.subfolderName || '';
+                document.getElementById('subfolderName').value = draft.settings.subfolderName || '';
             }
-        }
-        
-        // Update UI toggles
-        if (document.getElementById('embeddedMode')) {
-            document.getElementById('embeddedMode').checked = embeddedMode;
-        }
-        if (document.getElementById('flipbookMode')) {
-            document.getElementById('flipbookMode').checked = flipbookMode;
-        }
-        
-        // Update folder path preview
-        if (typeof updateFolderPathPreview === 'function') {
+            
+            // Update UI toggles
+            if (document.getElementById('embeddedMode')) {
+                document.getElementById('embeddedMode').checked = embeddedMode;
+            }
+            if (document.getElementById('flipbookMode')) {
+                document.getElementById('flipbookMode').checked = flipbookMode;
+            }
+            
+            // Update folder path preview
             updateFolderPathPreview();
         }
-        
-        // Update URL
-        const url = new URL(window.location);
-        url.searchParams.set('project', currentProjectId);
-        window.history.pushState({}, '', url);
         
         // Re-render everything
         renderPages();
         renderAssetLibrary();
-        renderPageThumbnails();
-        updatePageCounter();
         
-        const status = project.status === 'draft' ? '📝 Draft' : '✅ Published';
-        showStatus(`${status} loaded! (${project.title})`, 'success');
+        const savedDate = new Date(draft.savedAt).toLocaleString();
+        showStatus(`✅ Draft loaded! (Saved: ${savedDate})`, 'success');
+        console.log('Draft loaded:', draft);
         
     } catch (error) {
         console.error('Failed to load draft:', error);
-        showStatus('❌ Failed to load project: ' + error.message, 'error');
+        showStatus('❌ Failed to load draft: ' + error.message, 'error');
     }
 }
 
-// Auto-save every 15 seconds (saves ALL pages + assets)
-let autoSaveTimer = null;
-
-function startAutoSave() {
-    if (autoSaveTimer) return; // Already running
-    
-    autoSaveTimer = setInterval(async () => {
-        if (pages.length > 0 && currentProjectId) {
-            // Show saving indicator
-            const statusEl = document.getElementById('supabaseStatus');
-            const textEl = document.getElementById('supabaseText');
-            const originalText = textEl?.textContent;
-            
-            if (textEl) textEl.textContent = 'Saving...';
-            
-            // Only auto-save if project already exists
-            await saveDraft(true); // Silent auto-save
-            
-            // Show saved confirmation briefly
-            if (textEl) {
-                textEl.textContent = 'Saved ✓';
-                setTimeout(() => {
-                    textEl.textContent = originalText;
-                }, 2000);
-            }
-            
-            console.log('🔄 Auto-saved:', new Date().toLocaleTimeString());
-        }
-    }, 15000); // Every 15 seconds
-}
-
-function stopAutoSave() {
-    if (autoSaveTimer) {
-        clearInterval(autoSaveTimer);
-        autoSaveTimer = null;
+// Auto-save every 15 seconds (silent)
+setInterval(async () => {
+    if (pages.length > 0 && currentProjectId) {
+        await saveDraft(true); // Silent save
+        console.log('🔄 Auto-saved:', new Date().toLocaleTimeString());
     }
-}
-
-// Start auto-save when page loads
-window.addEventListener('load', () => {
-    startAutoSave();
-});
+}, 15000);
 
 // ============================================
 // PAGE MANAGEMENT
@@ -1338,8 +1301,11 @@ async function generatePDF() {
         const result = await response.json();
         console.log('PDF generated:', result);
         
-        // Save to Supabase with published status
-        await savePublishedProject(result.browserUrl || result.cloudflareUrl);
+        // Save PDF URL to database
+        if (result.browserUrl && currentProjectId) {
+            currentPdfUrl = result.browserUrl;
+            await savePublishedProject(result.browserUrl);
+        }
         
         showStatus(`✅ ${pages.length}-page PDF generated successfully!`, 'success');
         showResults(result);
@@ -1376,20 +1342,6 @@ function getPageHeight() {
 // UI HELPERS
 // ============================================
 
-function toggleSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    const icon = document.getElementById(sectionId + 'Icon');
-    
-    if (section.style.maxHeight && section.style.maxHeight !== '0px') {
-        section.style.maxHeight = '0px';
-        icon.classList.remove('fa-chevron-up');
-        icon.classList.add('fa-chevron-down');
-    } else {
-        section.style.maxHeight = section.scrollHeight + 'px';
-        icon.classList.remove('fa-chevron-down');
-        icon.classList.add('fa-chevron-up');
-    }
-}
 
 function showStatus(message, type) {
     const statusArea = document.getElementById('statusArea');
@@ -1997,19 +1949,23 @@ function toggleSection(sectionId) {
     
     if (!section) return;
     
-    const isVisible = section.style.display !== 'none';
-    
-    if (isVisible) {
-        section.style.display = 'none';
-        if (icon) {
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-right');
-        }
+    // Handle initial display: none state
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        section.style.maxHeight = section.scrollHeight + 'px';
+        icon.classList.remove('fa-chevron-right');
+        icon.classList.add('fa-chevron-down');
+    } else if (section.style.maxHeight && section.style.maxHeight !== '0px') {
+        section.style.maxHeight = '0px';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-right');
+        setTimeout(() => {
+            section.style.display = 'none';
+        }, 300); // Match transition duration
     } else {
         section.style.display = 'block';
-        if (icon) {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-down');
-        }
+        section.style.maxHeight = section.scrollHeight + 'px';
+        icon.classList.remove('fa-chevron-right');
+        icon.classList.add('fa-chevron-down');
     }
 }
