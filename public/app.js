@@ -10,27 +10,38 @@ let flipbookMode = false; // Toggle for magazine-style flipbook
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 
-// API Configuration - Cloudflare Worker
+// API Configuration - Cloudflare Worker for PDF generation and media only
 const API_BASE = 'https://api.3c-public-library.org/pdf';
+
+// Supabase Configuration - DIRECT connection from frontend
+const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';  // Replace with your Supabase URL
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4';  // Replace with your anon key
 
 // Test connection
 async function testSupabaseConnection() {
     try {
-        showStatus('Testing connection...', 'info');
-        const response = await fetch(`${API_BASE}/api/health`);
-        if (!response.ok) throw new Error('Health check failed');
-        const data = await response.json();
-        showStatus('✅ Connected!', 'success');
+        showStatus('Testing Supabase connection...', 'info');
+        // Test direct Supabase connection
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?limit=1`, {
+            method: 'GET',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
+        if (!response.ok) throw new Error('Supabase connection failed');
+        showStatus('✅ Supabase connected!', 'success');
         const icon = document.getElementById('supabaseIcon');
         const text = document.getElementById('supabaseText');
         if (icon) icon.className = 'fas fa-circle text-green-400';
         if (text) text.textContent = 'Connected';
     } catch (error) {
-        showStatus('❌ Connection failed', 'error');
+        showStatus('❌ Supabase connection failed', 'error');
         const icon = document.getElementById('supabaseIcon');
         const text = document.getElementById('supabaseText');
         if (icon) icon.className = 'fas fa-circle text-red-400';
         if (text) text.textContent = 'Error';
+        console.error('Supabase test failed:', error);
     }
 }
 
@@ -228,46 +239,58 @@ async function saveDraft(silent = false) {
         status: 'draft'
     };
     
-    // Add ID if updating existing project
-    if (currentProjectId) {
-        projectData.id = currentProjectId;
-    }
-    
     try {
         if (!silent) showStatus('💾 Saving draft...', 'info');
         
-        const endpoint = currentProjectId ? '/api/update-project' : '/api/save-project';
-        const response = await fetch(`${API_BASE}${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(projectData)
-        });
+        // Call Supabase REST API DIRECTLY (not through Worker)
+        let response;
+        
+        if (currentProjectId) {
+            // UPDATE existing project
+            response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${currentProjectId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(projectData)
+            });
+        } else {
+            // INSERT new project
+            response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(projectData)
+            });
+        }
         
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Server error: ${errorText}`);
+            throw new Error(`Supabase error: ${errorText}`);
         }
         
         const result = await response.json();
+        const savedProject = Array.isArray(result) ? result[0] : result;
         
-        if (result.success) {
-            // Store project ID for future updates
-            currentProjectId = result.id || result.project?.id;
-            
-            // Update URL with project ID
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('project', currentProjectId);
-            window.history.replaceState({}, '', newUrl);
-            
-            if (!silent) {
-                showStatus('✅ Draft saved!', 'success');
-            }
-            console.log('Draft saved to Supabase:', result);
-        } else {
-            throw new Error(result.error || 'Save failed');
+        // Store project ID for future updates
+        currentProjectId = savedProject.id;
+        
+        // Update URL with project ID
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('project', currentProjectId);
+        window.history.replaceState({}, '', newUrl);
+        
+        if (!silent) {
+            showStatus('✅ Draft saved!', 'success');
         }
+        console.log('Draft saved to Supabase:', savedProject);
     } catch (error) {
         console.error('Failed to save draft:', error);
         showStatus('❌ Failed to save: ' + error.message, 'error');
@@ -281,7 +304,6 @@ async function savePublishedProject(pdfUrl) {
     }
     
     const projectData = {
-        id: currentProjectId,
         pdf_url: pdfUrl,
         status: 'published',
         project_json: {
@@ -303,10 +325,14 @@ async function savePublishedProject(pdfUrl) {
     };
     
     try {
-        const response = await fetch(`${API_BASE}/api/update-project`, {
-            method: 'POST',
+        // Call Supabase REST API DIRECTLY
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${currentProjectId}`, {
+            method: 'PATCH',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Prefer': 'return=representation'
             },
             body: JSON.stringify(projectData)
         });
@@ -1942,6 +1968,21 @@ document.addEventListener('keydown', (e) => {
 // ============================================
 // COLLAPSIBLE SECTIONS
 // ============================================
+
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    const icon = document.getElementById(sectionId + 'Icon');
+    
+    if (section.style.maxHeight && section.style.maxHeight !== '0px') {
+        section.style.maxHeight = '0px';
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    } else {
+        section.style.maxHeight = section.scrollHeight + 'px';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    }
+}
 
 function toggleSection(sectionId) {
     const section = document.getElementById(sectionId);
