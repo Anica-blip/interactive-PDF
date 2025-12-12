@@ -1949,23 +1949,19 @@ function toggleSection(sectionId) {
     
     if (!section) return;
     
-    // Handle initial display: none state
-    if (section.style.display === 'none') {
-        section.style.display = 'block';
-        section.style.maxHeight = section.scrollHeight + 'px';
-        icon.classList.remove('fa-chevron-right');
-        icon.classList.add('fa-chevron-down');
-    } else if (section.style.maxHeight && section.style.maxHeight !== '0px') {
-        section.style.maxHeight = '0px';
-        icon.classList.remove('fa-chevron-down');
-        icon.classList.add('fa-chevron-right');
-        setTimeout(() => {
-            section.style.display = 'none';
-        }, 300); // Match transition duration
+    const isVisible = section.style.display !== 'none';
+    
+    if (isVisible) {
+        section.style.display = 'none';
+        if (icon) {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
     } else {
         section.style.display = 'block';
-        section.style.maxHeight = section.scrollHeight + 'px';
-        icon.classList.remove('fa-chevron-right');
-        icon.classList.add('fa-chevron-down');
+        if (icon) {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        }
     }
 }
