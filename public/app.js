@@ -1759,6 +1759,60 @@ function showExternalLinkWarning(url) {
 
 let previewCurrentPage = 0;
 
+// ============================================
+// FLIPBOOK VIEWER
+// ============================================
+
+function openInFlipbook() {
+    if (pages.length === 0) {
+        showStatus('⚠️ Add at least one page first', 'warning');
+        return;
+    }
+    
+    // Create manifest JSON from current project
+    const manifest = {
+        title: document.getElementById('pdfTitle').value || 'Interactive Flipbook',
+        author: document.getElementById('pdfAuthor').value || 'Chef',
+        pages: pages.map((page, index) => ({
+            pageNumber: index + 1,
+            background: page.backgroundData,
+            hotspots: page.elements.map(el => ({
+                type: el.type || 'button',
+                title: el.label || el.text || 'Interactive Element',
+                action: el.action || 'link',
+                url: el.url || el.link || '#',
+                videoUrl: el.videoUrl,
+                streamId: el.streamId,
+                mediaUrl: el.mediaUrl,
+                bounds: {
+                    x: el.x,
+                    y: el.y,
+                    width: el.width,
+                    height: el.height
+                }
+            }))
+        })),
+        settings: {
+            pageSize: document.getElementById('pageSize').value,
+            orientation: document.getElementById('orientation').value,
+            flipbookMode: flipbookMode
+        },
+        createdAt: new Date().toISOString()
+    };
+    
+    // Store manifest in sessionStorage (temporary, will be cleared when window closes)
+    sessionStorage.setItem('flipbookManifest', JSON.stringify(manifest));
+    
+    // Open flipbook in new tab
+    window.open('flipbook.html', '_blank');
+    
+    showStatus('✅ Opening in flipbook viewer...', 'success');
+}
+
+// ============================================
+// PDF PREVIEW (OLD)
+// ============================================
+
 function previewPDF() {
     if (pages.length === 0) {
         showStatus('⚠️ No pages to preview. Add a page first!', 'warning');
