@@ -25,7 +25,7 @@
             top: 70px;
             background: #f8f9fa;
             border-right: 2px solid #e2e8f0;
-            padding-bottom: 100px;
+            padding-bottom: 300px;
         }
         
         .main-canvas {
@@ -223,7 +223,7 @@
         
         .collapsible-section {
             transition: max-height 0.3s ease;
-            overflow: hidden;
+            overflow: visible;
         }
         
         .section-header {
@@ -775,6 +775,9 @@
         </div>
     </div>
 
+    <!-- Supabase API - Load FIRST -->
+    <script src="supabaseAPI.js"></script>
+    <!-- Main App -->
     <script src="app.js"></script>
 </body>
 </html>
