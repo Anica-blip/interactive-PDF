@@ -10,31 +10,24 @@ let flipbookMode = false; // Toggle for magazine-style flipbook
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 
-// API Configuration - Cloudflare Worker for PDF generation and media only
+// Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
 const API_BASE = 'https://api.3c-public-library.org/pdf';
-
-// Supabase Configuration - DIRECT connection from frontend
-const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';  // Replace with your Supabase URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4';  // Replace with your anon key
 
 // Test connection
 async function testSupabaseConnection() {
     try {
-        showStatus('Testing Supabase connection...', 'info');
-        // Test direct Supabase connection
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?limit=1`, {
-            method: 'GET',
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-            }
-        });
-        if (!response.ok) throw new Error('Supabase connection failed');
-        showStatus('✅ Supabase connected!', 'success');
-        const icon = document.getElementById('supabaseIcon');
-        const text = document.getElementById('supabaseText');
-        if (icon) icon.className = 'fas fa-circle text-green-400';
-        if (text) text.textContent = 'Connected';
+        showStatus('Testing Supabase Edge Function...', 'info');
+        const result = await window.testSupabaseConnectionDB();
+        
+        if (result.connected) {
+            showStatus('✅ Supabase connected!', 'success');
+            const icon = document.getElementById('supabaseIcon');
+            const text = document.getElementById('supabaseText');
+            if (icon) icon.className = 'fas fa-circle text-green-400';
+            if (text) text.textContent = 'Connected';
+        } else {
+            throw new Error(result.message);
+        }
     } catch (error) {
         showStatus('❌ Supabase connection failed', 'error');
         const icon = document.getElementById('supabaseIcon');
@@ -220,64 +213,34 @@ function updateFolderPathPreview() {
 
 async function saveDraft(silent = false) {
     const projectData = {
-        project_json: {
-            pages: pages,
-            assets: assets,
-            currentPageIndex: currentPageIndex,
-            settings: {
-                title: document.getElementById('pdfTitle').value,
-                author: document.getElementById('pdfAuthor').value,
-                pageSize: document.getElementById('pageSize').value,
-                orientation: document.getElementById('orientation').value,
-                embeddedMode: embeddedMode,
-                flipbookMode: flipbookMode,
-                versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
-                folderName: document.getElementById('folderName')?.value || '',
-                subfolderName: document.getElementById('subfolderName')?.value || ''
-            }
-        },
-        status: 'draft'
+        pages: pages,
+        assets: assets,
+        currentPageIndex: currentPageIndex,
+        settings: {
+            title: document.getElementById('pdfTitle').value,
+            author: document.getElementById('pdfAuthor').value,
+            pageSize: document.getElementById('pageSize').value,
+            orientation: document.getElementById('orientation').value,
+            embeddedMode: embeddedMode,
+            flipbookMode: flipbookMode,
+            versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            folderName: document.getElementById('folderName')?.value || '',
+            subfolderName: document.getElementById('subfolderName')?.value || ''
+        }
     };
     
     try {
-        if (!silent) showStatus('💾 Saving draft...', 'info');
+        if (!silent) showStatus('💾 Saving to Supabase...', 'info');
         
-        // Call Supabase REST API DIRECTLY (not through Worker)
-        let response;
+        let savedProject;
         
         if (currentProjectId) {
-            // UPDATE existing project
-            response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${currentProjectId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Prefer': 'return=representation'
-                },
-                body: JSON.stringify(projectData)
-            });
+            // UPDATE existing project via Edge Function
+            savedProject = await window.updateProjectDB(currentProjectId, projectData);
         } else {
-            // INSERT new project
-            response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Prefer': 'return=representation'
-                },
-                body: JSON.stringify(projectData)
-            });
+            // CREATE new project via Edge Function
+            savedProject = await window.saveProjectDraft(projectData);
         }
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Supabase error: ${errorText}`);
-        }
-        
-        const result = await response.json();
-        const savedProject = Array.isArray(result) ? result[0] : result;
         
         // Store project ID for future updates
         currentProjectId = savedProject.id;
@@ -288,9 +251,9 @@ async function saveDraft(silent = false) {
         window.history.replaceState({}, '', newUrl);
         
         if (!silent) {
-            showStatus('✅ Draft saved!', 'success');
+            showStatus('✅ Saved to Supabase!', 'success');
         }
-        console.log('Draft saved to Supabase:', savedProject);
+        console.log('Draft saved to Supabase via Edge Function:', savedProject);
     } catch (error) {
         console.error('Failed to save draft:', error);
         showStatus('❌ Failed to save: ' + error.message, 'error');
@@ -304,45 +267,26 @@ async function savePublishedProject(pdfUrl) {
     }
     
     const projectData = {
-        pdf_url: pdfUrl,
-        status: 'published',
-        project_json: {
-            pages: pages,
-            assets: assets,
-            currentPageIndex: currentPageIndex,
-            settings: {
-                title: document.getElementById('pdfTitle').value,
-                author: document.getElementById('pdfAuthor').value,
-                pageSize: document.getElementById('pageSize').value,
-                orientation: document.getElementById('orientation').value,
-                embeddedMode: embeddedMode,
-                flipbookMode: flipbookMode,
-                versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
-                folderName: document.getElementById('folderName')?.value || '',
-                subfolderName: document.getElementById('subfolderName')?.value || ''
-            }
+        pages: pages,
+        assets: assets,
+        currentPageIndex: currentPageIndex,
+        settings: {
+            title: document.getElementById('pdfTitle').value,
+            author: document.getElementById('pdfAuthor').value,
+            pageSize: document.getElementById('pageSize').value,
+            orientation: document.getElementById('orientation').value,
+            embeddedMode: embeddedMode,
+            flipbookMode: flipbookMode,
+            versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            folderName: document.getElementById('folderName')?.value || '',
+            subfolderName: document.getElementById('subfolderName')?.value || ''
         }
     };
     
     try {
-        // Call Supabase REST API DIRECTLY
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${currentProjectId}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Prefer': 'return=representation'
-            },
-            body: JSON.stringify(projectData)
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to update project with PDF URL');
-        }
-        
-        const result = await response.json();
-        console.log('Project published:', result);
+        // Publish via Supabase Edge Function
+        const published = await window.publishProjectDB(currentProjectId, pdfUrl, projectData);
+        console.log('Project published via Edge Function:', published);
     } catch (error) {
         console.error('Failed to save published project:', error);
     }
