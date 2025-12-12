@@ -409,12 +409,6 @@
                 </div>
             </div>
             <div class="flex items-center space-x-3">
-                <!-- Supabase Connection Indicator -->
-                <div id="supabaseStatus" onclick="testSupabaseConnection()" class="bg-white bg-opacity-20 px-3 py-1.5 rounded text-sm flex items-center space-x-2 cursor-pointer" title="Click to test connection">
-                    <i id="supabaseIcon" class="fas fa-circle text-yellow-400 animate-pulse"></i>
-                    <span id="supabaseText" class="text-xs">Checking...</span>
-                </div>
-                
                 <button onclick="saveDraft()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-save mr-1"></i>Save Draft
                 </button>
@@ -429,9 +423,6 @@
                 </button>
                 <button id="generateBtn" onclick="generatePDF()" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-purple-50 transition shadow-md">
                     <i class="fas fa-magic mr-1"></i>Generate PDF
-                </button>
-                <button onclick="exportProjectJSON()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition" title="Export for 3C Library">
-                    <i class="fas fa-download mr-1"></i>Export JSON
                 </button>
             </div>
         </div>
@@ -778,29 +769,5 @@
     </div>
 
     <script src="app.js"></script>
-    <script>
-        // Auto-test Supabase connection on page load
-        window.addEventListener('load', async () => {
-            const statusEl = document.getElementById('supabaseStatus');
-            const iconEl = document.getElementById('supabaseIcon');
-            const textEl = document.getElementById('supabaseText');
-            
-            try {
-                const response = await fetch(`${API_BASE}/test-connection`);
-                const result = await response.json();
-                
-                if (result.connected) {
-                    iconEl.className = 'fas fa-circle text-green-400';
-                    textEl.textContent = 'Connected';
-                } else {
-                    iconEl.className = 'fas fa-circle text-red-400';
-                    textEl.textContent = 'Disconnected';
-                }
-            } catch (error) {
-                iconEl.className = 'fas fa-circle text-red-400';
-                textEl.textContent = 'Error';
-            }
-        });
-    </script>
 </body>
 </html>
