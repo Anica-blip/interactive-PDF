@@ -1307,21 +1307,6 @@ async function generatePDF() {
         generateBtn.innerHTML = originalText;
     }
 }
-        
-        // Show PDF preview
-        if (result.browserUrl || result.apiViewUrl) {
-            const pdfUrl = result.browserUrl || `${API_BASE}${result.apiViewUrl}`;
-            showPDFPreview(pdfUrl);
-        }
-        
-    } catch (error) {
-        console.error('Generation error:', error);
-        showStatus('❌ Error: ' + error.message, 'error');
-    } finally {
-        generateBtn.disabled = false;
-        generateBtn.innerHTML = originalText;
-    }
-}
 
 function getPageHeight() {
     const pageSize = document.getElementById('pageSize').value;
