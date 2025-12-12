@@ -10,10 +10,8 @@ let flipbookMode = false; // Toggle for magazine-style flipbook
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 
-// API Configuration - Worker API at builder.3c-public-library.org/api/*
-const API_BASE = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000' 
-    : 'https://api.3c-public-library.org/pdf';
+// API Configuration - Cloudflare Worker
+const API_BASE = 'https://api.3c-public-library.org/pdf';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
