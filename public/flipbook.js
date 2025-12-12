@@ -20,6 +20,9 @@ const urlParams = new URLSearchParams(window.location.search);
 const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 
+// Check for sessionStorage manifest (from builder preview)
+const sessionManifest = sessionStorage.getItem('flipbookManifest');
+
 // DOM elements
 const loading = document.getElementById('loading');
 const videoOverlay = document.getElementById('video-overlay');
@@ -31,29 +34,39 @@ const closeVideoBtn = document.getElementById('close-video');
  * Initialize flipbook
  */
 async function init() {
-    if (!pdfUrl) {
-        alert('No PDF specified. Add ?pdf=URL to the address bar.');
-        loading.classList.add('hidden');
-        return;
-    }
-
     try {
-        // Load PDF
-        await loadPDF(pdfUrl);
-        
-        // Load manifest if available
-        if (manifestUrl) {
-            await loadManifest(manifestUrl);
+        // Priority 1: Check for sessionStorage manifest (from builder preview)
+        if (sessionManifest) {
+            console.log('Loading from builder preview (sessionStorage)');
+            await initFromManifest(JSON.parse(sessionManifest));
+            // Clear sessionStorage after loading
+            sessionStorage.removeItem('flipbookManifest');
         }
-        
-        // Render all pages
-        await renderAllPages();
-        
-        // Initialize flipbook
-        initFlipbook();
-        
-        // Setup event listeners
-        setupEventListeners();
+        // Priority 2: Check for PDF URL (from 3C Content Library)
+        else if (pdfUrl) {
+            console.log('Loading from 3C Content Library (PDF URL)');
+            await loadPDF(pdfUrl);
+            
+            // Load manifest if available
+            if (manifestUrl) {
+                await loadManifest(manifestUrl);
+            }
+            
+            // Render all pages
+            await renderAllPages();
+            
+            // Initialize flipbook
+            initFlipbook();
+            
+            // Setup event listeners
+            setupEventListeners();
+        }
+        // No data source
+        else {
+            alert('No flipbook data. Either:\n1. Click "View Flipbook" in builder\n2. Add ?pdf=URL to the address bar');
+            loading.classList.add('hidden');
+            return;
+        }
         
         // Hide navigation hints after 5 seconds
         setTimeout(() => {
@@ -65,9 +78,59 @@ async function init() {
         loading.classList.add('hidden');
     } catch (error) {
         console.error('Init error:', error);
-        alert('Failed to load magazine: ' + error.message);
+        alert('Failed to load flipbook: ' + error.message);
         loading.classList.add('hidden');
     }
+}
+
+/**
+ * Initialize from JSON manifest (builder preview)
+ */
+async function initFromManifest(manifestData) {
+    manifest = manifestData;
+    totalPages = manifest.pages.length;
+    
+    document.getElementById('total-pages').textContent = totalPages;
+    console.log('Manifest loaded:', totalPages, 'pages');
+    
+    // Create canvases from page backgrounds
+    pageCanvases = [];
+    
+    for (const page of manifest.pages) {
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+            img.onload = () => {
+                // Set canvas size based on image (use scale)
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                resolve();
+            };
+            img.onerror = () => {
+                // If image fails to load, create blank canvas
+                console.warn('Failed to load background for page', page.pageNumber);
+                canvas.width = 800 * scale;
+                canvas.height = 1100 * scale;
+                resolve();
+            };
+            img.src = page.background;
+        });
+        
+        pageCanvases.push(canvas);
+        console.log('Rendered page:', page.pageNumber);
+    }
+    
+    // Initialize flipbook
+    initFlipbook();
+    
+    // Setup event listeners
+    setupEventListeners();
 }
 
 /**
