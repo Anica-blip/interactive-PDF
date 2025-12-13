@@ -33,90 +33,83 @@ async function testSupabaseConnectionDB() {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const result = await response.json();
-        return { connected: true, message: 'Supabase Edge Function OK' };
+        const data = await response.json();
+        return { connected: true, message: 'Connected to Supabase Edge Function', data };
     } catch (error) {
+        console.error('Supabase connection error:', error);
         return { connected: false, message: error.message };
     }
 }
 
 async function saveProjectDraft(projectData) {
-    const response = await fetch(EDGE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            action: 'create',
-            data: {
-                project_json: projectData,
-                status: 'draft'
-            }
-        })
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create project');
+    try {
+        const response = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'create',
+                ...projectData,
+                is_draft: true
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Save draft error:', error);
+        throw error;
     }
-    
-    const result = await response.json();
-    return result.data;
 }
 
 async function updateProjectDB(id, projectData) {
-    const response = await fetch(EDGE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            action: 'update',
-            id: id,
-            data: {
-                project_json: projectData,
-                updated_at: new Date().toISOString()
-            }
-        })
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update project');
+    try {
+        const response = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'update',
+                id,
+                ...projectData
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Update project error:', error);
+        throw error;
     }
-    
-    const result = await response.json();
-    return result.data;
 }
 
 async function publishProjectDB(id, pdfUrl, projectData) {
-    const response = await fetch(EDGE_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            action: 'update',
-            id: id,
-            data: {
-                project_json: projectData,
+    try {
+        const response = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'update',
+                id,
                 pdf_url: pdfUrl,
-                status: 'published',
-                updated_at: new Date().toISOString()
-            }
-        })
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to publish project');
+                is_draft: false,
+                ...projectData
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Publish project error:', error);
+        throw error;
     }
-    
-    const result = await response.json();
-    return result.data;
 }
 
 // Test connection
@@ -2118,4 +2111,3 @@ function toggleSection(sectionId) {
         }
     }
 }
-
