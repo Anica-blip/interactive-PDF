@@ -2007,4 +2007,3 @@ function toggleSection(sectionId) {
         }
     }
 }
-
