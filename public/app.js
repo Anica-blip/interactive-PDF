@@ -1991,15 +1991,20 @@ function toggleSection(sectionId) {
     
     if (!section) return;
     
-    const isVisible = section.style.display !== 'none';
+    // Check if section is currently visible
+    // Handle both 'none' and empty string (default hidden state)
+    const isVisible = section.style.display === 'block';
     
     if (isVisible) {
+        // Hide it
         section.style.display = 'none';
         if (icon) {
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-right');
         }
     } else {
+        // Show it - display: block puts element in normal flow
+        // This automatically pushes content below it down
         section.style.display = 'block';
         if (icon) {
             icon.classList.remove('fa-chevron-right');
@@ -2007,4 +2012,3 @@ function toggleSection(sectionId) {
         }
     }
 }
-
