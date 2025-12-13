@@ -2022,4 +2022,3 @@ function toggleSection(sectionId) {
         }
     }
 }
-
