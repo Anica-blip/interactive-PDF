@@ -98,16 +98,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Health check
-document.getElementById('healthCheck').addEventListener('click', async () => {
-    try {
-        showStatus('Checking API health...', 'info');
-        const response = await fetch(`${API_BASE}/api/health`);
-        const data = await response.json();
-        
-        if (data.status === 'healthy') {
-            showStatus('✅ API is healthy!', 'success');
-        } else {
+// Health check (if button exists)
+const healthCheckBtn = document.getElementById('healthCheck');
+if (healthCheckBtn) {
+    healthCheckBtn.addEventListener('click', async () => {
+        try {
+            showStatus('Checking API health...', 'info');
+            const response = await fetch(`${API_BASE}/api/health`);
+            const data = await response.json();
+            
+            if (data.status === 'healthy') {
+                showStatus('✅ API is healthy!', 'success');
+            } else {
             showStatus('⚠️ API health check returned: ' + data.status, 'warning');
         }
         console.log('Health check:', data);
@@ -115,7 +117,8 @@ document.getElementById('healthCheck').addEventListener('click', async () => {
         showStatus('❌ Failed to connect to API: ' + error.message, 'error');
         console.error('Health check failed:', error);
     }
-});
+    });
+}
 
 // Toggle embedded mode
 function toggleEmbeddedMode() {
@@ -1575,7 +1578,9 @@ async function loadProject(projectId) {
         currentPdfUrl = project.pdf_url;
         
         // Load project data
-        const projectJson = JSON.parse(project.project_json);
+        const projectJson = typeof project.metadata === 'string' 
+            ? JSON.parse(project.metadata) 
+            : project.metadata;
         
         // Restore pages and assets
         pages = projectJson.pages || [];
@@ -2017,3 +2022,4 @@ function toggleSection(sectionId) {
         }
     }
 }
+
