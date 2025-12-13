@@ -14,8 +14,8 @@ let currentPdfUrl = null; // Track current PDF URL
 const API_BASE = 'https://api.3c-public-library.org/pdf';
 
 // Supabase Configuration - Use environment variables for security
-const SUPABASE_URL = window.SUPABASE_URL || 'https://cgxjqsbrditbteqhdyus.supabase.co';
-const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMTkyNDEsImV4cCI6MjA0OTU5NTI0MX0.PzOvE3D4y93EYuQ-_HwWaR8fQJgEYk_U_S3uQnZyxrI';
+const SUPABASE_URL = window.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'your-supabase-anon-key';
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
 
 // Supabase Database Functions
