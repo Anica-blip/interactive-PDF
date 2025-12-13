@@ -29,7 +29,7 @@ window.saveProjectDraft = async function(projectData) {
         body: JSON.stringify({
             action: 'create',
             data: {
-                project_json: projectData,
+                metadata: projectData,
                 status: 'draft'
             }
         })
@@ -55,7 +55,7 @@ window.updateProjectDB = async function(projectId, projectData) {
             action: 'update',
             id: projectId,
             data: {
-                project_json: projectData,
+                metadata: projectData,
                 status: 'draft'
             }
         })
@@ -81,7 +81,7 @@ window.publishProjectDB = async function(projectId, pdfUrl, projectData) {
             action: 'update',
             id: projectId,
             data: {
-                project_json: projectData,
+                metadata: projectData,
                 pdf_url: pdfUrl,
                 status: 'published'
             }
