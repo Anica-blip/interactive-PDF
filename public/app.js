@@ -2090,35 +2090,19 @@ function toggleSection(sectionId) {
 
     if (!section) return;
 
-    const isOpen = section.style.maxHeight && section.style.maxHeight !== '0px';
+    const isHidden = section.style.display === 'none' || section.style.display === '';
 
-    if (isOpen) {
-        // Collapse
-        section.style.maxHeight = section.scrollHeight + 'px'; // reset first
-        requestAnimationFrame(() => {
-            section.style.maxHeight = '0px';
-        });
-
-        if (icon) {
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-right');
-        }
-    } else {
-        // Expand
-        section.style.maxHeight = section.scrollHeight + 'px';
-
-        // IMPORTANT: release height after animation
-        section.addEventListener(
-            'transitionend',
-            function handler() {
-                section.style.maxHeight = 'none';
-                section.removeEventListener('transitionend', handler);
-            }
-        );
-
+    if (isHidden) {
+        section.style.display = 'block';
         if (icon) {
             icon.classList.remove('fa-chevron-right');
             icon.classList.add('fa-chevron-down');
+        }
+    } else {
+        section.style.display = 'none';
+        if (icon) {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
         }
     }
 }
