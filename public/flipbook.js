@@ -1,24 +1,33 @@
 /**
- * Magazine-Style Flipbook Viewer
- * Realistic page turning with interactive media support
+ * 3C Interactive Flipbook Viewer
+ * Real page turning with interactive media support + Supabase integration
  */
 
 // PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// Supabase configuration
+const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMTkyNDEsImV4cCI6MjA0OTU5NTI0MX0.PzOvE3D4y93EYuQ-_HwWaR8fQJgEYk_U_S3uQnZyxrI';
+
 // Global state
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 1.5;
+let scale = 1.125; // 75% zoom (1.5 * 0.75 = 1.125)
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
 
-// Get PDF URL from query parameter
+// A4 dimensions at 96 DPI (standard web DPI)
+const A4_WIDTH_PX = 794;  // 210mm at 96 DPI
+const A4_HEIGHT_PX = 1123; // 297mm at 96 DPI
+
+// Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
 const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
+const projectId = urlParams.get('project') || '';
 
 // Check for sessionStorage manifest (from builder preview)
 const sessionManifest = sessionStorage.getItem('flipbookManifest');
@@ -42,9 +51,14 @@ async function init() {
             // Clear sessionStorage after loading
             sessionStorage.removeItem('flipbookManifest');
         }
-        // Priority 2: Check for PDF URL (from 3C Content Library)
+        // Priority 2: Check for project ID (from dashboard)
+        else if (projectId) {
+            console.log('Loading from Supabase project:', projectId);
+            await loadProjectFromSupabase(projectId);
+        }
+        // Priority 3: Check for PDF URL (from 3C Content Library)
         else if (pdfUrl) {
-            console.log('Loading from 3C Content Library (PDF URL)');
+            console.log('Loading from PDF URL');
             await loadPDF(pdfUrl);
             
             // Load manifest if available
@@ -63,17 +77,10 @@ async function init() {
         }
         // No data source
         else {
-            alert('No flipbook data. Either:\n1. Click "View Flipbook" in builder\n2. Add ?pdf=URL to the address bar');
+            alert('No flipbook data. Open from:\n1. Builder (View Flipbook)\n2. Dashboard (My Projects)\n3. Content Library (?pdf=URL)');
             loading.classList.add('hidden');
             return;
         }
-        
-        // Hide navigation hints after 5 seconds
-        setTimeout(() => {
-            document.querySelectorAll('.nav-hint').forEach(hint => {
-                hint.style.display = 'none';
-            });
-        }, 5000);
         
         loading.classList.add('hidden');
     } catch (error) {
@@ -84,7 +91,39 @@ async function init() {
 }
 
 /**
- * Initialize from JSON manifest (builder preview)
+ * Load project from Supabase
+ */
+async function loadProjectFromSupabase(id) {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/pdf_projects?id=${id}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    
+    const result = await response.json();
+    
+    if (result.error) {
+        throw new Error('Failed to load project: ' + result.error);
+    }
+    
+    const project = result.data;
+    console.log('Project loaded from Supabase:', project);
+    
+    // Extract manifest from project_json
+    const manifestData = {
+        title: project.metadata.settings?.title || 'Untitled',
+        author: project.metadata.settings?.author || '',
+        pages: project.metadata.pages || [],
+        settings: project.metadata.settings || {}
+    };
+    
+    await initFromManifest(manifestData);
+}
+
+/**
+ * Initialize from JSON manifest (builder preview or Supabase)
  */
 async function initFromManifest(manifestData) {
     manifest = manifestData;
@@ -92,6 +131,9 @@ async function initFromManifest(manifestData) {
     
     document.getElementById('total-pages').textContent = totalPages;
     console.log('Manifest loaded:', totalPages, 'pages');
+    
+    // Update zoom display
+    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
     
     // Create canvases from page backgrounds
     pageCanvases = [];
@@ -103,9 +145,12 @@ async function initFromManifest(manifestData) {
         
         await new Promise((resolve, reject) => {
             img.onload = () => {
-                // Set canvas size based on image (use scale)
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
+                // Calculate canvas size based on A4 proportions
+                const targetWidth = A4_WIDTH_PX * scale;
+                const targetHeight = A4_HEIGHT_PX * scale;
+                
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
                 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -113,13 +158,34 @@ async function initFromManifest(manifestData) {
                 resolve();
             };
             img.onerror = () => {
-                // If image fails to load, create blank canvas
+                // If image fails to load, create blank A4 canvas
                 console.warn('Failed to load background for page', page.pageNumber);
-                canvas.width = 800 * scale;
-                canvas.height = 1100 * scale;
+                canvas.width = A4_WIDTH_PX * scale;
+                canvas.height = A4_HEIGHT_PX * scale;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
                 resolve();
             };
-            img.src = page.background;
+            
+            // Handle base64 backgrounds
+            if (page.background && page.background.startsWith('data:')) {
+                img.src = page.background;
+            } else if (page.backgroundData) {
+                img.src = page.backgroundData;
+            } else if (page.background) {
+                img.src = page.background;
+            } else {
+                // No background - create blank
+                canvas.width = A4_WIDTH_PX * scale;
+                canvas.height = A4_HEIGHT_PX * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                resolve();
+            }
         });
         
         pageCanvases.push(canvas);
@@ -142,6 +208,7 @@ async function loadPDF(url) {
     totalPages = pdfDoc.numPages;
     
     document.getElementById('total-pages').textContent = totalPages;
+    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
     
     console.log('PDF loaded:', totalPages, 'pages');
 }
@@ -238,7 +305,7 @@ function initFlipbook() {
     flipbookInitialized = true;
     updatePageInfo();
     
-    console.log('Flipbook initialized');
+    console.log('Flipbook initialized at', Math.round(scale * 100) + '% zoom');
 }
 
 /**
@@ -264,7 +331,7 @@ function checkHotspots(pageNum) {
         
         // Check if click is on a hotspot
         for (const hotspot of pageData.hotspots) {
-            if (isPointInHotspot(x, y, hotspot.bounds)) {
+            if (hotspot.bounds && isPointInHotspot(x, y, hotspot.bounds)) {
                 e.stopPropagation(); // Prevent page turn
                 handleHotspotClick(hotspot);
                 break;
@@ -326,9 +393,9 @@ function playVideo(hotspot) {
         iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
         iframe.allowFullscreen = true;
         videoPlayerWrapper.appendChild(iframe);
-    } else if (hotspot.mediaUrl || hotspot.url) {
+    } else if (hotspot.mediaUrl || hotspot.url || hotspot.videoUrl) {
         const video = document.createElement('video');
-        video.src = hotspot.mediaUrl || hotspot.url;
+        video.src = hotspot.mediaUrl || hotspot.url || hotspot.videoUrl;
         video.controls = true;
         video.autoplay = true;
         if (hotspot.thumbnailUrl || hotspot.poster) {
@@ -426,11 +493,6 @@ function setupEventListeners() {
         }
     });
     
-    // Download
-    $('#download-pdf').on('click', () => {
-        window.open(pdfUrl, '_blank');
-    });
-    
     // Close video
     closeVideoBtn.addEventListener('click', closeVideo);
     videoOverlay.addEventListener('click', (e) => {
@@ -466,11 +528,15 @@ async function reloadFlipbook() {
         $('#flipbook').turn('destroy');
     }
     
-    // Re-render all pages
-    await renderAllPages();
-    
-    // Re-initialize flipbook
-    initFlipbook();
+    // Re-render based on source
+    if (manifest && manifest.pages && !pdfDoc) {
+        // Re-render from manifest
+        await initFromManifest(manifest);
+    } else if (pdfDoc) {
+        // Re-render from PDF
+        await renderAllPages();
+        initFlipbook();
+    }
     
     loading.classList.add('hidden');
 }
