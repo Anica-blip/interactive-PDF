@@ -198,9 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Health check (if button exists)
-const healthCheckBtn = document.getElementById('healthCheck');
-if (healthCheckBtn) {
-    healthCheckBtn.addEventListener('click', async () => {
+const healthCheckBtn = document.getElementById('healthCheck').addEventListener('click', async () => {
         try {
             showStatus('Checking API health...', 'info');
             const response = await fetch(`${API_BASE}/api/health`);
@@ -209,7 +207,7 @@ if (healthCheckBtn) {
             if (data.status === 'healthy') {
                 showStatus('✅ API is healthy!', 'success');
             } else {
-            showStatus('⚠️ API health check returned: ' + data.status, 'warning');
+                showStatus('⚠️ API health check returned: ' + data.status, 'warning');
         }
         console.log('Health check:', data);
     } catch (error) {
@@ -225,7 +223,7 @@ function toggleEmbeddedMode() {
     const description = document.getElementById('modeDescription');
     
     if (embeddedMode) {
-        description.textContent = 'Plays in Adobe Acrobat (free)';
+        description.textContent = 'Links work everywhere';
         description.classList.add('text-purple-600', 'font-medium');
     } else {
         description.textContent = 'Links work everywhere';
@@ -324,7 +322,7 @@ function updateFolderPathPreview() {
 // SAVE/LOAD DRAFT FUNCTIONALITY
 // ============================================
 
-async function saveDraft(silent = false) {
+async function saveDraft() {
     const projectData = {
         pages: pages,
         assets: assets,
@@ -339,7 +337,8 @@ async function saveDraft(silent = false) {
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
             folderName: document.getElementById('folderName')?.value || '',
             subfolderName: document.getElementById('subfolderName')?.value || ''
-        }
+        },
+        savedAt: new Date().toISOString()
     };
     
     try {
@@ -2090,19 +2089,19 @@ function toggleSection(sectionId) {
 
     if (!section) return;
 
-    const isHidden = section.style.display === 'none' || section.style.display === '';
-
-    if (isHidden) {
-        section.style.display = 'block';
-        if (icon) {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-down');
-        }
-    } else {
+    const isVisible = section.style.display !== 'none';
+    
+    if (isVisible) {
         section.style.display = 'none';
         if (icon) {
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-right');
+        }
+    } else {
+        section.style.display = 'block';
+        if (icon) {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
         }
     }
 }
