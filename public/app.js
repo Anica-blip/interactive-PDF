@@ -2094,7 +2094,11 @@ function toggleSection(sectionId) {
 
     if (isOpen) {
         // Collapse
-        section.style.maxHeight = '0px';
+        section.style.maxHeight = section.scrollHeight + 'px'; // reset first
+        requestAnimationFrame(() => {
+            section.style.maxHeight = '0px';
+        });
+
         if (icon) {
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-right');
@@ -2102,9 +2106,20 @@ function toggleSection(sectionId) {
     } else {
         // Expand
         section.style.maxHeight = section.scrollHeight + 'px';
+
+        // IMPORTANT: release height after animation
+        section.addEventListener(
+            'transitionend',
+            function handler() {
+                section.style.maxHeight = 'none';
+                section.removeEventListener('transitionend', handler);
+            }
+        );
+
         if (icon) {
             icon.classList.remove('fa-chevron-right');
             icon.classList.add('fa-chevron-down');
         }
     }
 }
+
