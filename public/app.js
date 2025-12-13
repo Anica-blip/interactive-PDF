@@ -1991,7 +1991,7 @@ function toggleSection(sectionId) {
     
     if (!section) return;
     
-    const isVisible = section.style.display !== 'none' && section.style.display !== '';
+    const isVisible = section.style.display !== 'none';
     
     if (isVisible) {
         section.style.display = 'none';
@@ -2007,3 +2007,4 @@ function toggleSection(sectionId) {
         }
     }
 }
+
