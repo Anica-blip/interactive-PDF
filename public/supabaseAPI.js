@@ -22,7 +22,7 @@ const getHeaders = () => ({
 /**
  * Save new project draft
  */
-window.saveProjectDraft = async function(projectData) {
+saveProjectDraft = async function(projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -47,7 +47,7 @@ window.saveProjectDraft = async function(projectData) {
 /**
  * Update existing project
  */
-window.updateProjectDB = async function(projectId, projectData) {
+updateProjectDB = async function(projectId, projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -73,7 +73,7 @@ window.updateProjectDB = async function(projectId, projectData) {
 /**
  * Publish project with PDF URL
  */
-window.publishProjectDB = async function(projectId, pdfUrl, projectData) {
+publishProjectDB = async function(projectId, pdfUrl, projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -100,7 +100,7 @@ window.publishProjectDB = async function(projectId, pdfUrl, projectData) {
 /**
  * Get project by ID
  */
-window.getProjectDB = async function(projectId) {
+getProjectDB = async function(projectId) {
     const response = await fetch(`${EDGE_FUNCTION_URL}?id=${projectId}`, {
         method: 'GET',
         headers: getHeaders()
@@ -118,7 +118,7 @@ window.getProjectDB = async function(projectId) {
 /**
  * List all projects
  */
-window.listProjectsDB = async function(options = {}) {
+listProjectsDB = async function(options = {}) {
     const params = new URLSearchParams();
     
     if (options.limit) params.append('limit', options.limit);
@@ -142,7 +142,7 @@ window.listProjectsDB = async function(options = {}) {
 /**
  * Delete project
  */
-window.deleteProjectDB = async function(projectId) {
+deleteProjectDB = async function(projectId) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -163,7 +163,7 @@ window.deleteProjectDB = async function(projectId) {
 /**
  * Test Supabase connection
  */
-window.testSupabaseConnectionDB = async function() {
+testSupabaseConnectionDB = async function() {
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?select=id&limit=1`, {
             method: 'GET',
