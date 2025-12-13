@@ -1989,24 +1989,9 @@ function toggleSection(sectionId) {
     const section = document.getElementById(sectionId);
     const icon = document.getElementById(sectionId + 'Icon');
     
-    if (section.style.maxHeight && section.style.maxHeight !== '0px') {
-        section.style.maxHeight = '0px';
-        icon.classList.remove('fa-chevron-up');
-        icon.classList.add('fa-chevron-down');
-    } else {
-        section.style.maxHeight = section.scrollHeight + 'px';
-        icon.classList.remove('fa-chevron-down');
-        icon.classList.add('fa-chevron-up');
-    }
-}
-
-function toggleSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    const icon = document.getElementById(sectionId + 'Icon');
-    
     if (!section) return;
     
-    const isVisible = section.style.display !== 'none';
+    const isVisible = section.style.display !== 'none' && section.style.display !== '';
     
     if (isVisible) {
         section.style.display = 'none';
