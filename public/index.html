@@ -409,10 +409,6 @@
                 </div>
             </div>
             <div class="flex items-center space-x-3">
-                <div id="supabaseStatus" onclick="testSupabaseConnection()" class="bg-white bg-opacity-20 px-3 py-1.5 rounded text-sm flex items-center space-x-2 cursor-pointer hover:bg-opacity-30" title="Test connection">
-                    <i id="supabaseIcon" class="fas fa-circle text-yellow-400"></i>
-                    <span id="supabaseText" class="text-xs">Ready</span>
-                </div>
                 <button onclick="saveDraft()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-save mr-1"></i>Save Draft
                 </button>
@@ -422,14 +418,11 @@
                 <a href="projects.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
                     <i class="fas fa-cloud mr-1"></i>My Projects
                 </a>
-                <button onclick="openInFlipbook()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
-                    <i class="fas fa-book-open mr-1"></i>View Flipbook
+                <button onclick="previewPDF()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
+                    <i class="fas fa-eye mr-1"></i>Preview
                 </button>
                 <button id="generateBtn" onclick="generatePDF()" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-purple-50 transition shadow-md">
-                    <i class="fas fa-check-circle mr-1"></i>Publish
-                </button>
-                <button onclick="exportProjectJSON()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
-                    <i class="fas fa-download mr-1"></i>Export
+                    <i class="fas fa-magic mr-1"></i>Generate PDF
                 </button>
             </div>
         </div>
@@ -775,10 +768,6 @@
         </div>
     </div>
 
-    <!-- Supabase API - Load FIRST -->
-    <script src="supabaseAPI.js"></script>
-    <!-- Main App -->
     <script src="app.js"></script>
 </body>
 </html>
-
