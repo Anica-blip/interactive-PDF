@@ -6,9 +6,9 @@
 // PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// Supabase configuration
-const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMTkyNDEsImV4cCI6MjA0OTU5NTI0MX0.PzOvE3D4y93EYuQ-_HwWaR8fQJgEYk_U_S3uQnZyxrI';
+// Supabase configuration - Use environment variables for security
+const SUPABASE_URL = window.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'your-supabase-anon-key';
 
 // Global state
 let pdfDoc = null;
