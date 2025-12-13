@@ -13,13 +13,13 @@ let currentPdfUrl = null; // Track current PDF URL
 // Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
 const API_BASE = 'https://api.3c-public-library.org/pdf';
 
-// Supabase Configuration - Use environment variables for security
-const SUPABASE_URL = SUPABASE_URL || 'https://your-supabase-url.supabase.co';
-const SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || 'your-supabase-anon-key';
+// Supabase Configuration
+const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMTkyNDEsImV4cCI6MjA0OTU5NTI0MX0.PzOvE3D4y93EYuQ-_HwWaR8fQJgEYk_U_S3uQnZyxrI';
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
 
 // Supabase Database Functions
-window.testSupabaseConnectionDB = async function() {
+async function testSupabaseConnectionDB() {
     try {
         const response = await fetch(`${EDGE_FUNCTION_URL}?limit=1`, {
             method: 'GET',
@@ -38,9 +38,9 @@ window.testSupabaseConnectionDB = async function() {
     } catch (error) {
         return { connected: false, message: error.message };
     }
-};
+}
 
-window.saveProjectDraft = async function(projectData) {
+async function saveProjectDraft(projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -63,9 +63,9 @@ window.saveProjectDraft = async function(projectData) {
     
     const result = await response.json();
     return result.data;
-};
+}
 
-window.updateProjectDB = async function(id, projectData) {
+async function updateProjectDB(id, projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -89,9 +89,9 @@ window.updateProjectDB = async function(id, projectData) {
     
     const result = await response.json();
     return result.data;
-};
+}
 
-window.publishProjectDB = async function(id, pdfUrl, projectData) {
+async function publishProjectDB(id, pdfUrl, projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -117,13 +117,13 @@ window.publishProjectDB = async function(id, pdfUrl, projectData) {
     
     const result = await response.json();
     return result.data;
-};
+}
 
 // Test connection
 async function testSupabaseConnection() {
     try {
         showStatus('Testing Supabase Edge Function...', 'info');
-        const result = await window.testSupabaseConnectionDB();
+        const result = await testSupabaseConnectionDB();
         
         if (result.connected) {
             showStatus('✅ Supabase connected!', 'success');
@@ -356,10 +356,10 @@ async function saveDraft(silent = false) {
         
         if (currentProjectId) {
             // UPDATE existing project via Edge Function
-            savedProject = await window.updateProjectDB(currentProjectId, projectData);
+            savedProject = await updateProjectDB(currentProjectId, projectData);
         } else {
             // CREATE new project via Edge Function
-            savedProject = await window.saveProjectDraft(projectData);
+            savedProject = await saveProjectDraft(projectData);
         }
         
         // Store project ID for future updates
@@ -405,7 +405,7 @@ async function savePublishedProject(pdfUrl) {
     
     try {
         // Publish via Supabase Edge Function
-        const published = await window.publishProjectDB(currentProjectId, pdfUrl, projectData);
+        const published = await publishProjectDB(currentProjectId, pdfUrl, projectData);
         console.log('Project published via Edge Function:', published);
     } catch (error) {
         console.error('Failed to save published project:', error);
@@ -1383,7 +1383,7 @@ async function generatePDF() {
         };
         
         // Update status to published (NO PDF generation)
-        await window.publishProjectDB(currentProjectId, null, projectData);
+        await publishProjectDB(currentProjectId, null, projectData);
         
         showStatus('✅ Project published! Click "Export JSON" to download.', 'success');
         
@@ -2118,3 +2118,4 @@ function toggleSection(sectionId) {
         }
     }
 }
+
