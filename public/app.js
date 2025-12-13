@@ -13,6 +13,112 @@ let currentPdfUrl = null; // Track current PDF URL
 // Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
 const API_BASE = 'https://api.3c-public-library.org/pdf';
 
+// Supabase Configuration - Use environment variables for security
+const SUPABASE_URL = window.SUPABASE_URL || 'https://cgxjqsbrditbteqhdyus.supabase.co';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMTkyNDEsImV4cCI6MjA0OTU5NTI0MX0.PzOvE3D4y93EYuQ-_HwWaR8fQJgEYk_U_S3uQnZyxrI';
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
+
+// Supabase Database Functions
+window.testSupabaseConnectionDB = async function() {
+    try {
+        const response = await fetch(`${EDGE_FUNCTION_URL}?limit=1`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        return { connected: true, message: 'Supabase Edge Function OK' };
+    } catch (error) {
+        return { connected: false, message: error.message };
+    }
+};
+
+window.saveProjectDraft = async function(projectData) {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'create',
+            data: {
+                project_json: projectData,
+                status: 'draft'
+            }
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create project');
+    }
+    
+    const result = await response.json();
+    return result.data;
+};
+
+window.updateProjectDB = async function(id, projectData) {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'update',
+            id: id,
+            data: {
+                project_json: projectData,
+                updated_at: new Date().toISOString()
+            }
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update project');
+    }
+    
+    const result = await response.json();
+    return result.data;
+};
+
+window.publishProjectDB = async function(id, pdfUrl, projectData) {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'update',
+            id: id,
+            data: {
+                project_json: projectData,
+                pdf_url: pdfUrl,
+                status: 'published',
+                updated_at: new Date().toISOString()
+            }
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to publish project');
+    }
+    
+    const result = await response.json();
+    return result.data;
+};
+
 // Test connection
 async function testSupabaseConnection() {
     try {
