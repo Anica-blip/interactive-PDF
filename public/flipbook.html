@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magazine Flipbook - 3C Public Library</title>
+    <title>3C Interactive Flipbook</title>
     <link rel="icon" type="image/png" href="favicon.png">
     
     <!-- jQuery (required for turn.js) -->
@@ -38,90 +38,103 @@
         #toolbar {
             background: rgba(42, 42, 42, 0.95);
             backdrop-filter: blur(10px);
-            padding: 15px 30px;
+            padding: 8px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
             z-index: 100;
+            height: 50px;
         }
 
         #toolbar-left {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
         }
 
         #toolbar-center {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
         }
 
         #toolbar-right {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .btn {
-            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            background: rgba(255, 255, 255, 0.1);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(74, 144, 226, 0.5);
-        }
-
-        .btn:disabled {
-            background: #555;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .btn-icon {
-            background: rgba(255, 255, 255, 0.1);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            font-size: 18px;
+            transition: all 0.2s;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
         }
 
-        .btn-icon:hover {
+        .btn:hover {
             background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.5;
+        }
+
+        .btn-return {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            padding: 8px 15px;
+            width: auto;
+            font-size: 14px;
+            gap: 5px;
+        }
+
+        .btn-return:hover {
+            background: linear-gradient(135deg, #357abd 0%, #2868a8 100%);
         }
 
         #page-info {
             color: #aaa;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 500;
-            min-width: 150px;
+            min-width: 100px;
             text-align: center;
+        }
+
+        #toolbar-left h2 {
+            font-size: 16px;
+            font-weight: 600;
         }
 
         #flipbook-container {
             flex: 1;
             display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 40px;
+            align-items: flex-start;
+            padding: 20px;
             position: relative;
             perspective: 2000px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #flipbook-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
         }
 
         #flipbook {
@@ -146,14 +159,14 @@
 
         .page-number {
             position: absolute;
-            bottom: 20px;
-            right: 30px;
+            bottom: 15px;
+            right: 20px;
             color: #666;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
         }
 
-        /* Video Overlay - Same as before */
+        /* Video Overlay */
         #video-overlay {
             position: fixed;
             top: 0;
@@ -290,39 +303,30 @@
             color: #aaa;
         }
 
-        /* Navigation hints */
-        .nav-hint {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(74, 144, 226, 0.2);
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 14px;
-            color: #4a90e2;
-            animation: pulse 2s infinite;
-            z-index: 50;
-        }
-
-        .nav-hint.left {
-            left: 20px;
-        }
-
-        .nav-hint.right {
-            right: 20px;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
-
-        /* Zoom controls */
+        /* Zoom level */
         #zoom-level {
             color: #aaa;
-            font-size: 14px;
-            min-width: 60px;
+            font-size: 12px;
+            min-width: 50px;
             text-align: center;
+        }
+
+        /* Scrollbar styling */
+        #flipbook-container::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #flipbook-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #flipbook-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+        }
+
+        #flipbook-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
@@ -330,33 +334,33 @@
     <!-- Toolbar -->
     <div id="toolbar">
         <div id="toolbar-left">
-            <h2>📖 Magazine Flipbook</h2>
+            <h2>📖 3C Interactive Flipbook</h2>
         </div>
         
         <div id="toolbar-center">
-            <button id="first-page" class="btn">⏮ First</button>
-            <button id="prev-page" class="btn">← Previous</button>
+            <button id="first-page" class="btn" title="First Page">⏮</button>
+            <button id="prev-page" class="btn" title="Previous Page">◀</button>
             <span id="page-info">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
-            <button id="next-page" class="btn">Next →</button>
-            <button id="last-page" class="btn">Last ⏭</button>
+            <button id="next-page" class="btn" title="Next Page">▶</button>
+            <button id="last-page" class="btn" title="Last Page">⏭</button>
         </div>
         
         <div id="toolbar-right">
-            <a href="index.html" class="btn" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">🏠 Return to Builder</a>
-            <div class="btn-icon" id="zoom-out" title="Zoom Out">-</div>
-            <span id="zoom-level">100%</span>
-            <div class="btn-icon" id="zoom-in" title="Zoom In">+</div>
-            <button id="download-pdf" class="btn">⬇ Download</button>
+            <a href="index.html" class="btn btn-return" style="text-decoration: none;">
+                <span>🏠</span>
+                <span style="font-size: 12px;">Builder</span>
+            </a>
+            <button class="btn" id="zoom-out" title="Zoom Out">−</button>
+            <span id="zoom-level">75%</span>
+            <button class="btn" id="zoom-in" title="Zoom In">+</button>
         </div>
     </div>
 
     <!-- Flipbook Container -->
     <div id="flipbook-container">
-        <div id="flipbook"></div>
-        
-        <!-- Navigation Hints -->
-        <div class="nav-hint left">← Drag or click to turn page</div>
-        <div class="nav-hint right">Drag or click to turn page →</div>
+        <div id="flipbook-wrapper">
+            <div id="flipbook"></div>
+        </div>
     </div>
 
     <!-- Video Overlay -->
@@ -371,9 +375,10 @@
     <!-- Loading Indicator -->
     <div id="loading">
         <div class="spinner"></div>
-        <p>Loading magazine...</p>
+        <p>Loading flipbook...</p>
     </div>
 
     <script src="flipbook.js"></script>
 </body>
 </html>
+
