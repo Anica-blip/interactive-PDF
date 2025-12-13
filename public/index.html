@@ -17,15 +17,17 @@
         }
         
         .sidebar {
-            width: 320px;
-            height: calc(100vh - 70px);
-            overflow-y: auto;
-            position: fixed;
-            left: 0;
-            top: 70px;
-            background: #f8f9fa;
-            border-right: 2px solid #e2e8f0;
+           width: 320px;
+           height: calc(100vh - 70px);
+           overflow-y: auto;
+           position: fixed;
+           left: 0;
+           top: 70px;
+           background: #f8f9fa;
+           border-right: 2px solid #e2e8f0;
+           padding-bottom: 1000px; /* deliberate scroll buffer */
         }
+
         
         .main-canvas {
             margin-left: 320px;
@@ -218,12 +220,6 @@
         .sidebar::-webkit-scrollbar-thumb {
             background: #888;
             border-radius: 3px;
-        }
-        
-        .collapsible-section {
-           overflow: hidden;
-           max-height: 0;
-           transition: max-height 0.3s ease;
         }
 
         .section-header {
