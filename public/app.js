@@ -2087,24 +2087,21 @@ document.addEventListener('keydown', (e) => {
 function toggleSection(sectionId) {
     const section = document.getElementById(sectionId);
     const icon = document.getElementById(sectionId + 'Icon');
-    
+
     if (!section) return;
-    
-    // Check if section is currently visible
-    // Handle both 'none' and empty string (default hidden state)
-    const isVisible = section.style.display === 'block';
-    
-    if (isVisible) {
-        // Hide it
-        section.style.display = 'none';
+
+    const isOpen = section.style.maxHeight && section.style.maxHeight !== '0px';
+
+    if (isOpen) {
+        // Collapse
+        section.style.maxHeight = '0px';
         if (icon) {
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-right');
         }
     } else {
-        // Show it - display: block puts element in normal flow
-        // This automatically pushes content below it down
-        section.style.display = 'block';
+        // Expand
+        section.style.maxHeight = section.scrollHeight + 'px';
         if (icon) {
             icon.classList.remove('fa-chevron-right');
             icon.classList.add('fa-chevron-down');
