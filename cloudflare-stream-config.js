@@ -29,7 +29,7 @@ export const streamConfig = {
  * @param {Object} metadata - Video metadata
  * @returns {Promise<Object>} Stream video details
  */
-export async function uploadToStream(videoFile, metadata = {}) {
+window.export async function uploadToStream(videoFile, metadata = {}) {
   const formData = new FormData();
   formData.append('file', videoFile);
   
@@ -63,7 +63,7 @@ export async function uploadToStream(videoFile, metadata = {}) {
  * @param {string} videoId - Stream video ID
  * @returns {Promise<Object>} Video details
  */
-export async function getStreamVideo(videoId) {
+window.export async function getStreamVideo(videoId) {
   const response = await fetch(
     `${streamConfig.apiEndpoint}/accounts/${streamConfig.accountId}/stream/${videoId}`,
     {
@@ -86,7 +86,7 @@ export async function getStreamVideo(videoId) {
  * @param {string} videoId - Stream video ID
  * @returns {Promise<boolean>} Success status
  */
-export async function deleteStreamVideo(videoId) {
+window.export async function deleteStreamVideo(videoId) {
   const response = await fetch(
     `${streamConfig.apiEndpoint}/accounts/${streamConfig.accountId}/stream/${videoId}`,
     {
@@ -106,7 +106,7 @@ export async function deleteStreamVideo(videoId) {
  * @param {Object} options - Player options
  * @returns {string} HTML embed code
  */
-export function getStreamEmbedCode(videoId, options = {}) {
+window.export function getStreamEmbedCode(videoId, options = {}) {
   const {
     autoplay = false,
     loop = false,
@@ -134,7 +134,7 @@ export function getStreamEmbedCode(videoId, options = {}) {
  * @param {string} videoId - Stream video ID
  * @returns {string} iframe URL
  */
-export function getStreamIframeUrl(videoId) {
+window.export function getStreamIframeUrl(videoId) {
   return `https://customer-${streamConfig.customerSubdomain}.cloudflarestream.com/${videoId}/iframe`;
 }
 
@@ -144,7 +144,7 @@ export function getStreamIframeUrl(videoId) {
  * @param {Object} options - Thumbnail options
  * @returns {string} Thumbnail URL
  */
-export function getStreamThumbnailUrl(videoId, options = {}) {
+window.export function getStreamThumbnailUrl(videoId, options = {}) {
   const {
     time = null, // Time in seconds
     width = 640,
@@ -167,6 +167,6 @@ export function getStreamThumbnailUrl(videoId, options = {}) {
  * Check if Stream is configured
  * @returns {boolean} Configuration status
  */
-export function isStreamConfigured() {
+window.export function isStreamConfigured() {
   return !!(streamConfig.accountId && streamConfig.apiToken);
 }
