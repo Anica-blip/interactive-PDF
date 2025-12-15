@@ -19,7 +19,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
 
 // Supabase Database Functions
-window.async function testSupabaseConnectionDB() {
+async function testSupabaseConnectionDB() {
     try {
         const response = await fetch(`${EDGE_FUNCTION_URL}?limit=1`, {
             method: 'GET',
@@ -33,87 +33,94 @@ window.async function testSupabaseConnectionDB() {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const data = await response.json();
-        return { connected: true, message: 'Connected to Supabase Edge Function', data };
+        const result = await response.json();
+        return { connected: true, message: 'Supabase Edge Function OK' };
     } catch (error) {
-        console.error('Supabase connection error:', error);
         return { connected: false, message: error.message };
     }
 }
 
 async function saveProjectDraft(projectData) {
-    try {
-        const response = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'create',
-                ...projectData,
-                is_draft: true
-            })
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-    } catch (error) {
-        console.error('Save draft error:', error);
-        throw error;
+    const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'create',
+            data: {
+                project_json: projectData,
+                status: 'draft'
+            }
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create project');
     }
+    
+    const result = await response.json();
+    return result.data;
 }
 
 async function updateProjectDB(id, projectData) {
-    try {
-        const response = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'update',
-                id,
-                ...projectData
-            })
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-    } catch (error) {
-        console.error('Update project error:', error);
-        throw error;
+    const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'update',
+            id: id,
+            data: {
+                project_json: projectData,
+                updated_at: new Date().toISOString()
+            }
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update project');
     }
+    
+    const result = await response.json();
+    return result.data;
 }
 
 async function publishProjectDB(id, pdfUrl, projectData) {
-    try {
-        const response = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'update',
-                id,
+    const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'update',
+            id: id,
+            data: {
+                project_json: projectData,
                 pdf_url: pdfUrl,
-                is_draft: false,
-                ...projectData
-            })
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-    } catch (error) {
-        console.error('Publish project error:', error);
-        throw error;
+                status: 'published',
+                updated_at: new Date().toISOString()
+            }
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to publish project');
     }
+    
+    const result = await response.json();
+    return result.data;
 }
 
 // Test connection
-window.async function testSupabaseConnection() {
+async function testSupabaseConnection() {
     try {
         showStatus('Testing Supabase Edge Function...', 'info');
         const result = await testSupabaseConnectionDB();
@@ -198,7 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Health check (if button exists)
-const healthCheckBtn = document.getElementById('healthCheck').addEventListener('click', async () => {
+const healthCheckBtn = document.getElementById('healthCheck');
+if (healthCheckBtn) {
+    healthCheckBtn.addEventListener('click', async () => {
         try {
             showStatus('Checking API health...', 'info');
             const response = await fetch(`${API_BASE}/api/health`);
@@ -207,7 +216,7 @@ const healthCheckBtn = document.getElementById('healthCheck').addEventListener('
             if (data.status === 'healthy') {
                 showStatus('✅ API is healthy!', 'success');
             } else {
-                showStatus('⚠️ API health check returned: ' + data.status, 'warning');
+            showStatus('⚠️ API health check returned: ' + data.status, 'warning');
         }
         console.log('Health check:', data);
     } catch (error) {
@@ -223,7 +232,7 @@ function toggleEmbeddedMode() {
     const description = document.getElementById('modeDescription');
     
     if (embeddedMode) {
-        description.textContent = 'Links work everywhere';
+        description.textContent = 'Plays in Adobe Acrobat (free)';
         description.classList.add('text-purple-600', 'font-medium');
     } else {
         description.textContent = 'Links work everywhere';
@@ -322,7 +331,7 @@ function updateFolderPathPreview() {
 // SAVE/LOAD DRAFT FUNCTIONALITY
 // ============================================
 
-async function saveDraft() {
+async function saveDraft(silent = false) {
     const projectData = {
         pages: pages,
         assets: assets,
@@ -337,8 +346,7 @@ async function saveDraft() {
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
             folderName: document.getElementById('folderName')?.value || '',
             subfolderName: document.getElementById('subfolderName')?.value || ''
-        },
-        savedAt: new Date().toISOString()
+        }
     };
     
     try {
@@ -2082,6 +2090,7 @@ document.addEventListener('keydown', (e) => {
 // ============================================
 // COLLAPSIBLE SECTIONS
 // ============================================
+
 function toggleSection(sectionId) {
     const section = document.getElementById(sectionId);
     const icon = document.getElementById(sectionId + 'Icon');
@@ -2109,3 +2118,4 @@ function toggleSection(sectionId) {
         }
     }
 }
+
