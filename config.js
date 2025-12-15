@@ -192,7 +192,7 @@ export const COLORS = {
   INFO: '#17A2B8'
 };
 
-export function validateConfig(userConfig = {}) {
+window.export function validateConfig(userConfig = {}) {
   const config = mergeDeep(DEFAULT_CONFIG, userConfig);
   
   if (typeof config.page.size === 'string') {
@@ -222,7 +222,7 @@ export function validateConfig(userConfig = {}) {
   return config;
 }
 
-function mergeDeep(target, source) {
+window.function mergeDeep(target, source) {
   const result = { ...target };
   
   for (const key in source) {
@@ -236,7 +236,7 @@ function mergeDeep(target, source) {
   return result;
 }
 
-export function getPageDimensions(size, orientation = 'portrait') {
+window.export function getPageDimensions(size, orientation = 'portrait') {
   let dimensions;
   
   if (typeof size === 'string') {
