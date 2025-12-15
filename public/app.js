@@ -19,7 +19,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
 
 // Supabase Database Functions
-async function testSupabaseConnectionDB() {
+window.async function testSupabaseConnectionDB() {
     try {
         const response = await fetch(`${EDGE_FUNCTION_URL}?limit=1`, {
             method: 'GET',
@@ -113,7 +113,7 @@ async function publishProjectDB(id, pdfUrl, projectData) {
 }
 
 // Test connection
-async function testSupabaseConnection() {
+window.async function testSupabaseConnection() {
     try {
         showStatus('Testing Supabase Edge Function...', 'info');
         const result = await testSupabaseConnectionDB();
