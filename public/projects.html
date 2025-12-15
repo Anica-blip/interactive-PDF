@@ -96,10 +96,8 @@
     </div>
 
     <script>
-        // API Configuration - Use consistent URL pattern
-        const API_BASE = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
-            : 'https://api.3c-public-library.org/pdf';
+        // API Configuration - Cloudflare Worker
+        const API_BASE = 'https://api.3c-public-library.org/pdf';
 
         let allProjects = [];
         let projectToDelete = null;
