@@ -760,12 +760,31 @@ function renderPageElements() {
         const typeLabel = typeLabels[element.type] || element.type.toUpperCase();
         const icon = icons[element.type] || 'fas fa-file';
         
+        // Create clean display name (NO URLs or filenames)
+        let displayName = typeLabel;
+        
+        if (element.type === 'button' && element.text && !element.text.includes('http')) {
+            // Button with custom text
+            displayName = element.text;
+        } else if (element.type === 'hotspot' && element.text && !element.text.includes('http')) {
+            // Hotspot with custom label
+            displayName = element.text;
+        } else if (element.type === '3c-button' || element.type === '3c-emoji') {
+            // 3C assets - use their name if available
+            displayName = element.text || typeLabel;
+        } else {
+            // For media (video, audio, image, etc.) - show type + number
+            const sameTypeElements = currentPage.elements.slice(0, index).filter(el => el.type === element.type);
+            const number = sameTypeElements.length + 1;
+            displayName = `${typeLabel} ${number}`;
+        }
+        
         item.innerHTML = `
             <div class="page-element-icon">
                 <i class="${icon}"></i>
             </div>
             <div class="page-element-info">
-                <div class="page-element-label">${element.text || `Element ${index + 1}`}</div>
+                <div class="page-element-label">${displayName}</div>
                 <div class="page-element-type">${typeLabel}</div>
             </div>
         `;
