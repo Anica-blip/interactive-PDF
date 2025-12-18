@@ -308,7 +308,7 @@ function updateFolderPathPreview() {
     const cleanTitle = pdfTitle.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
     
     // Build path
-    let path = '/interactive-pdfs/flipbooks/';
+    let path = '/interactive/2026/flipbook/';
     
     if (cleanFolder) {
         path += cleanFolder + '/';
@@ -511,6 +511,14 @@ function switchToPage(index) {
     renderPages();
     renderPageThumbnails();
     updatePageCounter();
+    
+    // Scroll to active page in right-side canvas
+    setTimeout(() => {
+        const activePage = document.querySelector('.pdf-page.active');
+        if (activePage) {
+            activePage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 100);
 }
 
 function deletePage(index) {
@@ -594,49 +602,108 @@ function renderPageThumbnails() {
     const container = document.getElementById('pageThumbnails');
     container.innerHTML = '';
     
-    pages.forEach((page, index) => {
+    // Always show 2 thumbnails: Page 1 + Current Page
+    const thumbnailsToShow = [
+        { page: pages[0], index: 0, label: 'Page 1' },
+        { page: pages[currentPageIndex], index: currentPageIndex, label: `Page ${currentPageIndex + 1}` }
+    ];
+    
+    thumbnailsToShow.forEach((item, thumbIndex) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'page-thumbnail-wrapper';
         
         const thumb = document.createElement('div');
-        thumb.className = `page-thumbnail ${index === currentPageIndex ? 'active' : ''}`;
-        thumb.onclick = () => switchToPage(index);
-        thumb.textContent = index + 1;
+        thumb.className = `page-thumbnail ${item.index === currentPageIndex ? 'active' : ''}`;
+        thumb.onclick = () => switchToPage(item.index);
+        thumb.textContent = item.index + 1;
         
-        if (page.backgroundData) {
-            thumb.style.backgroundImage = `url(${page.backgroundData})`;
+        if (item.page.backgroundData) {
+            thumb.style.backgroundImage = `url(${item.page.backgroundData})`;
             thumb.style.backgroundSize = 'cover';
             thumb.style.backgroundPosition = 'center';
             thumb.textContent = '';
         }
         
+        // Dropdown menu (... button)
+        const dropdown = document.createElement('div');
+        dropdown.className = 'thumb-dropdown';
+        dropdown.innerHTML = `
+            <div class="thumb-dropdown-btn" onclick="event.stopPropagation(); toggleThumbDropdown(${item.index})">
+                <i class="fas fa-ellipsis-h"></i>
+            </div>
+            <div class="thumb-dropdown-menu" id="dropdown-${item.index}">
+                <button onclick="duplicatePage(${item.index})">
+                    <i class="fas fa-copy mr-1"></i>Duplicate
+                </button>
+                ${pages.length > 1 ? `
+                <button class="delete-option" onclick="deletePage(${item.index})">
+                    <i class="fas fa-trash mr-1"></i>Delete
+                </button>
+                ` : ''}
+            </div>
+        `;
+        thumb.appendChild(dropdown);
+        
         wrapper.appendChild(thumb);
         
-        // Add page controls
-        const controls = document.createElement('div');
-        controls.className = 'page-controls';
-        controls.innerHTML = `
-            <button onclick="movePageUp(${index})" 
-                    ${index === 0 ? 'disabled' : ''}
-                    class="btn-page-control" title="Move Up">
-                <i class="fas fa-arrow-up"></i>
-            </button>
-            <button onclick="movePageDown(${index})" 
-                    ${index === pages.length - 1 ? 'disabled' : ''}
-                    class="btn-page-control" title="Move Down">
-                <i class="fas fa-arrow-down"></i>
-            </button>
-            ${pages.length > 1 ? `
-            <button onclick="deletePage(${index})" 
-                    class="btn-page-control btn-delete" title="Delete">
-                <i class="fas fa-trash"></i>
-            </button>
-            ` : ''}
-        `;
+        // Add controls (up/down arrows) ONLY on 2nd thumbnail (current page)
+        if (thumbIndex === 1) {
+            const controls = document.createElement('div');
+            controls.className = 'thumb-controls';
+            controls.innerHTML = `
+                <button onclick="movePageUp(${item.index})" 
+                        ${item.index === 0 ? 'disabled' : ''}
+                        class="thumb-control-btn" title="Move Up">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+                <button onclick="movePageDown(${item.index})" 
+                        ${item.index === pages.length - 1 ? 'disabled' : ''}
+                        class="thumb-control-btn" title="Move Down">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+            `;
+            wrapper.appendChild(controls);
+        }
         
-        wrapper.appendChild(controls);
         container.appendChild(wrapper);
     });
+    
+    // Render page navigation (< 1 - 50 >)
+    renderPageNavigation();
+}
+
+function renderPageNavigation() {
+    const nav = document.getElementById('pageNavigation');
+    if (!nav) return;
+    
+    nav.innerHTML = '';
+    
+    if (pages.length <= 1) {
+        return;
+    }
+    
+    // Previous button
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'page-nav-btn';
+    prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+    prevBtn.disabled = currentPageIndex === 0;
+    prevBtn.onclick = () => switchToPage(currentPageIndex - 1);
+    nav.appendChild(prevBtn);
+    
+    // Page range display
+    const rangeSpan = document.createElement('span');
+    rangeSpan.className = 'page-nav-btn active';
+    rangeSpan.textContent = `1 - ${pages.length}`;
+    rangeSpan.style.cursor = 'default';
+    nav.appendChild(rangeSpan);
+    
+    // Next button
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'page-nav-btn';
+    nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+    nextBtn.disabled = currentPageIndex === pages.length - 1;
+    nextBtn.onclick = () => switchToPage(currentPageIndex + 1);
+    nav.appendChild(nextBtn);
 }
 
 function updatePageCounter() {
@@ -646,6 +713,77 @@ function updatePageCounter() {
 
 function updateAllPageSizes() {
     renderPages();
+}
+
+// ============================================
+// THUMBNAIL DROPDOWN & PAGE ACTIONS
+// ============================================
+
+function toggleThumbDropdown(pageIndex) {
+    const dropdown = document.getElementById(`dropdown-${pageIndex}`);
+    if (!dropdown) return;
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.thumb-dropdown-menu').forEach(menu => {
+        if (menu !== dropdown) {
+            menu.classList.remove('active');
+        }
+    });
+    
+    dropdown.classList.toggle('active');
+    
+    // Close dropdown when clicking outside
+    if (dropdown.classList.contains('active')) {
+        setTimeout(() => {
+            document.addEventListener('click', function closeDropdown(e) {
+                if (!e.target.closest('.thumb-dropdown')) {
+                    dropdown.classList.remove('active');
+                    document.removeEventListener('click', closeDropdown);
+                }
+            });
+        }, 10);
+    }
+}
+
+function duplicatePage(pageIndex) {
+    const originalPage = pages[pageIndex];
+    const newPage = {
+        id: Date.now(),
+        background: originalPage.background,
+        backgroundData: originalPage.backgroundData,
+        elements: originalPage.elements.map(el => ({
+            ...el,
+            id: Date.now() + Math.random()
+        }))
+    };
+    
+    pages.splice(pageIndex + 1, 0, newPage);
+    currentPageIndex = pageIndex + 1;
+    
+    renderPages();
+    renderPageThumbnails();
+    updatePageCounter();
+    
+    showStatus(`✅ Page ${pageIndex + 1} duplicated`, 'success');
+    
+    // Close dropdown
+    document.querySelectorAll('.thumb-dropdown-menu').forEach(menu => {
+        menu.classList.remove('active');
+    });
+}
+
+// ============================================
+// SETTINGS SIDEBAR
+// ============================================
+
+function openSettingsSidebar() {
+    document.getElementById('settingsSidebar').classList.add('active');
+    document.getElementById('settingsOverlay').classList.add('active');
+}
+
+function closeSettingsSidebar() {
+    document.getElementById('settingsSidebar').classList.remove('active');
+    document.getElementById('settingsOverlay').classList.remove('active');
 }
 
 // ============================================
@@ -988,6 +1126,20 @@ function renderAssetLibrary() {
     
     grid.innerHTML = '';
     
+    // Type labels mapping
+    const typeLabels = {
+        'video': 'Video',
+        'audio': 'Audio',
+        'image': 'Image',
+        'gif': 'GIF',
+        'link': 'Link',
+        '3c-button': '3C Button',
+        '3c-emoji': '3C Emoji',
+        '3c-emoji-decoration': '3C Decoration',
+        'button': 'Button',
+        'hotspot': 'Hotspot'
+    };
+    
     assets.forEach(asset => {
         const assetDiv = document.createElement('div');
         assetDiv.className = 'asset-item bg-gray-50 border-2 border-gray-200 rounded p-2 text-center hover:border-purple-400';
@@ -995,34 +1147,37 @@ function renderAssetLibrary() {
         assetDiv.ondragstart = (e) => startAssetDrag(e, asset);
         assetDiv.onclick = () => addAssetToPage(asset);
         
+        const typeLabel = typeLabels[asset.type] || asset.type.toUpperCase();
+        
         // Show image thumbnail for 3C buttons, emojis, and images
         if (asset.type === '3c-button') {
             assetDiv.innerHTML = `
                 <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded mb-1">
                 <p class="text-xs font-medium text-blue-700 truncate">${asset.name}</p>
-                ${asset.url ? `<p class="text-xs text-blue-500 truncate" title="${asset.url}">🔗 ${asset.url}</p>` : ''}
+                <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
         } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
             assetDiv.innerHTML = `
                 <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded-full mb-1">
                 <p class="text-xs font-medium text-purple-700 truncate">${asset.name}</p>
-                ${asset.url ? `<p class="text-xs text-purple-500 truncate" title="${asset.url}">🔗 ${asset.url}</p>` : '<p class="text-xs text-gray-400">Decoration only</p>'}
+                <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
         } else if (asset.type === 'image' || asset.thumbnail.startsWith('http') || asset.url.startsWith('data:image')) {
             const imgSrc = asset.thumbnail.startsWith('http') ? asset.thumbnail : asset.url;
             assetDiv.innerHTML = `
                 <img src="${imgSrc}" class="w-full h-16 object-cover rounded mb-1">
                 <p class="text-xs font-medium text-gray-700 truncate">${asset.name}</p>
+                <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
         } else {
-            // Show icon for other media types with URL
+            // Show icon for other media types
             const icon = getAssetThumbnail(asset.type, asset.url);
             assetDiv.innerHTML = `
                 <div class="flex items-center justify-center h-16">
                     <i class="${icon} text-3xl"></i>
                 </div>
                 <p class="text-xs font-medium text-gray-700 truncate">${asset.name}</p>
-                ${asset.url ? `<p class="text-xs text-blue-500 truncate" title="${asset.url}">🔗 ${asset.url}</p>` : ''}
+                <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
         }
         
@@ -1097,6 +1252,54 @@ function addAssetToPage(asset) {
 // ============================================
 // ELEMENT MANAGEMENT
 // ============================================
+
+// Copy/Paste functionality
+let copiedElement = null;
+
+// Keyboard shortcuts for copy/paste
+document.addEventListener('keydown', (e) => {
+    // Ctrl+C or Cmd+C - Copy
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        const selectedEl = document.querySelector('.draggable-element.selected');
+        if (selectedEl) {
+            const elementId = parseInt(selectedEl.id.replace('element-', ''));
+            const element = pages[currentPageIndex].elements.find(el => el.id === elementId);
+            if (element) {
+                copiedElement = JSON.parse(JSON.stringify(element)); // Deep copy
+                showStatus('✅ Element copied', 'success');
+                e.preventDefault();
+            }
+        }
+    }
+    
+    // Ctrl+V or Cmd+V - Paste
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        if (copiedElement) {
+            const newElement = {
+                ...copiedElement,
+                id: Date.now() + Math.random(),
+                x: copiedElement.x + 20, // Offset slightly
+                y: copiedElement.y + 20
+            };
+            
+            pages[currentPageIndex].elements.push(newElement);
+            renderPages();
+            showStatus('✅ Element pasted', 'success');
+            e.preventDefault();
+        }
+    }
+});
+
+// Click element to select for copy
+document.addEventListener('click', (e) => {
+    const element = e.target.closest('.draggable-element');
+    if (element) {
+        document.querySelectorAll('.draggable-element').forEach(el => {
+            el.classList.remove('selected');
+        });
+        element.classList.add('selected');
+    }
+});
 
 function createElementDiv(element) {
     const div = document.createElement('div');
@@ -1486,7 +1689,7 @@ async function uploadToStream(file) {
 async function uploadToR2(file, type) {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('folder', 'interactive-pdfs');
+    formData.append('folder', 'interactive/2026');
     
     const response = await fetch(`${API_BASE}/api/upload-media`, {
         method: 'POST',
@@ -2118,4 +2321,3 @@ function toggleSection(sectionId) {
         }
     }
 }
-
