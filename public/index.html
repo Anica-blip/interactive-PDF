@@ -284,26 +284,31 @@
         
         /* Thumbnail controls */
         .thumb-controls {
+            position: absolute;
+            right: -28px;
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
+            flex-direction: column;
             gap: 2px;
         }
         
         .thumb-control-btn {
-            background: #667eea;
+            background: #9ca3af;
             color: white;
             border: none;
             border-radius: 3px;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 10px;
+            font-size: 8px;
         }
         
         .thumb-control-btn:hover {
-            background: #5a67d8;
+            background: #6b7280;
         }
         
         .thumb-control-btn:disabled {
@@ -378,6 +383,66 @@
         
         .settings-overlay.active {
             display: block;
+        }
+        
+        /* Page Elements Container */
+        .page-elements-container {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .page-element-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .page-element-item:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+        
+        .page-element-item.selected {
+            background: #ede9fe;
+            border-color: #8b5cf6;
+        }
+        
+        .page-element-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .page-element-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .page-element-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 2px;
+        }
+        
+        .page-element-type {
+            font-size: 10px;
+            color: #6b7280;
         }
         
         .sidebar::-webkit-scrollbar {
@@ -601,6 +666,25 @@
                     </div>
                     <div class="mt-2 text-xs text-gray-600 text-center">
                         Page <span id="currentPageNum">1</span> of <span id="totalPages">1</span>
+                    </div>
+                </div>
+
+
+                <!-- Page Elements -->
+                <div class="bg-white rounded-lg shadow-sm p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-bold text-gray-800">
+                            <i class="fas fa-layer-group text-indigo-600 mr-1"></i>Page Elements
+                        </h3>
+                        <span class="text-xs text-gray-500">Page <span id="elementsPageNum">1</span></span>
+                    </div>
+                    <div id="pageElementsContainer" class="page-elements-container">
+                        <div class="text-center text-gray-400 text-xs py-4">
+                            No elements on this page
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-1"></i>Click element to select, Ctrl+C to copy
                     </div>
                 </div>
 
