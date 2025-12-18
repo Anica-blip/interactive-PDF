@@ -536,6 +536,7 @@ function deletePage(index) {
         }
         renderPages();
         renderPageThumbnails();
+        renderPageElements();
         updatePageCounter();
         showStatus(`Page deleted`, 'info');
     }
@@ -893,6 +894,7 @@ function movePageUp(pageIndex) {
     
     renderPages();
     renderPageThumbnails();
+    renderPageElements();
     showStatus('✅ Page moved up', 'success');
 }
 
@@ -911,6 +913,7 @@ function movePageDown(pageIndex) {
     
     renderPages();
     renderPageThumbnails();
+    renderPageElements();
     showStatus('✅ Page moved down', 'success');
 }
 
@@ -2057,10 +2060,10 @@ function previewFlipbook() {
     showStatus('📖 Opening flipbook preview...', 'info');
 }
 
-// Initialize collapsible sections
+// Initialize collapsible sections and render initial state
 setTimeout(() => {
     document.getElementById('assetLibrary').style.maxHeight = '500px';
-    document.getElementById('settings').style.maxHeight = '0px';
+    renderPageElements(); // Initialize element container
 }, 100);
 
 // ============================================
