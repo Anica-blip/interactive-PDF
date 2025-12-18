@@ -500,6 +500,7 @@ function addNewPage() {
     
     renderPages();
     renderPageThumbnails();
+    renderPageElements();
     updatePageCounter();
     
     showStatus(`✅ Page ${pages.length} added`, 'success');
@@ -510,6 +511,7 @@ function switchToPage(index) {
     currentPageIndex = index;
     renderPages();
     renderPageThumbnails();
+    renderPageElements();
     updatePageCounter();
     
     // Scroll to active page in right-side canvas
@@ -706,6 +708,91 @@ function renderPageNavigation() {
     nav.appendChild(nextBtn);
 }
 
+function renderPageElements() {
+    const container = document.getElementById('pageElementsContainer');
+    const pageNumSpan = document.getElementById('elementsPageNum');
+    
+    if (!container || !pageNumSpan) return;
+    
+    pageNumSpan.textContent = currentPageIndex + 1;
+    container.innerHTML = '';
+    
+    const currentPage = pages[currentPageIndex];
+    
+    if (!currentPage.elements || currentPage.elements.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">No elements on this page</div>';
+        return;
+    }
+    
+    // Type labels mapping
+    const typeLabels = {
+        'video': 'Video',
+        'audio': 'Audio',
+        'image': 'Image',
+        'gif': 'GIF',
+        'link': 'Link',
+        '3c-button': '3C Button',
+        '3c-emoji': '3C Emoji',
+        '3c-emoji-decoration': '3C Decoration',
+        'button': 'Button',
+        'hotspot': 'Hotspot'
+    };
+    
+    const icons = {
+        'video': 'fas fa-video text-red-500',
+        'audio': 'fas fa-music text-blue-500',
+        'image': 'fas fa-image text-purple-500',
+        'gif': 'fas fa-image text-purple-500',
+        'link': 'fas fa-link text-green-500',
+        '3c-button': 'fas fa-star text-blue-500',
+        '3c-emoji': 'fas fa-smile text-purple-500',
+        '3c-emoji-decoration': 'fas fa-smile text-purple-500',
+        'button': 'fas fa-hand-pointer text-indigo-500',
+        'hotspot': 'fas fa-mouse-pointer text-orange-500'
+    };
+    
+    currentPage.elements.forEach((element, index) => {
+        const item = document.createElement('div');
+        item.className = 'page-element-item';
+        item.dataset.elementId = element.id;
+        
+        const typeLabel = typeLabels[element.type] || element.type.toUpperCase();
+        const icon = icons[element.type] || 'fas fa-file';
+        
+        item.innerHTML = `
+            <div class="page-element-icon">
+                <i class="${icon}"></i>
+            </div>
+            <div class="page-element-info">
+                <div class="page-element-label">${element.text || `Element ${index + 1}`}</div>
+                <div class="page-element-type">${typeLabel}</div>
+            </div>
+        `;
+        
+        // Click to select element
+        item.onclick = () => {
+            // Remove selection from all items
+            container.querySelectorAll('.page-element-item').forEach(el => {
+                el.classList.remove('selected');
+            });
+            // Select this item
+            item.classList.add('selected');
+            
+            // Also select on canvas
+            document.querySelectorAll('.draggable-element').forEach(el => {
+                el.classList.remove('selected');
+            });
+            const canvasElement = document.getElementById(`element-${element.id}`);
+            if (canvasElement) {
+                canvasElement.classList.add('selected');
+                canvasElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        };
+        
+        container.appendChild(item);
+    });
+}
+
 function updatePageCounter() {
     document.getElementById('currentPageNum').textContent = currentPageIndex + 1;
     document.getElementById('totalPages').textContent = pages.length;
@@ -762,6 +849,7 @@ function duplicatePage(pageIndex) {
     
     renderPages();
     renderPageThumbnails();
+    renderPageElements();
     updatePageCounter();
     
     showStatus(`✅ Page ${pageIndex + 1} duplicated`, 'success');
@@ -1245,6 +1333,7 @@ function addAssetToPage(asset) {
     
     pages[currentPageIndex].elements.push(element);
     renderPages();
+    renderPageElements();
     const modeText = asset.embedded ? ' (embedded)' : '';
     showStatus(`✅ ${asset.name} added to page ${currentPageIndex + 1}${modeText}`, 'success');
 }
@@ -1260,9 +1349,21 @@ let copiedElement = null;
 document.addEventListener('keydown', (e) => {
     // Ctrl+C or Cmd+C - Copy
     if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        const selectedEl = document.querySelector('.draggable-element.selected');
+        // Try canvas element first
+        let selectedEl = document.querySelector('.draggable-element.selected');
+        let elementId = null;
+        
         if (selectedEl) {
-            const elementId = parseInt(selectedEl.id.replace('element-', ''));
+            elementId = parseInt(selectedEl.id.replace('element-', ''));
+        } else {
+            // Try element container
+            const selectedContainerItem = document.querySelector('.page-element-item.selected');
+            if (selectedContainerItem) {
+                elementId = parseInt(selectedContainerItem.dataset.elementId);
+            }
+        }
+        
+        if (elementId) {
             const element = pages[currentPageIndex].elements.find(el => el.id === elementId);
             if (element) {
                 copiedElement = JSON.parse(JSON.stringify(element)); // Deep copy
@@ -1284,6 +1385,7 @@ document.addEventListener('keydown', (e) => {
             
             pages[currentPageIndex].elements.push(newElement);
             renderPages();
+            renderPageElements();
             showStatus('✅ Element pasted', 'success');
             e.preventDefault();
         }
@@ -1537,6 +1639,7 @@ function deleteElement(elementId) {
     const currentPage = pages[currentPageIndex];
     currentPage.elements = currentPage.elements.filter(el => el.id !== elementId);
     renderPages();
+    renderPageElements();
     showStatus('Element deleted', 'info');
 }
 
