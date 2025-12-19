@@ -604,65 +604,6 @@
         }
     </style>
     
-    // Check connection on page load
-    document.addEventListener('DOMContentLoaded', async () => {
-      const statusEl = document.getElementById('supabaseStatus');
-      const iconEl = document.getElementById('supabaseIcon');
-      const textEl = document.getElementById('supabaseText');
-    
-    // Make status button open modal
-    if (statusEl) {
-        statusEl.style.cursor = 'pointer';
-        statusEl.onclick = function() {
-            // Check if credentials exist
-            if (!window.ENV_CONFIG?.supabase?.url || !window.ENV_CONFIG?.supabase?.anonKey) {
-                // No credentials - open modal
-                openSupabaseModal();
-            } else {
-                // Has credentials - test connection
-                testSupabaseConnectionStatus();
-            }
-        };
-    }
-    
-    // Auto-test on load
-    testSupabaseConnectionStatus();
-});
-
-// Test connection and update status indicator
-async function testSupabaseConnectionStatus() {
-    const iconEl = document.getElementById('supabaseIcon');
-    const textEl = document.getElementById('supabaseText');
-    
-    // Check if config exists
-    if (!window.ENV_CONFIG?.supabase?.url || !window.ENV_CONFIG?.supabase?.anonKey) {
-        iconEl.className = 'fas fa-circle text-yellow-400 animate-pulse';
-        textEl.textContent = 'Not Configured';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${window.ENV_CONFIG.supabase.url}/rest/v1/`, {
-            headers: {
-                'apikey': window.ENV_CONFIG.supabase.anonKey,
-                'Authorization': `Bearer ${window.ENV_CONFIG.supabase.anonKey}`
-            }
-        });
-        
-        if (response.ok || response.status === 404) {
-            iconEl.className = 'fas fa-circle text-green-400';
-            textEl.textContent = 'Connected';
-        } else {
-            iconEl.className = 'fas fa-circle text-red-400';
-            textEl.textContent = 'Error';
-        }
-    } catch (error) {
-        iconEl.className = 'fas fa-circle text-red-400';
-        textEl.textContent = 'Error';
-    }
-}
-</script>
-    
 </head>
     <!-- Supabase Connection Modal -->
 <div id="supabaseModal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[10000] hidden items-center justify-center p-4">
