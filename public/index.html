@@ -604,45 +604,149 @@
         }
     </style>
 </head>
-<body>
-    <!-- Header -->
-    <header class="gradient-bg text-white shadow-lg" style="height: 70px;">
-        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <i class="fas fa-file-pdf text-3xl"></i>
-                <div>
-                    <h1 class="text-2xl font-bold">Interactive PDF Creator</h1>
-                    <p class="text-xs opacity-90">Multi-Page Edition with Asset Library</p>
-                </div>
+    <!-- Supabase Connection Modal -->
+<div id="supabaseModal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[10000] hidden items-center justify-center p-4">
+    <div class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl max-w-lg w-full p-8 relative border border-purple-500/20">
+        <!-- Close Button -->
+        <button onclick="closeSupabaseModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-all transform hover:rotate-90 hover:scale-110">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-110 transition-all">
+                <i class="fas fa-database text-white text-3xl"></i>
             </div>
-            <div class="flex items-center space-x-3">
-                <!-- Supabase Connection Indicator -->
-                <div id="supabaseStatus" class="bg-white bg-opacity-20 px-3 py-1.5 rounded text-sm flex items-center space-x-2" title="Click to test connection">
-                    <i id="supabaseIcon" class="fas fa-circle text-yellow-400 animate-pulse"></i>
-                    <span id="supabaseText" class="text-xs">Checking...</span>
-                </div>
-                
-                <button onclick="saveDraft()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
-                    <i class="fas fa-save mr-1"></i>Save Draft
-                </button>
-                <button onclick="loadDraft()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
-                    <i class="fas fa-folder-open mr-1"></i>Load Draft
-                </button>
-                <a href="projects.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
-                    <i class="fas fa-cloud mr-1"></i>My Projects
-                </a>
-                <button onclick="previewFlipbook()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition">
-                    <i class="fas fa-eye mr-1"></i>View Flipbook
-                </button>
-                <button id="generateBtn" onclick="generatePDF()" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-purple-50 transition shadow-md">
-                    <i class="fas fa-magic mr-1"></i>Generate PDF
-                </button>
-                <button onclick="exportProjectJSON()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1.5 rounded text-sm transition" title="Export for 3C Library">
-                    <i class="fas fa-download mr-1"></i>Export JSON
-                </button>
+            <h2 class="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                Supabase Connection
+            </h2>
+            <p class="text-sm text-gray-400">Configure your database credentials</p>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="hidden mb-6 p-4 rounded-xl backdrop-blur-sm">
+            <div class="flex items-center gap-3">
+                <i id="statusIcon" class="fas fa-circle text-lg"></i>
+                <span id="statusText" class="text-sm font-medium"></span>
             </div>
         </div>
-    </header>
+
+        <!-- Form -->
+        <form id="supabaseForm" class="space-y-5">
+            <!-- Supabase URL -->
+            <div>
+                <label class="block text-purple-300 mb-2 font-semibold text-xs uppercase tracking-wide">
+                    <i class="fas fa-link mr-1.5"></i>Supabase URL
+                </label>
+                <input
+                    type="url"
+                    id="supabaseUrl"
+                    placeholder="https://xxxxx.supabase.co"
+                    required
+                    class="w-full px-4 py-3 bg-gray-800/50 text-purple-100 rounded-xl border border-purple-500/30 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                />
+            </div>
+
+            <!-- Anon Key -->
+            <div>
+                <label class="block text-purple-300 mb-2 font-semibold text-xs uppercase tracking-wide">
+                    <i class="fas fa-key mr-1.5"></i>Anon Key
+                </label>
+                <input
+                    type="password"
+                    id="supabaseAnonKey"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    required
+                    class="w-full px-4 py-3 bg-gray-800/50 text-purple-100 rounded-xl border border-purple-500/30 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all font-mono text-xs"
+                />
+            </div>
+
+            <!-- Service Role Key (Optional) -->
+            <div>
+                <label class="block text-purple-300 mb-2 font-semibold text-xs uppercase tracking-wide">
+                    <i class="fas fa-shield-alt mr-1.5"></i>Service Key <span class="text-gray-500 normal-case">(Optional)</span>
+                </label>
+                <input
+                    type="password"
+                    id="supabaseServiceKey"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    class="w-full px-4 py-3 bg-gray-800/50 text-purple-100 rounded-xl border border-purple-500/30 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all font-mono text-xs"
+                />
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 pt-4">
+                <button
+                    type="button"
+                    onclick="testConnection()"
+                    class="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-3 rounded-xl font-bold text-sm transition-all shadow-lg hover:shadow-cyan-500/50 transform hover:scale-105"
+                >
+                    <i class="fas fa-plug mr-2"></i>Test
+                </button>
+                <button
+                    type="submit"
+                    class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-3 rounded-xl font-bold text-sm transition-all shadow-lg hover:shadow-purple-500/50 transform hover:scale-105"
+                >
+                    <i class="fas fa-download mr-2"></i>Save & Download
+                </button>
+            </div>
+        </form>
+
+        <!-- Instructions -->
+        <div class="mt-8 pt-6 border-t border-gray-700/50">
+            <div class="bg-purple-900/20 border border-purple-500/20 rounded-xl p-4">
+                <p class="text-xs text-purple-300 font-semibold mb-3 flex items-center">
+                    <i class="fas fa-info-circle mr-2"></i>Setup Instructions
+                </p>
+                <ol class="text-xs text-gray-400 space-y-2 ml-5 list-decimal">
+                    <li>Click <strong class="text-purple-300">"Save & Download"</strong> to generate config.js</li>
+                    <li>Replace your existing <code class="text-purple-300 bg-gray-800 px-1.5 py-0.5 rounded">config.js</code> with the downloaded file</li>
+                    <li>Refresh the page to apply changes</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+<body>
+    
+     <!-- Header -->
+<header class="gradient-bg text-white shadow-lg" style="height: 70px;">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <i class="fas fa-file-pdf text-3xl"></i>
+            <div>
+                <h1 class="text-2xl font-bold">Interactive PDF Creator</h1>
+                <p class="text-xs opacity-90">Multi-Page Edition with Asset Library</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <!-- Supabase Connection Indicator -->
+            <div id="supabaseStatus" class="bg-white bg-opacity-20 backdrop-blur-sm px-3 py-2 rounded-lg text-sm flex items-center space-x-2 cursor-pointer hover:bg-opacity-30 transition-all shadow-lg" title="Click to configure">
+                <i id="supabaseIcon" class="fas fa-circle text-yellow-400 animate-pulse"></i>
+                <span id="supabaseText" class="text-xs font-medium">Checking...</span>
+            </div>
+            
+            <button onclick="saveDraft()" class="bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
+                <i class="fas fa-save mr-1.5"></i>Save
+            </button>
+            <button onclick="loadDraft()" class="bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
+                <i class="fas fa-folder-open mr-1.5"></i>Load
+            </button>
+            <a href="projects.html" class="bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 px-4 py-2 rounded-lg text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
+                <i class="fas fa-cloud mr-1.5"></i>Projects
+            </a>
+            <button onclick="window.open('flipbook.html', '_blank')" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-4 py-2 rounded-lg text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-medium">
+                <i class="fas fa-book-open mr-1.5"></i>View Flipbook
+            </button>
+            <button id="generateBtn" onclick="generatePDF()" class="bg-white text-purple-600 px-5 py-2.5 rounded-lg font-bold hover:bg-purple-50 transition-all shadow-lg hover:shadow-2xl transform hover:scale-105">
+                <i class="fas fa-magic mr-1.5"></i>Generate PDF
+            </button>
+            <button onclick="exportProjectJSON()" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-4 py-2 rounded-lg text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-medium" title="Export for 3C Library">
+                <i class="fas fa-download mr-1.5"></i>Export
+            </button>
+        </div>
+    </div>
+</header>
 
     <!-- Main Content -->
     <main>
