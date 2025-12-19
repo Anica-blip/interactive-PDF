@@ -25,13 +25,13 @@ export const ENV_CONFIG = {
   supabase: {
     url: typeof process !== 'undefined' && process.env?.SUPABASE_URL 
       ? process.env.SUPABASE_URL 
-      : '',
+      : 'https://cgxjqsbrditbteqhdyus.supabase.co', // ← Your Supabase project URL
     anonKey: typeof process !== 'undefined' && process.env?.SUPABASE_ANON_KEY 
       ? process.env.SUPABASE_ANON_KEY 
-      : '',
+      : 'PASTE_YOUR_ANON_KEY_HERE', // ← Add your anon key here (from Supabase Dashboard → Settings → API)
     serviceKey: typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY 
       ? process.env.SUPABASE_SERVICE_KEY 
-      : ''
+      : '' // ← Leave empty (service key not used in browser)
   },
   app: {
     name: 'Interactive PDF Builder',
