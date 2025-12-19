@@ -1,4 +1,4 @@
-    const configContent = `/**
+/**
  * Configuration settings for Interactive PDF creation
  * Centralizes all PDF generation parameters and validation
  */
@@ -25,13 +25,13 @@ export const ENV_CONFIG = {
   supabase: {
     url: typeof process !== 'undefined' && process.env?.SUPABASE_URL 
       ? process.env.SUPABASE_URL 
-      : '${url}',
+      : 'https://cgxjqsbrditbteqhdyus.supabase.co',
     anonKey: typeof process !== 'undefined' && process.env?.SUPABASE_ANON_KEY 
       ? process.env.SUPABASE_ANON_KEY 
-      : '${anonKey}',
+      : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4',
     serviceKey: typeof process !== 'undefined' && process.env?.SUPABASE_SERVICE_KEY 
       ? process.env.SUPABASE_SERVICE_KEY 
-      : '${serviceKey}'
+      : ''
   },
   app: {
     name: 'Interactive PDF Builder',
@@ -42,6 +42,9 @@ export const ENV_CONFIG = {
       : 'development'
   }
 };
+
+// Make ENV_CONFIG globally available
+window.ENV_CONFIG = ENV_CONFIG;
 
 export const DEFAULT_CONFIG = {
   pdf: {
@@ -192,12 +195,12 @@ export const COLORS = {
   INFO: '#17A2B8'
 };
 
-window.export function validateConfig(userConfig = {}) {
+export function validateConfig(userConfig = {}) {
   const config = mergeDeep(DEFAULT_CONFIG, userConfig);
   
   if (typeof config.page.size === 'string') {
     if (!PAGE_SIZES[config.page.size.toUpperCase()]) {
-      throw new Error(\`Unsupported page size: \${config.page.size}\`);
+      throw new Error(`Unsupported page size: ${config.page.size}`);
     }
   } else if (Array.isArray(config.page.size)) {
     if (config.page.size.length !== 2 || 
@@ -222,7 +225,7 @@ window.export function validateConfig(userConfig = {}) {
   return config;
 }
 
-window.function mergeDeep(target, source) {
+function mergeDeep(target, source) {
   const result = { ...target };
   
   for (const key in source) {
@@ -236,13 +239,13 @@ window.function mergeDeep(target, source) {
   return result;
 }
 
-window.export function getPageDimensions(size, orientation = 'portrait') {
+export function getPageDimensions(size, orientation = 'portrait') {
   let dimensions;
   
   if (typeof size === 'string') {
     dimensions = PAGE_SIZES[size.toUpperCase()];
     if (!dimensions) {
-      throw new Error(\`Unknown page size: \${size}\`);
+      throw new Error(`Unknown page size: ${size}`);
     }
   } else if (Array.isArray(size)) {
     dimensions = [...size];
@@ -255,23 +258,5 @@ window.export function getPageDimensions(size, orientation = 'portrait') {
   }
   
   return dimensions;
-}`;
-
-    // Create and download file
-    const blob = new Blob([configContent], { type: 'text/javascript' });
-    const url_download = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url_download;
-    a.download = 'config.js';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url_download);
-    
-    showStatus('✅ config.js downloaded! Replace your existing file and refresh.', 'success');
-    
-    setTimeout(() => {
-        closeSupabaseModal();
-    }, 2000);
-});
+}
 
