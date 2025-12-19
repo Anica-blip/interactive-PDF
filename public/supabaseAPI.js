@@ -1,11 +1,17 @@
 /**
  * Supabase API Client for Interactive PDF Builder
  * Connects to Supabase Edge Functions
+ * Uses credentials from window.ENV_CONFIG (loaded from config.js)
  */
 
-// Supabase Configuration
-const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4';
+// Wait for config to load
+if (!window.ENV_CONFIG?.supabase) {
+    console.error('⚠️ Supabase config not found! Make sure config.js loads before supabaseAPI.js');
+}
+
+// Get configuration from window.ENV_CONFIG
+const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
+const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 
 // Edge Function endpoint
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
@@ -22,7 +28,7 @@ const getHeaders = () => ({
 /**
  * Save new project draft
  */
-saveProjectDraft = async function(projectData) {
+window.saveProjectDraft = async function(projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -47,7 +53,7 @@ saveProjectDraft = async function(projectData) {
 /**
  * Update existing project
  */
-updateProjectDB = async function(projectId, projectData) {
+window.updateProjectDB = async function(projectId, projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -73,7 +79,7 @@ updateProjectDB = async function(projectId, projectData) {
 /**
  * Publish project with PDF URL
  */
-publishProjectDB = async function(projectId, pdfUrl, projectData) {
+window.publishProjectDB = async function(projectId, pdfUrl, projectData) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -100,7 +106,7 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 /**
  * Get project by ID
  */
-getProjectDB = async function(projectId) {
+window.getProjectDB = async function(projectId) {
     const response = await fetch(`${EDGE_FUNCTION_URL}?id=${projectId}`, {
         method: 'GET',
         headers: getHeaders()
@@ -118,7 +124,7 @@ getProjectDB = async function(projectId) {
 /**
  * List all projects
  */
-listProjectsDB = async function(options = {}) {
+window.listProjectsDB = async function(options = {}) {
     const params = new URLSearchParams();
     
     if (options.limit) params.append('limit', options.limit);
@@ -142,7 +148,7 @@ listProjectsDB = async function(options = {}) {
 /**
  * Delete project
  */
-deleteProjectDB = async function(projectId) {
+window.deleteProjectDB = async function(projectId) {
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -163,7 +169,7 @@ deleteProjectDB = async function(projectId) {
 /**
  * Test Supabase connection
  */
-testSupabaseConnectionDB = async function() {
+window.testSupabaseConnectionDB = async function() {
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?select=id&limit=1`, {
             method: 'GET',
@@ -185,3 +191,4 @@ testSupabaseConnectionDB = async function() {
 };
 
 console.log('✅ Supabase API loaded - Edge Function:', EDGE_FUNCTION_URL);
+console.log('📡 Using Supabase URL:', SUPABASE_URL);
