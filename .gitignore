@@ -76,6 +76,7 @@ logs
 .env
 .env.local
 *.env
+config.js  # Contains API keys (Supabase anon key, etc.) - DO NOT COMMIT
 
 # ===== TEMPORARY FILES =====
 *.tmp
