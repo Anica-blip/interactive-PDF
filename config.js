@@ -1,10 +1,10 @@
 /**
  * Configuration settings for Interactive PDF creation
- * Centralizes all PDF generation parameters and validation
+ * NON-MODULE VERSION - Works with regular <script> tag
  */
 
-// Environment configuration for Cloudflare deployment
-export const ENV_CONFIG = {
+// Environment configuration
+window.ENV_CONFIG = {
   r2: {
     publicUrl: typeof process !== 'undefined' && process.env?.R2_PUBLIC_URL 
       ? process.env.R2_PUBLIC_URL 
@@ -43,10 +43,7 @@ export const ENV_CONFIG = {
   }
 };
 
-// Make ENV_CONFIG globally available
-window.ENV_CONFIG = ENV_CONFIG;
-
-export const DEFAULT_CONFIG = {
+window.DEFAULT_CONFIG = {
   pdf: {
     title: 'Interactive PDF Document',
     author: 'Interactive PDF Creator',
@@ -155,7 +152,7 @@ export const DEFAULT_CONFIG = {
   }
 };
 
-export const PAGE_SIZES = {
+window.PAGE_SIZES = {
   A4: [595.28, 841.89],
   A3: [841.89, 1190.55],
   A5: [420.94, 595.28],
@@ -164,7 +161,7 @@ export const PAGE_SIZES = {
   Tabloid: [792, 1224]
 };
 
-export const FONTS = {
+window.FONTS = {
   HELVETICA: 'Helvetica',
   HELVETICA_BOLD: 'Helvetica-Bold',
   HELVETICA_OBLIQUE: 'Helvetica-Oblique',
@@ -179,7 +176,7 @@ export const FONTS = {
   COURIER_BOLD_OBLIQUE: 'Courier-BoldOblique'
 };
 
-export const COLORS = {
+window.COLORS = {
   BLACK: '#000000',
   WHITE: '#FFFFFF',
   RED: '#FF0000',
@@ -195,68 +192,4 @@ export const COLORS = {
   INFO: '#17A2B8'
 };
 
-export function validateConfig(userConfig = {}) {
-  const config = mergeDeep(DEFAULT_CONFIG, userConfig);
-  
-  if (typeof config.page.size === 'string') {
-    if (!PAGE_SIZES[config.page.size.toUpperCase()]) {
-      throw new Error(`Unsupported page size: ${config.page.size}`);
-    }
-  } else if (Array.isArray(config.page.size)) {
-    if (config.page.size.length !== 2 || 
-        !config.page.size.every(dim => typeof dim === 'number' && dim > 0)) {
-      throw new Error('Custom page size must be [width, height] with positive numbers');
-    }
-  }
-
-  const margins = config.page.margins;
-  if (margins.top < 0 || margins.bottom < 0 || margins.left < 0 || margins.right < 0) {
-    throw new Error('Page margins must be non-negative');
-  }
-
-  if (config.media.maxFileSize <= 0) {
-    throw new Error('Media file size limit must be positive');
-  }
-
-  if (config.validation.maxPages <= 0 || config.validation.maxInteractiveElements <= 0) {
-    throw new Error('Page and element limits must be positive');
-  }
-
-  return config;
-}
-
-function mergeDeep(target, source) {
-  const result = { ...target };
-  
-  for (const key in source) {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      result[key] = mergeDeep(target[key] || {}, source[key]);
-    } else {
-      result[key] = source[key];
-    }
-  }
-  
-  return result;
-}
-
-export function getPageDimensions(size, orientation = 'portrait') {
-  let dimensions;
-  
-  if (typeof size === 'string') {
-    dimensions = PAGE_SIZES[size.toUpperCase()];
-    if (!dimensions) {
-      throw new Error(`Unknown page size: ${size}`);
-    }
-  } else if (Array.isArray(size)) {
-    dimensions = [...size];
-  } else {
-    throw new Error('Page size must be string or array');
-  }
-  
-  if (orientation === 'landscape') {
-    return [dimensions[1], dimensions[0]];
-  }
-  
-  return dimensions;
-}
-
+console.log('✅ Config loaded:', window.ENV_CONFIG);
