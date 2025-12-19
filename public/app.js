@@ -13,10 +13,16 @@ let currentPdfUrl = null; // Track current PDF URL
 // Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
 const API_BASE = 'https://api.3c-public-library.org/pdf';
 
-// Supabase Configuration
-const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4';
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}https://cgxjqsbrditbteqhdyus.supabase.co/functions/v1/pdf_projects`;
+// Supabase Configuration - Loaded from config.js (ENV_CONFIG.supabase)
+const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
+const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
+
+// Verify configuration is loaded
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('⚠️ Supabase configuration not loaded! Make sure config.js is included in index.html');
+    console.error('Expected: window.ENV_CONFIG.supabase.url and window.ENV_CONFIG.supabase.anonKey');
+}
 
 // Supabase Database Functions
 async function testSupabaseConnectionDB() {
