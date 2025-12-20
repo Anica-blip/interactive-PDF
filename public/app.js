@@ -2427,9 +2427,9 @@ function toggleSection(sectionId) {
         }
     }
 }
-<script>
+
 // ============================================
-// SUPABASE CONNECTION MODAL (ADD TO END OF app.js)
+// SUPABASE CONNECTION MODAL
 // ============================================
 
 // Open modal
