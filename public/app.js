@@ -7,7 +7,7 @@ let draggedElement = null;
 let dragOffset = { x: 0, y: 0 };
 let resizing = false;
 let embeddedMode = false; // Toggle between embedded and link mode
-let flipbookMode = false; // Toggle for magazine-style flipbook
+let flipbookMode = true; // Toggle for magazine-style flipbook (DEFAULT: ON)
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 
