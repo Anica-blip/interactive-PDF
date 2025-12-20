@@ -1,3 +1,4 @@
+// Interactive PDF Creator v2.1 - Fixed duplicate constants
 // Global state
 let pages = [];
 let currentPageIndex = 0;
