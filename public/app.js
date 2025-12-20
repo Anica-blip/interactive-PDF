@@ -303,13 +303,42 @@ function updateFolderPathPreview() {
 // ============================================
 
 async function saveDraft(silent = false) {
+    // 1. Validate Project Settings
+    const title = document.getElementById('pdfTitle').value.trim();
+    const author = document.getElementById('pdfAuthor').value.trim();
+    
+    if (!title || !author) {
+        alert('⚠️ Please complete Project Settings\n\nRequired fields:\n• PDF Title\n• Author Name\n\nClick "Project Settings" below to add this information.');
+        return;
+    }
+    
+    if (pages.length === 0) {
+        alert('⚠️ Please add at least one page before saving.');
+        return;
+    }
+    
+    // 4. Confirm if updating existing project
+    if (currentProjectId && !silent) {
+        const confirmUpdate = confirm(
+            '📝 Update Existing Draft?\n\n' +
+            'This will update your current draft:\n' +
+            `"${title}"\n\n` +
+            'Click OK to update, or Cancel to create a new draft.'
+        );
+        
+        if (!confirmUpdate) {
+            // User wants to create new draft instead
+            currentProjectId = null;
+        }
+    }
+    
     const projectData = {
         pages: pages,
         assets: assets,
         currentPageIndex: currentPageIndex,
         settings: {
-            title: document.getElementById('pdfTitle').value,
-            author: document.getElementById('pdfAuthor').value,
+            title: title,
+            author: author,
             pageSize: document.getElementById('pageSize').value,
             orientation: document.getElementById('orientation').value,
             embeddedMode: embeddedMode,
@@ -341,13 +370,27 @@ async function saveDraft(silent = false) {
         newUrl.searchParams.set('project', currentProjectId);
         window.history.replaceState({}, '', newUrl);
         
+        // 2. Success message
         if (!silent) {
-            showStatus('✅ Saved to Supabase!', 'success');
+            showStatus('✅ Draft saved successfully!', 'success');
+            alert('✅ Draft Saved Successfully!\n\n' +
+                  `Project: "${title}"\n` +
+                  `Pages: ${pages.length}\n` +
+                  `Status: Saved to Supabase`);
         }
         console.log('Draft saved to Supabase via Edge Function:', savedProject);
     } catch (error) {
+        // 3. Explicit error message
         console.error('Failed to save draft:', error);
-        showStatus('❌ Failed to save: ' + error.message, 'error');
+        const errorMsg = error.message || 'Unknown error occurred';
+        showStatus('❌ Failed to save: ' + errorMsg, 'error');
+        alert('❌ Save Failed\n\n' +
+              'Error Details:\n' + errorMsg + '\n\n' +
+              'Possible causes:\n' +
+              '• Database connection issue\n' +
+              '• Invalid data format\n' +
+              '• Permission denied\n\n' +
+              'Please check the console (F12) for more details.');
     }
 }
 
@@ -1645,9 +1688,35 @@ async function generatePDF() {
     const originalText = generateBtn.innerHTML;
     
     try {
+        // 1. Validate Project Settings
+        const title = document.getElementById('pdfTitle').value.trim();
+        const author = document.getElementById('pdfAuthor').value.trim();
+        
+        if (!title || !author) {
+            alert('⚠️ Please complete Project Settings\n\nRequired fields:\n• PDF Title\n• Author Name\n\nClick "Project Settings" below to add this information.');
+            return;
+        }
+        
         if (pages.length === 0) {
             showStatus('⚠️ Please add at least one page', 'warning');
+            alert('⚠️ Please add at least one page before generating PDF.');
             return;
+        }
+        
+        // 4. Confirm if updating existing PDF
+        if (currentProjectId && currentPdfUrl) {
+            const confirmUpdate = confirm(
+                '📄 Update Existing PDF?\n\n' +
+                'This project already has a published PDF:\n' +
+                `"${title}"\n\n` +
+                '⚠️ WARNING: This will override the existing PDF!\n\n' +
+                'Click OK to update, or Cancel to keep the current version.'
+            );
+            
+            if (!confirmUpdate) {
+                showStatus('ℹ️ PDF generation cancelled', 'info');
+                return;
+            }
         }
         
         generateBtn.disabled = true;
@@ -1656,21 +1725,14 @@ async function generatePDF() {
         // Save current state and mark as published
         showStatus('💾 Saving and publishing...', 'info');
         
-        // First save current state
-        await saveDraft(true);
-        
-        if (!currentProjectId) {
-            throw new Error('Failed to save project');
-        }
-        
-        // Mark as published
+        // First save current state (silent mode to avoid double alerts)
         const projectData = {
             pages: pages,
             assets: assets,
             currentPageIndex: currentPageIndex,
             settings: {
-                title: document.getElementById('pdfTitle').value,
-                author: document.getElementById('pdfAuthor').value,
+                title: title,
+                author: author,
                 pageSize: document.getElementById('pageSize').value,
                 orientation: document.getElementById('orientation').value,
                 embeddedMode: embeddedMode,
@@ -1681,10 +1743,30 @@ async function generatePDF() {
             }
         };
         
+        let savedProject;
+        if (currentProjectId) {
+            savedProject = await updateProjectDB(currentProjectId, projectData);
+        } else {
+            savedProject = await saveProjectDraft(projectData);
+        }
+        
+        currentProjectId = savedProject.id;
+        
+        // Update URL with project ID
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('project', currentProjectId);
+        window.history.replaceState({}, '', newUrl);
+        
         // Update status to published (NO PDF generation)
         await publishProjectDB(currentProjectId, null, projectData);
         
+        // 2. Success message
         showStatus('✅ Project published! Click "Export JSON" to download.', 'success');
+        alert('✅ PDF Generated Successfully!\n\n' +
+              `Project: "${title}"\n` +
+              `Pages: ${pages.length}\n` +
+              `Status: Published\n\n` +
+              'Click "Export JSON" to download your project.');
         
         // Show success message
         const resultDiv = document.getElementById('resultArea');
@@ -1708,8 +1790,17 @@ async function generatePDF() {
         }
         
     } catch (error) {
+        // 3. Explicit error message
         console.error('Publish error:', error);
-        showStatus('❌ Error: ' + error.message, 'error');
+        const errorMsg = error.message || 'Unknown error occurred';
+        showStatus('❌ Error: ' + errorMsg, 'error');
+        alert('❌ PDF Generation Failed\n\n' +
+              'Error Details:\n' + errorMsg + '\n\n' +
+              'Possible causes:\n' +
+              '• Database connection issue\n' +
+              '• Missing project data\n' +
+              '• Permission denied\n\n' +
+              'Please check the console (F12) for more details.');
     } finally {
         generateBtn.disabled = false;
         generateBtn.innerHTML = originalText;
