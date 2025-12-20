@@ -13,17 +13,6 @@ let currentPdfUrl = null; // Track current PDF URL
 // Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
 const API_BASE = 'https://api.3c-public-library.org/pdf';
 
-// Supabase Configuration - Loaded from config.js (ENV_CONFIG.supabase)
-const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
-const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
-
-// Verify configuration is loaded
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('⚠️ Supabase configuration not loaded! Make sure config.js is included in index.html');
-    console.error('Expected: window.ENV_CONFIG.supabase.url and window.ENV_CONFIG.supabase.anonKey');
-}
-
 // Supabase Database Functions
 async function testSupabaseConnectionDB() {
     try {
