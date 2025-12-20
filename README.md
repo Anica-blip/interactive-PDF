@@ -84,7 +84,7 @@ Create interactive PDF flipbooks with:
 
 ### R2 Storage Structure
 ```
-/interactive-pdfs/flipbooks/
+/interactive-pdfs/2026/flipbooks/
   /{folder-name}/
     /{subfolder-name}/
       /{title}-v1.0.pdf
@@ -159,9 +159,8 @@ interactive-PDF-main/
 │   ├── flipbook.html         # Flipbook viewer
 │   └── 3C Buttons/           # Brand assets
 │
-├── worker.js                  # Cloudflare Worker (API)
+├── worker.js                 # Cloudflare Worker (API)
 ├── wrangler.toml             # Worker config
-├── wrangler-pages.toml       # Pages config
 ├── supabase-schema.sql       # Database schema
 │
 ├── .github/workflows/
