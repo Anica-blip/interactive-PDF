@@ -279,7 +279,7 @@ function updateFolderPathPreview() {
     const cleanTitle = pdfTitle.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
     
     // Build path
-    let path = '/interactive/2026/flipbook/';
+    let path = '/interactive-pdf/2026/flipbook/';
     
     if (cleanFolder) {
         path += cleanFolder + '/';

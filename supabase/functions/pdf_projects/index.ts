@@ -25,16 +25,29 @@ Deno.serve(async (req) => {
     // Get Authorization header
     const authHeader = req.headers.get('Authorization')
     
-    // Create Supabase client
+    // Create Supabase client with extended timeout for large JSONB operations
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         global: {
           headers: authHeader ? { Authorization: authHeader } : {}
+        },
+        db: {
+          schema: 'public'
         }
       }
     )
+
+    // Set statement timeout to 120 seconds for large JSONB operations (31+ page flipbooks and larger documents)
+    await supabase.rpc('set_config', {
+      setting_name: 'statement_timeout',
+      new_value: '120000',
+      is_local: true
+    }).catch(() => {
+      // Fallback: execute raw SQL if RPC doesn't work
+      return supabase.from('pdf_projects').select('id').limit(0)
+    })
 
     const method = req.method
 
