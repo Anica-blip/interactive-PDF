@@ -6,6 +6,11 @@
     <title>My PDF Projects - Interactive PDF Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase Configuration -->
+    <script src="config.js"></script>
+    <script src="supabaseAPI.js"></script>
+    
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -96,9 +101,6 @@
     </div>
 
     <script>
-        // API Configuration - Cloudflare Worker
-        const API_BASE = 'https://api.3c-public-library.org/pdf';
-
         let allProjects = [];
         let projectToDelete = null;
 
@@ -129,19 +131,27 @@
                     });
                 }
                 
-                // 2. Load published PDFs from API/Supabase
+                // 2. Load published PDFs from Supabase pdf_projects table
                 try {
-                    const response = await fetch(`${API_BASE}/list-projects`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        const publishedProjects = (data.projects || []).map(p => ({
-                            ...p,
-                            source: 'published'
+                    const supabaseProjects = await listProjectsDB({ limit: 100 });
+                    if (supabaseProjects && supabaseProjects.length > 0) {
+                        const publishedProjects = supabaseProjects.map(p => ({
+                            id: p.id,
+                            title: p.metadata?.settings?.title || p.metadata?.title || 'Untitled Project',
+                            page_count: p.metadata?.pages?.length || 0,
+                            created_at: p.created_at,
+                            updated_at: p.updated_at,
+                            flipbook_mode: p.metadata?.settings?.flipbookMode || false,
+                            embedded_mode: p.metadata?.settings?.embeddedMode || false,
+                            pdf_url: p.pdf_url,
+                            status: p.status,
+                            total_pages: p.metadata?.pages?.length || 0,
+                            source: 'supabase'
                         }));
                         allProjects = [...allProjects, ...publishedProjects];
                     }
-                } catch (apiError) {
-                    console.log('API not available, showing drafts only:', apiError.message);
+                } catch (supabaseError) {
+                    console.log('Supabase not available, showing drafts only:', supabaseError.message);
                 }
                 
                 renderProjects(allProjects);
@@ -299,15 +309,8 @@
                     localStorage.removeItem('pdfCreatorDraft');
                     showStatus('✅ Draft deleted successfully', 'success');
                 } else {
-                    // For API projects (when backend is set up)
-                    const response = await fetch(`${API_BASE}/delete-project/${projectToDelete}`, {
-                        method: 'DELETE'
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to delete project');
-                    }
-                    
+                    // Delete from Supabase pdf_projects table
+                    await deleteProjectDB(projectToDelete);
                     showStatus('✅ Project deleted successfully', 'success');
                 }
                 
