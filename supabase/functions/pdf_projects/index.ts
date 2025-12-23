@@ -159,6 +159,37 @@ Deno.serve(async (req) => {
       }
 
       // ----------------------------------------
+      // GET (via POST with action: 'get')
+      // ----------------------------------------
+      if (action === 'get') {
+        if (!id) {
+          return new Response(
+            JSON.stringify({ data: null, error: 'ID required for get' }),
+            { headers: corsHeaders, status: 400 }
+          )
+        }
+
+        const { data: project, error } = await supabase
+          .from('pdf_projects')
+          .select('*')
+          .eq('id', id)
+          .single()
+
+        if (error) {
+          console.error('GET Error:', error)
+          return new Response(
+            JSON.stringify({ data: null, error: error.message }),
+            { headers: corsHeaders, status: 400 }
+          )
+        }
+
+        return new Response(
+          JSON.stringify({ data: project, error: null }),
+          { headers: corsHeaders, status: 200 }
+        )
+      }
+
+      // ----------------------------------------
       // DELETE
       // ----------------------------------------
       if (action === 'delete') {
@@ -190,7 +221,7 @@ Deno.serve(async (req) => {
 
       // Unknown action
       return new Response(
-        JSON.stringify({ data: null, error: 'Invalid action. Use: create, update, or delete' }),
+        JSON.stringify({ data: null, error: 'Invalid action. Use: create, update, get, or delete' }),
         { headers: corsHeaders, status: 400 }
       )
     }

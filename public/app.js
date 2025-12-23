@@ -46,8 +46,15 @@ async function saveProjectDraft(projectData) {
         body: JSON.stringify({
             action: 'create',
             data: {
-                project_json: projectData,
-                status: 'draft'
+                title: projectData.settings.title,
+                description: projectData.settings.description || '',
+                author: projectData.settings.author,
+                status: 'draft',
+                page_size: projectData.settings.pageSize,
+                orientation: projectData.settings.orientation,
+                total_pages: projectData.pages.length,
+                visibility: 'private',
+                project_json: projectData
             }
         })
     });
@@ -72,6 +79,13 @@ async function updateProjectDB(id, projectData) {
             action: 'update',
             id: id,
             data: {
+                title: projectData.settings.title,
+                description: projectData.settings.description || '',
+                author: projectData.settings.author,
+                status: 'draft',
+                page_size: projectData.settings.pageSize,
+                orientation: projectData.settings.orientation,
+                total_pages: projectData.pages.length,
                 project_json: projectData,
                 updated_at: new Date().toISOString()
             }
@@ -306,9 +320,10 @@ async function saveDraft(silent = false) {
     // 1. Validate Project Settings
     const title = document.getElementById('pdfTitle').value.trim();
     const author = document.getElementById('pdfAuthor').value.trim();
+    const folderName = document.getElementById('folderName')?.value.trim() || '';
     
-    if (!title || !author) {
-        alert('⚠️ Please complete Project Settings\n\nRequired fields:\n• PDF Title\n• Author Name\n\nClick "Project Settings" below to add this information.');
+    if (!title || !author || !folderName) {
+        alert('To save your document, please add name and directory details in the Project Settings.');
         return;
     }
     
@@ -338,13 +353,14 @@ async function saveDraft(silent = false) {
         currentPageIndex: currentPageIndex,
         settings: {
             title: title,
+            description: document.getElementById('pdfDescription')?.value.trim() || '',
             author: author,
             pageSize: document.getElementById('pageSize').value,
             orientation: document.getElementById('orientation').value,
             embeddedMode: embeddedMode,
             flipbookMode: flipbookMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
-            folderName: document.getElementById('folderName')?.value || '',
+            folderName: folderName,
             subfolderName: document.getElementById('subfolderName')?.value || ''
         }
     };
@@ -2060,23 +2076,38 @@ async function loadProject(projectId) {
     try {
         showStatus('📂 Loading project...', 'info');
         
-        const response = await fetch(`${API_BASE}/api/load-project/${projectId}`);
+        // Try to load from Edge Function first
+        const response = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'get',
+                id: projectId
+            })
+        });
         
         if (!response.ok) {
             throw new Error('Project not found');
         }
         
-        const data = await response.json();
-        const project = data.project || data;
+        const result = await response.json();
+        const project = result.data;
+        
+        if (!project) {
+            throw new Error('Project not found');
+        }
         
         // Set project ID
         currentProjectId = project.id;
         currentPdfUrl = project.pdf_url;
         
-        // Load project data
-        const projectJson = typeof project.metadata === 'string' 
-            ? JSON.parse(project.metadata) 
-            : project.metadata;
+        // Load project data from project_json column
+        const projectJson = typeof project.project_json === 'string' 
+            ? JSON.parse(project.project_json) 
+            : project.project_json;
         
         // Restore pages and assets
         pages = projectJson.pages || [];
