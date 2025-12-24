@@ -13,8 +13,11 @@ if (!window.ENV_CONFIG?.supabase) {
 const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
 const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 
-// Edge Function endpoint
+// Edge Function endpoint (ONLY for final published exports)
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
+
+// Direct REST API endpoint (for draft saves - NO timeout issues)
+const DIRECT_API_URL = `${SUPABASE_URL}/rest/v1/pdf_projects`;
 
 /**
  * Base headers for all Supabase requests
@@ -26,19 +29,39 @@ const getHeaders = () => ({
 });
 
 /**
- * Save new project draft
+ * Save new project draft - DIRECT to Supabase (bypasses Edge Function)
+ * This avoids timeout issues with large documents (31+ pages)
  */
 saveProjectDraft = async function(projectData) {
-    const response = await fetch(EDGE_FUNCTION_URL, {
+    // Enrich project_json with metadata for easy querying
+    const enrichedData = {
+        ...projectData,
+        metadata: {
+            title: projectData.settings.title,
+            description: projectData.settings.description || '',
+            author: projectData.settings.author,
+            pageSize: projectData.settings.pageSize,
+            orientation: projectData.settings.orientation,
+            totalPages: projectData.pages.length,
+            flipbookMode: projectData.settings.flipbookMode,
+            embeddedMode: projectData.settings.embeddedMode
+        }
+    };
+
+    const payload = {
+        project_json: enrichedData,
+        status: 'draft',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+
+    const response = await fetch(DIRECT_API_URL, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-            action: 'create',
-            data: {
-                metadata: projectData,
-                status: 'draft'
-            }
-        })
+        headers: {
+            ...getHeaders(),
+            'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
@@ -47,24 +70,42 @@ saveProjectDraft = async function(projectData) {
     }
 
     const result = await response.json();
-    return result.data;
+    return Array.isArray(result) ? result[0] : result;
 };
 
 /**
- * Update existing project
+ * Update existing project - DIRECT to Supabase (bypasses Edge Function)
+ * This avoids timeout issues with large documents (31+ pages)
  */
 updateProjectDB = async function(projectId, projectData) {
-    const response = await fetch(EDGE_FUNCTION_URL, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-            action: 'update',
-            id: projectId,
-            data: {
-                metadata: projectData,
-                status: 'draft'
-            }
-        })
+    // Enrich project_json with metadata for easy querying
+    const enrichedData = {
+        ...projectData,
+        metadata: {
+            title: projectData.settings.title,
+            description: projectData.settings.description || '',
+            author: projectData.settings.author,
+            pageSize: projectData.settings.pageSize,
+            orientation: projectData.settings.orientation,
+            totalPages: projectData.pages.length,
+            flipbookMode: projectData.settings.flipbookMode,
+            embeddedMode: projectData.settings.embeddedMode
+        }
+    };
+
+    const payload = {
+        project_json: enrichedData,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+    };
+
+    const response = await fetch(`${DIRECT_API_URL}?id=eq.${projectId}`, {
+        method: 'PATCH',
+        headers: {
+            ...getHeaders(),
+            'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
@@ -73,13 +114,28 @@ updateProjectDB = async function(projectId, projectData) {
     }
 
     const result = await response.json();
-    return result.data;
+    return Array.isArray(result) ? result[0] : result;
 };
 
 /**
- * Publish project with PDF URL
+ * Publish project with PDF URL - Uses Edge Function for final export
  */
 publishProjectDB = async function(projectId, pdfUrl, projectData) {
+    // Enrich project_json with metadata
+    const enrichedData = {
+        ...projectData,
+        metadata: {
+            title: projectData.settings.title,
+            description: projectData.settings.description || '',
+            author: projectData.settings.author,
+            pageSize: projectData.settings.pageSize,
+            orientation: projectData.settings.orientation,
+            totalPages: projectData.pages.length,
+            flipbookMode: projectData.settings.flipbookMode,
+            embeddedMode: projectData.settings.embeddedMode
+        }
+    };
+
     const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
@@ -87,9 +143,10 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
             action: 'update',
             id: projectId,
             data: {
-                metadata: projectData,
+                project_json: enrichedData,
                 pdf_url: pdfUrl,
-                status: 'published'
+                status: 'published',
+                updated_at: new Date().toISOString()
             }
         })
     });
@@ -190,5 +247,7 @@ testSupabaseConnectionDB = async function() {
     }
 };
 
-console.log('✅ Supabase API loaded - Edge Function:', EDGE_FUNCTION_URL);
-console.log('📡 Using Supabase URL:', SUPABASE_URL);
+console.log('✅ Supabase API loaded');
+console.log('📡 Direct API (drafts):', DIRECT_API_URL);
+console.log('🚀 Edge Function (publish only):', EDGE_FUNCTION_URL);
+console.log('💡 Drafts save directly to Supabase - NO timeout issues!');
