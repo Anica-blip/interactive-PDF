@@ -51,6 +51,12 @@ saveProjectDraft = async function(projectData) {
     const payload = {
         project_json: enrichedData,
         status: 'draft',
+        title: projectData.settings.title,
+        description: projectData.settings.description || '',
+        author: projectData.settings.author,
+        total_pages: projectData.pages.length,
+        page_size: projectData.settings.pageSize,
+        orientation: projectData.settings.orientation,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
@@ -96,6 +102,12 @@ updateProjectDB = async function(projectId, projectData) {
     const payload = {
         project_json: enrichedData,
         status: 'draft',
+        title: projectData.settings.title,
+        description: projectData.settings.description || '',
+        author: projectData.settings.author,
+        total_pages: projectData.pages.length,
+        page_size: projectData.settings.pageSize,
+        orientation: projectData.settings.orientation,
         updated_at: new Date().toISOString()
     };
 
@@ -161,10 +173,10 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 };
 
 /**
- * Get project by ID
+ * Get project by ID - DIRECT from Supabase (bypasses Edge Function)
  */
 getProjectDB = async function(projectId) {
-    const response = await fetch(`${EDGE_FUNCTION_URL}?id=${projectId}`, {
+    const response = await fetch(`${DIRECT_API_URL}?id=eq.${projectId}&select=*`, {
         method: 'GET',
         headers: getHeaders()
     });
@@ -175,20 +187,23 @@ getProjectDB = async function(projectId) {
     }
 
     const result = await response.json();
-    return result.data;
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
 };
 
 /**
- * List all projects
+ * List all projects - DIRECT from Supabase (bypasses Edge Function)
  */
 listProjectsDB = async function(options = {}) {
-    const params = new URLSearchParams();
+    const limit = options.limit || 100;
+    const offset = options.offset || 0;
     
-    if (options.limit) params.append('limit', options.limit);
-    if (options.status) params.append('status', options.status);
-    if (options.offset) params.append('offset', options.offset);
+    let url = `${DIRECT_API_URL}?select=*&order=updated_at.desc&limit=${limit}&offset=${offset}`;
+    
+    if (options.status) {
+        url += `&status=eq.${options.status}`;
+    }
 
-    const response = await fetch(`${EDGE_FUNCTION_URL}?${params.toString()}`, {
+    const response = await fetch(url, {
         method: 'GET',
         headers: getHeaders()
     });
@@ -199,7 +214,7 @@ listProjectsDB = async function(options = {}) {
     }
 
     const result = await response.json();
-    return result.data;
+    return Array.isArray(result) ? result : [];
 };
 
 /**

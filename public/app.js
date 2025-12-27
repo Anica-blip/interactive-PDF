@@ -285,7 +285,7 @@ async function saveDraft(silent = false) {
                   `Pages: ${pages.length}\n` +
                   `Status: Saved to Supabase`);
         }
-        console.log('Draft saved to Supabase via Edge Function:', savedProject);
+        console.log('Draft saved directly to Supabase (bypassing Edge Function):', savedProject);
     } catch (error) {
         // 3. Explicit error message
         console.error('Failed to save draft:', error);
@@ -1967,25 +1967,8 @@ async function loadProject(projectId) {
     try {
         showStatus('📂 Loading project...', 'info');
         
-        // Try to load from Edge Function first
-        const response = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'get',
-                id: projectId
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Project not found');
-        }
-        
-        const result = await response.json();
-        const project = result.data;
+        // Load directly from Supabase (bypasses Edge Function timeout issues)
+        const project = await getProjectDB(projectId);
         
         if (!project) {
             throw new Error('Project not found');
@@ -2011,8 +1994,14 @@ async function loadProject(projectId) {
             flipbookMode = projectJson.settings.flipbookMode || false;
             document.getElementById('pageSize').value = projectJson.settings.pageSize || 'A4';
             document.getElementById('orientation').value = projectJson.settings.orientation || 'portrait';
-            document.getElementById('pdfTitle').value = project.title || 'Untitled PDF';
-            document.getElementById('pdfAuthor').value = projectJson.settings.author || 'PDF Creator';
+            document.getElementById('pdfTitle').value = projectJson.settings.title || project.title || 'Untitled PDF';
+            document.getElementById('pdfAuthor').value = projectJson.settings.author || project.author || 'PDF Creator';
+            
+            // Restore description if field exists
+            const descField = document.getElementById('pdfDescription');
+            if (descField) {
+                descField.value = projectJson.settings.description || project.description || '';
+            }
             
             // Update toggles
             document.getElementById('embeddedMode').checked = embeddedMode;
@@ -2025,7 +2014,7 @@ async function loadProject(projectId) {
         renderAssetLibrary();
         updatePageCounter();
         
-        showStatus(`✅ Project loaded: ${project.title}`, 'success');
+        showStatus(`✅ Project loaded: ${project.title || 'Untitled'}`, 'success');
         
     } catch (error) {
         console.error('Load error:', error);
