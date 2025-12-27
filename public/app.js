@@ -239,6 +239,10 @@ async function saveDraft(silent = false) {
     const subfolderName = document.getElementById('subfolderName')?.value.trim() || '';
     const description = subfolderName ? `${folderName}/${subfolderName}` : folderName;
     
+    // Debug logging
+    console.log('Saving description:', description);
+    console.log('Folder:', folderName, 'Subfolder:', subfolderName);
+    
     const projectData = {
         pages: pages,
         assets: assets,
@@ -336,7 +340,9 @@ async function savePublishedProject(pdfUrl) {
 
 function loadDraft() {
     try {
-        const draftData = localStorage.getItem('pdfCreatorDraft');
+        // DISABLED - Remove localStorage auto-save
+        // const draftData = localStorage.getItem('pdfCreatorDraft');
+        return; // Exit early - no auto-save
         
         if (!draftData) {
             showStatus('⚠️ No saved draft found', 'warning');
@@ -2035,19 +2041,44 @@ function previewFlipbook() {
         return;
     }
     
-    // Save current state
-    const previewData = {
-        pages: pages,
-        title: document.getElementById('pdfTitle').value || 'Flipbook Preview'
+    // Create manifest from CURRENT data (not database)
+    const manifest = {
+        title: document.getElementById('pdfTitle').value || 'Interactive Flipbook',
+        author: document.getElementById('pdfAuthor').value || 'Chef',
+        pages: pages.map((page, index) => ({
+            pageNumber: index + 1,
+            background: page.backgroundData,
+            hotspots: page.elements.map(el => ({
+                type: el.type || 'button',
+                title: el.label || el.text || 'Interactive Element',
+                action: el.action || 'link',
+                url: el.url || el.link || '#',
+                videoUrl: el.videoUrl,
+                streamId: el.streamId,
+                mediaUrl: el.mediaUrl,
+                bounds: {
+                    x: el.x,
+                    y: el.y,
+                    width: el.width,
+                    height: el.height
+                }
+            }))
+        })),
+        settings: {
+            pageSize: document.getElementById('pageSize').value,
+            orientation: document.getElementById('orientation').value,
+            flipbookMode: flipbookMode
+        },
+        createdAt: new Date().toISOString()
     };
     
-    // Store in sessionStorage
-    sessionStorage.setItem('flipbookPreview', JSON.stringify(previewData));
+    // Store manifest in sessionStorage for immediate loading
+    sessionStorage.setItem('flipbookManifest', JSON.stringify(manifest));
     
-    // Open preview in new tab
-    window.open('/flipbook.html?preview=true', '_blank');
+    // Open flipbook in new tab
+    window.open('flipbook.html', '_blank');
     
-    showStatus('📖 Opening flipbook preview...', 'info');
+    showStatus('✅ Opening flipbook viewer...', 'success');
 }
 
 // Initialize collapsible sections and render initial state
