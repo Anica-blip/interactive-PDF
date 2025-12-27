@@ -131,7 +131,7 @@
                     });
                 }
                 
-                // 2. Load published PDFs from Supabase pdf_projects table
+                // 2. Load ALL projects from Supabase (both drafts and published)
                 try {
                     const supabaseProjects = await listProjectsDB({ limit: 100 });
                     if (supabaseProjects && supabaseProjects.length > 0) {
