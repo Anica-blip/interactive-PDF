@@ -30,6 +30,11 @@ const projectId = urlParams.get('project') || '';
 
 // Check for sessionStorage manifest (from builder preview)
 const sessionManifest = sessionStorage.getItem('flipbookManifest');
+console.log('SessionStorage check:', {
+    hasManifest: !!sessionManifest,
+    manifestLength: sessionManifest ? sessionManifest.length : 0,
+    manifestPreview: sessionManifest ? sessionManifest.substring(0, 100) + '...' : 'null'
+});
 
 // DOM elements
 const loading = document.getElementById('loading');
