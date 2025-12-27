@@ -78,7 +78,7 @@ async function init() {
         }
         // No data source
         else {
-            alert('No flipbook data. Open from:\n1. Builder (View Flipbook)\n2. Dashboard (My Projects)\n3. Content Library (?pdf=URL)');
+            alert('⚠️ No flipbook data found!\n\nTo view flipbook:\n1. Open your project in the builder\n2. Add pages and elements\n3. Click "View Flipbook" button\n\nThe flipbook will load your current work instantly.');
             loading.classList.add('hidden');
             return;
         }
