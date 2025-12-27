@@ -57,6 +57,8 @@ saveProjectDraft = async function(projectData) {
         total_pages: projectData.pages.length,
         page_size: projectData.settings.pageSize,
         orientation: projectData.settings.orientation,
+        flipbook_mode: projectData.settings.flipbookMode || false,
+        embedded_mode: projectData.settings.embeddedMode || false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
@@ -108,6 +110,8 @@ updateProjectDB = async function(projectId, projectData) {
         total_pages: projectData.pages.length,
         page_size: projectData.settings.pageSize,
         orientation: projectData.settings.orientation,
+        flipbook_mode: projectData.settings.flipbookMode || false,
+        embedded_mode: projectData.settings.embeddedMode || false,
         updated_at: new Date().toISOString()
     };
 

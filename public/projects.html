@@ -136,7 +136,7 @@
                     const supabaseProjects = await listProjectsDB({ limit: 100 });
                     if (supabaseProjects && supabaseProjects.length > 0) {
                         const publishedProjects = supabaseProjects.map(p => {
-                            // Get project_json data
+                            // Get project_json data as fallback
                             const projectJson = typeof p.project_json === 'string' 
                                 ? JSON.parse(p.project_json) 
                                 : p.project_json;
@@ -149,8 +149,8 @@
                                 page_count: p.total_pages || projectJson?.pages?.length || 0,
                                 created_at: p.created_at,
                                 updated_at: p.updated_at,
-                                flipbook_mode: projectJson?.settings?.flipbookMode || false,
-                                embedded_mode: projectJson?.settings?.embeddedMode || false,
+                                flipbook_mode: p.flipbook_mode !== undefined ? p.flipbook_mode : (projectJson?.settings?.flipbookMode || false),
+                                embedded_mode: p.embedded_mode !== undefined ? p.embedded_mode : (projectJson?.settings?.embeddedMode || false),
                                 pdf_url: p.pdf_url,
                                 status: p.status,
                                 total_pages: p.total_pages || projectJson?.pages?.length || 0,
