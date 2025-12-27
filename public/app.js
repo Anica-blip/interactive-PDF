@@ -165,10 +165,7 @@ function incrementVersion() {
     const newVersion = `v${major}.${minor}`;
     versionInput.value = newVersion;
     
-    showStatus(`📌 Version updated to ${newVersion}`, 'success');
-    
-    // Auto-save with new version
-    setTimeout(() => saveDraft(), 500);
+    showStatus(`📌 Version updated to ${newVersion}. Click "Save Draft" to save changes.`, 'success');
 }
 
 // Update folder path preview
@@ -399,13 +396,10 @@ function loadDraft() {
     }
 }
 
-// Auto-save every 15 seconds (silent)
-setInterval(async () => {
-    if (pages.length > 0 && currentProjectId) {
-        await saveDraft(true); // Silent save
-        console.log('🔄 Auto-saved:', new Date().toLocaleTimeString());
-    }
-}, 15000);
+// Auto-save DISABLED - Manual save only via "Save Draft" button
+// This prevents timeout errors when working with large documents (31+ pages)
+// The database timeout (120s) is not sufficient for auto-saving large JSONB data every 15 seconds
+// Users should click "Save Draft" button manually when ready to save
 
 // ============================================
 // PAGE MANAGEMENT
