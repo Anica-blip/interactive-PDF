@@ -339,67 +339,10 @@ async function savePublishedProject(pdfUrl) {
 }
 
 function loadDraft() {
-    try {
-        // DISABLED - Remove localStorage auto-save
-        // const draftData = localStorage.getItem('pdfCreatorDraft');
-        return; // Exit early - no auto-save
-        
-        if (!draftData) {
-            showStatus('⚠️ No saved draft found', 'warning');
-            return;
-        }
-        
-        const draft = JSON.parse(draftData);
-        
-        // Restore pages and assets
-        pages = draft.pages || [];
-        assets = draft.assets || [];
-        currentPageIndex = draft.currentPageIndex || 0;
-        
-        // Restore settings
-        if (draft.settings) {
-            document.getElementById('pdfTitle').value = draft.settings.title || '';
-            document.getElementById('pdfAuthor').value = draft.settings.author || '';
-            document.getElementById('pageSize').value = draft.settings.pageSize || 'A4';
-            document.getElementById('orientation').value = draft.settings.orientation || 'portrait';
-            embeddedMode = draft.settings.embeddedMode || false;
-            flipbookMode = draft.settings.flipbookMode || false;
-            
-            // Restore organization fields
-            if (document.getElementById('versionNumber')) {
-                document.getElementById('versionNumber').value = draft.settings.versionNumber || 'v1.0';
-            }
-            if (document.getElementById('folderName')) {
-                document.getElementById('folderName').value = draft.settings.folderName || '';
-            }
-            if (document.getElementById('subfolderName')) {
-                document.getElementById('subfolderName').value = draft.settings.subfolderName || '';
-            }
-            
-            // Update UI toggles
-            if (document.getElementById('embeddedMode')) {
-                document.getElementById('embeddedMode').checked = embeddedMode;
-            }
-            if (document.getElementById('flipbookMode')) {
-                document.getElementById('flipbookMode').checked = flipbookMode;
-            }
-            
-            // Update folder path preview
-            updateFolderPathPreview();
-        }
-        
-        // Re-render everything
-        renderPages();
-        renderAssetLibrary();
-        
-        const savedDate = new Date(draft.savedAt).toLocaleString();
-        showStatus(`✅ Draft loaded! (Saved: ${savedDate})`, 'success');
-        console.log('Draft loaded:', draft);
-        
-    } catch (error) {
-        console.error('Failed to load draft:', error);
-        showStatus('❌ Failed to load draft: ' + error.message, 'error');
-    }
+    // DISABLED - Load button removed from header
+    // Users should load projects from "My Projects" dashboard instead
+    showStatus('⚠️ Load disabled - Use "My Projects" to open saved projects', 'info');
+    return;
 }
 
 // Auto-save DISABLED - Manual save only via "Save Draft" button
