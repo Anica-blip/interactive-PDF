@@ -2007,6 +2007,17 @@ async function loadProject(projectId) {
                 descField.value = projectJson.settings.description || project.description || '';
             }
             
+            // Restore folder and subfolder fields
+            if (document.getElementById('folderName')) {
+                document.getElementById('folderName').value = projectJson.settings.folderName || '';
+            }
+            if (document.getElementById('subfolderName')) {
+                document.getElementById('subfolderName').value = projectJson.settings.subfolderName || '';
+            }
+            
+            // Update folder path preview
+            updateFolderPathPreview();
+            
             // Update toggles
             document.getElementById('embeddedMode').checked = embeddedMode;
             document.getElementById('flipbookMode').checked = flipbookMode;
@@ -2023,6 +2034,58 @@ async function loadProject(projectId) {
     } catch (error) {
         console.error('Load error:', error);
         showStatus('❌ Failed to load project: ' + error.message, 'error');
+    }
+}
+
+// ============================================
+// JSON EXPORT
+// ============================================
+
+function exportProjectJSON() {
+    try {
+        // Get current project data
+        const title = document.getElementById('pdfTitle').value || 'Untitled PDF';
+        const author = document.getElementById('pdfAuthor').value || 'PDF Creator';
+        const folderName = document.getElementById('folderName')?.value || '';
+        const subfolderName = document.getElementById('subfolderName')?.value || '';
+        const description = subfolderName ? `${folderName}/${subfolderName}` : folderName;
+        
+        const projectData = {
+            metadata: {
+                title: title,
+                description: description,
+                author: author,
+                pageSize: document.getElementById('pageSize').value,
+                orientation: document.getElementById('orientation').value,
+                embeddedMode: embeddedMode,
+                flipbookMode: flipbookMode,
+                versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+                folderName: folderName,
+                subfolderName: subfolderName,
+                createdAt: new Date().toISOString(),
+                projectId: currentProjectId || null
+            },
+            pages: pages,
+            assets: assets,
+            currentPageIndex: currentPageIndex
+        };
+        
+        // Create and download JSON file
+        const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_project.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showStatus('✅ Project exported successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showStatus('❌ Export failed: ' + error.message, 'error');
     }
 }
 

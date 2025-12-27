@@ -7,8 +7,8 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // Supabase configuration - Use environment variables for security
-const SUPABASE_URL = SUPABASE_URL || 'https://your-supabase-url.supabase.co';
-const SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || 'your-supabase-anon-key';
+const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || 'https://your-supabase-url.supabase.co';
+const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || 'your-supabase-anon-key';
 
 // Global state
 let pdfDoc = null;
