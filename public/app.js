@@ -2038,6 +2038,89 @@ async function loadProject(projectId) {
 }
 
 // ============================================
+// PROJECT RESET
+// ============================================
+
+function resetProject() {
+    // Confirmation dialog
+    const confirmReset = confirm(
+        '⚠️ DANGER: This will completely reset your project!\n\n' +
+        'This will:\n' +
+        '• Clear all pages and elements\n' +
+        '• Clear all assets\n' +
+        '• Reset all settings\n' +
+        '• Clear project ID\n' +
+        '• Remove from URL\n\n' +
+        'This action CANNOT be undone!\n\n' +
+        'Type "RESET" to confirm:'
+    );
+    
+    if (!confirmReset) return;
+    
+    // Double confirmation with text
+    const verifyText = prompt('Type "RESET" to confirm this action:');
+    if (verifyText !== 'RESET') {
+        showStatus('❌ Reset cancelled', 'info');
+        return;
+    }
+    
+    try {
+        // Clear all project data
+        pages = [];
+        assets = [];
+        currentPageIndex = 0;
+        currentProjectId = null;
+        currentPdfUrl = null;
+        
+        // Clear all form fields
+        document.getElementById('pdfTitle').value = '';
+        document.getElementById('pdfAuthor').value = '';
+        document.getElementById('folderName').value = '';
+        document.getElementById('subfolderName').value = '';
+        document.getElementById('pdfDescription').value = '';
+        document.getElementById('versionNumber').value = 'v1.0';
+        document.getElementById('pageSize').value = 'A4';
+        document.getElementById('orientation').value = 'portrait';
+        
+        // Reset toggles
+        document.getElementById('embeddedMode').checked = false;
+        document.getElementById('flipbookMode').checked = false;
+        embeddedMode = false;
+        flipbookMode = false;
+        
+        // Clear URL parameters
+        const url = new URL(window.location);
+        url.searchParams.delete('project');
+        window.history.pushState({}, '', url);
+        
+        // Clear localStorage
+        localStorage.removeItem('pdfCreatorDraft');
+        
+        // Update folder path preview
+        updateFolderPathPreview();
+        
+        // Re-render everything
+        renderPages();
+        renderPageThumbnails();
+        renderAssetLibrary();
+        updatePageCounter();
+        
+        // Hide results and status
+        hideResults();
+        hideStatus();
+        
+        showStatus('✅ Project reset successfully! Ready for new project.', 'success');
+        
+        // Close settings sidebar
+        closeSettingsSidebar();
+        
+    } catch (error) {
+        console.error('Reset error:', error);
+        showStatus('❌ Reset failed: ' + error.message, 'error');
+    }
+}
+
+// ============================================
 // JSON EXPORT
 // ============================================
 

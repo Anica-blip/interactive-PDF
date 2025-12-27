@@ -1159,6 +1159,20 @@
                         </select>
                     </div>
                 </div>
+
+            <!-- DANGER ZONE -->
+            <div class="border-t-2 border-red-200 pt-4 mt-6">
+                <div class="bg-red-50 border border-red-200 rounded p-3">
+                    <h3 class="text-sm font-bold text-red-800 mb-2">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>DANGER ZONE
+                    </h3>
+                    <p class="text-xs text-red-600 mb-3">
+                        This will completely reset your project and clear all data. This action cannot be undone!
+                    </p>
+                    <button onclick="resetProject()" class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs font-medium transition">
+                        <i class="fas fa-trash-alt mr-1"></i>Reset Project
+                    </button>
+                </div>
             </div>
         </div>
     </div>
