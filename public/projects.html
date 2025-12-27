@@ -135,19 +135,28 @@
                 try {
                     const supabaseProjects = await listProjectsDB({ limit: 100 });
                     if (supabaseProjects && supabaseProjects.length > 0) {
-                        const publishedProjects = supabaseProjects.map(p => ({
-                            id: p.id,
-                            title: p.metadata?.settings?.title || p.metadata?.title || 'Untitled Project',
-                            page_count: p.metadata?.pages?.length || 0,
-                            created_at: p.created_at,
-                            updated_at: p.updated_at,
-                            flipbook_mode: p.metadata?.settings?.flipbookMode || false,
-                            embedded_mode: p.metadata?.settings?.embeddedMode || false,
-                            pdf_url: p.pdf_url,
-                            status: p.status,
-                            total_pages: p.metadata?.pages?.length || 0,
-                            source: 'supabase'
-                        }));
+                        const publishedProjects = supabaseProjects.map(p => {
+                            // Get project_json data
+                            const projectJson = typeof p.project_json === 'string' 
+                                ? JSON.parse(p.project_json) 
+                                : p.project_json;
+                            
+                            return {
+                                id: p.id,
+                                title: p.title || projectJson?.settings?.title || 'Untitled Project',
+                                description: p.description || projectJson?.settings?.description || '',
+                                author: p.author || projectJson?.settings?.author || '',
+                                page_count: p.total_pages || projectJson?.pages?.length || 0,
+                                created_at: p.created_at,
+                                updated_at: p.updated_at,
+                                flipbook_mode: projectJson?.settings?.flipbookMode || false,
+                                embedded_mode: projectJson?.settings?.embeddedMode || false,
+                                pdf_url: p.pdf_url,
+                                status: p.status,
+                                total_pages: p.total_pages || projectJson?.pages?.length || 0,
+                                source: 'supabase'
+                            };
+                        });
                         allProjects = [...allProjects, ...publishedProjects];
                     }
                 } catch (supabaseError) {
@@ -224,6 +233,18 @@
                             </div>
                             
                             <div class="space-y-2 mb-4">
+                                ${project.author ? `
+                                <div class="flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-user w-5 text-purple-600"></i>
+                                    <span>${project.author}</span>
+                                </div>
+                                ` : ''}
+                                ${project.description ? `
+                                <div class="flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-folder w-5 text-purple-600"></i>
+                                    <span>${project.description}</span>
+                                </div>
+                                ` : ''}
                                 <div class="flex items-center text-sm text-gray-600">
                                     <i class="fas fa-file-pdf w-5 text-purple-600"></i>
                                     <span>${project.page_count || project.total_pages || 0} page${(project.page_count || project.total_pages || 0) !== 1 ? 's' : ''}</span>

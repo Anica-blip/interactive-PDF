@@ -238,13 +238,17 @@ async function saveDraft(silent = false) {
         }
     }
     
+    // Build description from folder + subfolder
+    const subfolderName = document.getElementById('subfolderName')?.value.trim() || '';
+    const description = subfolderName ? `${folderName}/${subfolderName}` : folderName;
+    
     const projectData = {
         pages: pages,
         assets: assets,
         currentPageIndex: currentPageIndex,
         settings: {
             title: title,
-            description: document.getElementById('pdfDescription')?.value.trim() || '',
+            description: description,
             author: author,
             pageSize: document.getElementById('pageSize').value,
             orientation: document.getElementById('orientation').value,
@@ -252,7 +256,7 @@ async function saveDraft(silent = false) {
             flipbookMode: flipbookMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
             folderName: folderName,
-            subfolderName: document.getElementById('subfolderName')?.value || ''
+            subfolderName: subfolderName
         }
     };
     
