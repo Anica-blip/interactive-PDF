@@ -2008,11 +2008,18 @@ async function loadProject(projectId) {
             }
             
             // Restore folder and subfolder fields
+            console.log('Loading folder/subfolder:', {
+                folderName: projectJson.settings.folderName,
+                subfolderName: projectJson.settings.subfolderName
+            });
+            
             if (document.getElementById('folderName')) {
                 document.getElementById('folderName').value = projectJson.settings.folderName || '';
+                console.log('Set folder field to:', document.getElementById('folderName').value);
             }
             if (document.getElementById('subfolderName')) {
                 document.getElementById('subfolderName').value = projectJson.settings.subfolderName || '';
+                console.log('Set subfolder field to:', document.getElementById('subfolderName').value);
             }
             
             // Update folder path preview

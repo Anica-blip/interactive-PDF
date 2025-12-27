@@ -51,10 +51,12 @@ async function init() {
             // Clear sessionStorage after loading
             sessionStorage.removeItem('flipbookManifest');
         }
-        // Priority 2: Check for project ID (from dashboard)
+        // Priority 2: Check for project ID (from dashboard) - DISABLED for now
         else if (projectId) {
-            console.log('Loading from Supabase project:', projectId);
-            await loadProjectFromSupabase(projectId);
+            console.log('Project ID loading disabled - use sessionStorage from builder');
+            alert('Please use "View Flipbook" from the builder to preview your project');
+            loading.classList.add('hidden');
+            return;
         }
         // Priority 3: Check for PDF URL (from 3C Content Library)
         else if (pdfUrl) {
