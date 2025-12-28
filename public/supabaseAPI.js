@@ -9,9 +9,9 @@ if (!window.ENV_CONFIG?.supabase) {
     console.error('⚠️ Supabase config not found! Make sure config.js loads before supabaseAPI.js');
 }
 
-// Get configuration from window.ENV_CONFIG or use fallback
-const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || 'https://cgxjqsbrditbteqhdyus.supabase.co';
-const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0MjM4NzAsImV4cCI6MjA1MTAwMDg3MH0.SJvqYZ9wKsQh8oP7zvq3xJh2YUQKJn4aRn1zN_5oX4';
+// Get configuration from window.ENV_CONFIG only
+const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
+const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 
 // Edge Function endpoint (ONLY for final published exports)
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
