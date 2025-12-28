@@ -1,6 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
+ * Deployed: 2024-12-28-15:20
  */
 
 // PDF.js worker
