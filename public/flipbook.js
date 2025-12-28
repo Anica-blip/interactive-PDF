@@ -6,8 +6,9 @@
 // PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// Supabase configuration removed - flipbook uses sessionStorage only
-// No database access needed for builder preview
+// Supabase configuration - read from config.js
+const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
+const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 
 // Global state
 let pdfDoc = null;
@@ -59,6 +60,59 @@ function initDOMElements() {
 }
 
 /**
+ * Load project from Supabase using project ID
+ */
+async function loadProjectFromSupabase(projectId) {
+    try {
+        console.log('Loading project from Supabase:', projectId);
+        
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${projectId}&select=*`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'apikey': SUPABASE_ANON_KEY
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const projects = await response.json();
+        if (!projects || projects.length === 0) {
+            throw new Error('Project not found');
+        }
+        
+        const project = projects[0];
+        console.log('Project loaded:', project.title || 'Untitled');
+        
+        // Parse the JSON data from pdf_json column
+        let projectData;
+        if (typeof project.pdf_json === 'string') {
+            projectData = JSON.parse(project.pdf_json);
+        } else {
+            projectData = project.pdf_json;
+        }
+        
+        // Create manifest from project data
+        const manifest = {
+            title: projectData.settings?.title || project.title || 'Interactive Flipbook',
+            author: projectData.settings?.author || project.author || 'Chef',
+            pages: projectData.pages || [],
+            settings: projectData.settings || {},
+            createdAt: project.created_at
+        };
+        
+        await initFromManifest(manifest);
+        
+    } catch (error) {
+        console.error('Failed to load project from Supabase:', error);
+        throw error;
+    }
+}
+
+/**
  * Initialize flipbook
  */
 async function init() {
@@ -69,19 +123,17 @@ async function init() {
             return;
         }
         
-        // Priority 1: Check for sessionStorage manifest (from builder preview)
-        if (sessionManifest) {
+        // Priority 1: Check for project ID (from Supabase)
+        if (projectId) {
+            console.log('Loading from Supabase project:', projectId);
+            await loadProjectFromSupabase(projectId);
+        }
+        // Priority 2: Check for sessionStorage manifest (from builder preview)
+        else if (sessionManifest) {
             console.log('Loading from builder preview (sessionStorage)');
             await initFromManifest(JSON.parse(sessionManifest));
             // Clear sessionStorage after loading
             sessionStorage.removeItem('flipbookManifest');
-        }
-        // Priority 2: Check for project ID (from dashboard) - DISABLED for now
-        else if (projectId) {
-            console.log('Project ID loading disabled - use sessionStorage from builder');
-            alert('Please use "View Flipbook" from the builder to preview your project');
-            loading.classList.add('hidden');
-            return;
         }
         // Priority 3: Check for PDF URL (from 3C Content Library)
         else if (pdfUrl) {
@@ -104,7 +156,7 @@ async function init() {
         }
         // No data source
         else {
-            alert('⚠️ No flipbook data found!\n\nTo view flipbook:\n1. Open your project in the builder\n2. Add pages and elements\n3. Click "View Flipbook" button\n\nThe flipbook will load your current work instantly.');
+            alert('⚠️ No flipbook data found!\n\nTo view flipbook:\n1. From builder: Click "View Flipbook" button\n2. From Supabase: Use URL ?project=PROJECT_ID\n3. From library: Use URL ?pdf=PDF_URL\n\nExample: flipbook.html?project=123');
             loading.classList.add('hidden');
             return;
         }
