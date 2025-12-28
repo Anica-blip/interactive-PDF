@@ -94,25 +94,25 @@ async function loadProjectFromSupabase(projectId) {
         const project = projects[0];
         console.log('Project loaded:', project.title || 'Untitled');
         
-        // Parse the JSON data from pdf_json column
+        // Parse the JSON data from project_json column
         console.log('Raw project data:', project);
-        console.log('pdf_json column:', project.pdf_json);
+        console.log('project_json column:', project.project_json);
         
         let projectData;
-        if (!project.pdf_json) {
-            throw new Error('pdf_json column is empty or null');
+        if (!project.project_json) {
+            throw new Error('project_json column is empty or null');
         }
         
-        if (typeof project.pdf_json === 'string') {
+        if (typeof project.project_json === 'string') {
             try {
-                projectData = JSON.parse(project.pdf_json);
+                projectData = JSON.parse(project.project_json);
             } catch (parseError) {
                 console.error('JSON parse error:', parseError);
-                console.error('Raw JSON string:', project.pdf_json.substring(0, 200));
+                console.error('Raw JSON string:', project.project_json.substring(0, 200));
                 throw new Error(`Failed to parse project JSON: ${parseError.message}`);
             }
         } else {
-            projectData = project.pdf_json;
+            projectData = project.project_json;
         }
         
         // Create manifest from project data
