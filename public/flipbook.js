@@ -30,6 +30,12 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
+console.log('🚀 Flipbook v20241228-2 - Loading with parameters:', {
+    projectId: projectId,
+    pdfUrl: pdfUrl,
+    manifestUrl: manifestUrl
+});
+
 // Check for sessionStorage manifest (from builder preview)
 const sessionManifest = sessionStorage.getItem('flipbookManifest');
 console.log('SessionStorage check:', {
