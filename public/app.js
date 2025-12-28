@@ -2169,7 +2169,16 @@ function previewFlipbook() {
     };
     
     // Store manifest in sessionStorage for immediate loading
+    console.log('Storing manifest to sessionStorage:', {
+        pages: manifest.pages.length,
+        title: manifest.title,
+        manifestSize: JSON.stringify(manifest).length
+    });
     sessionStorage.setItem('flipbookManifest', JSON.stringify(manifest));
+    
+    // Verify it was stored
+    const stored = sessionStorage.getItem('flipbookManifest');
+    console.log('Verification - manifest stored:', !!stored);
     
     // Open flipbook in new tab
     window.open('flipbook.html', '_blank');

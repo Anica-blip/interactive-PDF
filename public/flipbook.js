@@ -36,18 +36,39 @@ console.log('SessionStorage check:', {
     manifestPreview: sessionManifest ? sessionManifest.substring(0, 100) + '...' : 'null'
 });
 
-// DOM elements
-const loading = document.getElementById('loading');
-const videoOverlay = document.getElementById('video-overlay');
-const videoPlayerWrapper = document.getElementById('video-player-wrapper');
-const videoTitle = document.getElementById('video-title');
-const closeVideoBtn = document.getElementById('close-video');
+// DOM elements - will be initialized after DOM is ready
+let loading = null;
+let videoOverlay = null;
+let videoPlayerWrapper = null;
+let videoTitle = null;
+let closeVideoBtn = null;
+
+// Initialize DOM elements
+function initDOMElements() {
+    loading = document.getElementById('loading');
+    videoOverlay = document.getElementById('video-overlay');
+    videoPlayerWrapper = document.getElementById('video-player-wrapper');
+    videoTitle = document.getElementById('video-title');
+    closeVideoBtn = document.getElementById('close-video');
+    
+    if (!loading) {
+        console.error('Loading element not found!');
+        return false;
+    }
+    return true;
+}
 
 /**
  * Initialize flipbook
  */
 async function init() {
     try {
+        // Initialize DOM elements first
+        if (!initDOMElements()) {
+            console.error('Failed to initialize DOM elements');
+            return;
+        }
+        
         // Priority 1: Check for sessionStorage manifest (from builder preview)
         if (sessionManifest) {
             console.log('Loading from builder preview (sessionStorage)');
