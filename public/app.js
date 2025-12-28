@@ -2180,8 +2180,18 @@ function previewFlipbook() {
     const stored = sessionStorage.getItem('flipbookManifest');
     console.log('Verification - manifest stored:', !!stored);
     
-    // Open flipbook in new tab
-    window.open('flipbook.html', '_blank');
+    // Open flipbook in new tab with project ID
+    let flipbookUrl = 'flipbook.html';
+    
+    // If we have a current project ID, pass it to flipbook
+    if (currentProjectId) {
+        flipbookUrl += `?project=${currentProjectId}`;
+        console.log('Opening flipbook with project ID:', currentProjectId);
+    } else {
+        console.log('No project ID - opening flipbook without project data');
+    }
+    
+    window.open(flipbookUrl, '_blank');
     
     showStatus('✅ Opening flipbook viewer...', 'success');
 }
