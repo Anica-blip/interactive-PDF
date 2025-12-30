@@ -82,11 +82,27 @@ async function loadProjectFromSupabase(projectId) {
             }
         });
         
+        console.log('🌐 Response status:', response.status, response.statusText);
+        console.log('🌐 Response headers:', response.headers.get('content-type'));
+        
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('❌ Response error text:', errorText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
         
-        const projects = await response.json();
+        // Get response as text first to debug
+        const responseText = await response.text();
+        console.log('📝 Raw response text (first 500 chars):', responseText.substring(0, 500));
+        
+        let projects;
+        try {
+            projects = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ Failed to parse response as JSON');
+            console.error('Full response text:', responseText);
+            throw new Error(`Invalid JSON response: ${parseError.message}`);
+        }
         console.log('📦 Response from Supabase:', projects);
         
         if (!projects || projects.length === 0) {
