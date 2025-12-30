@@ -87,17 +87,20 @@ async function loadProjectFromSupabase(projectId) {
         }
         
         const projects = await response.json();
+        console.log('📦 Response from Supabase:', projects);
+        
         if (!projects || projects.length === 0) {
             throw new Error('Project not found');
         }
         
         const project = projects[0];
-        console.log('Project loaded:', project.title || 'Untitled');
+        console.log('✅ Project loaded:', project.title || 'Untitled');
+        console.log('📊 Full project object:', project);
+        console.log('🔍 project_json exists?', !!project.project_json);
+        console.log('🔍 project_json type:', typeof project.project_json);
+        console.log('🔍 project_json value:', project.project_json);
         
         // Parse the JSON data from project_json column
-        console.log('Raw project data:', project);
-        console.log('project_json column type:', typeof project.project_json);
-        console.log('project_json column:', project.project_json);
         
         let projectData;
         if (!project.project_json) {
@@ -105,19 +108,27 @@ async function loadProjectFromSupabase(projectId) {
         }
         
         // Supabase JSONB columns are returned as objects, not strings
-        if (typeof project.project_json === 'object') {
+        if (typeof project.project_json === 'object' && project.project_json !== null) {
+            console.log('✅ project_json is an object, using directly');
             projectData = project.project_json;
         } else if (typeof project.project_json === 'string') {
+            console.log('⚠️ project_json is a string, attempting to parse');
             try {
                 projectData = JSON.parse(project.project_json);
             } catch (parseError) {
-                console.error('JSON parse error:', parseError);
-                console.error('Raw JSON string:', project.project_json.substring(0, 200));
+                console.error('❌ JSON parse error:', parseError);
+                console.error('Raw JSON string (first 500 chars):', project.project_json.substring(0, 500));
                 throw new Error(`Failed to parse project JSON: ${parseError.message}`);
             }
         } else {
-            throw new Error('project_json is not an object or string');
+            console.error('❌ project_json type is invalid:', typeof project.project_json);
+            console.error('project_json value:', project.project_json);
+            throw new Error(`project_json is not an object or string, it is: ${typeof project.project_json}`);
         }
+        
+        console.log('✅ projectData parsed successfully');
+        console.log('📄 projectData.pages count:', projectData.pages?.length || 0);
+        console.log('⚙️ projectData.settings:', projectData.settings);
         
         // Create manifest from project data
         const manifest = {
@@ -127,6 +138,9 @@ async function loadProjectFromSupabase(projectId) {
             settings: projectData.settings || {},
             createdAt: project.created_at
         };
+        
+        console.log('📖 Manifest created with', manifest.pages.length, 'pages');
+        console.log('🎨 First page preview:', manifest.pages[0]);
         
         await initFromManifest(manifest);
         

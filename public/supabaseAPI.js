@@ -33,6 +33,12 @@ const getHeaders = () => ({
  * This avoids timeout issues with large documents (31+ pages)
  */
 saveProjectDraft = async function(projectData) {
+    console.log('💾 saveProjectDraft called with:', {
+        pagesCount: projectData.pages?.length,
+        assetsCount: projectData.assets?.length,
+        settings: projectData.settings
+    });
+    
     // Enrich project_json with metadata for easy querying
     const enrichedData = {
         ...projectData,
@@ -47,6 +53,14 @@ saveProjectDraft = async function(projectData) {
             embeddedMode: projectData.settings.embeddedMode
         }
     };
+    
+    console.log('📦 Enriched data structure:', {
+        hasPages: !!enrichedData.pages,
+        pagesCount: enrichedData.pages?.length,
+        hasAssets: !!enrichedData.assets,
+        hasSettings: !!enrichedData.settings,
+        hasMetadata: !!enrichedData.metadata
+    });
 
     const payload = {
         project_json: enrichedData,
@@ -62,6 +76,12 @@ saveProjectDraft = async function(projectData) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
+    
+    console.log('🚀 Sending payload to Supabase:', {
+        url: DIRECT_API_URL,
+        payloadKeys: Object.keys(payload),
+        project_json_type: typeof payload.project_json
+    });
 
     const response = await fetch(DIRECT_API_URL, {
         method: 'POST',
@@ -86,6 +106,12 @@ saveProjectDraft = async function(projectData) {
  * This avoids timeout issues with large documents (31+ pages)
  */
 updateProjectDB = async function(projectId, projectData) {
+    console.log('🔄 updateProjectDB called for project:', projectId, {
+        pagesCount: projectData.pages?.length,
+        assetsCount: projectData.assets?.length,
+        settings: projectData.settings
+    });
+    
     // Enrich project_json with metadata for easy querying
     const enrichedData = {
         ...projectData,
@@ -100,6 +126,14 @@ updateProjectDB = async function(projectId, projectData) {
             embeddedMode: projectData.settings.embeddedMode
         }
     };
+    
+    console.log('📦 Update enriched data structure:', {
+        hasPages: !!enrichedData.pages,
+        pagesCount: enrichedData.pages?.length,
+        hasAssets: !!enrichedData.assets,
+        hasSettings: !!enrichedData.settings,
+        hasMetadata: !!enrichedData.metadata
+    });
 
     const payload = {
         project_json: enrichedData,
