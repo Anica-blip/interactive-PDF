@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.6; // 60% zoom for better page visibility
+let scale = 0.75; // 75% zoom - standard default
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -291,7 +291,7 @@ async function initFromManifest(manifestData) {
         });
         
         pageCanvases.push(canvas);
-        console.log('Rendered page:', page.pageNumber);
+        console.log('Rendered page:', page.pageNumber, '| Has elements:', page.elements?.length || 0);
     }
     
     // Initialize flipbook
@@ -398,8 +398,13 @@ function initFlipbook() {
         // Add interactive elements overlay
         if (manifest && manifest.pages && manifest.pages[index]) {
             const pageData = manifest.pages[index];
+            console.log('📍 Page', index + 1, '- Elements in manifest:', pageData.elements?.length || 0);
             if (pageData.elements && pageData.elements.length > 0) {
+                console.log('🎯 Rendering', pageData.elements.length, 'elements on page', index + 1);
+                console.log('📊 First element:', pageData.elements[0]);
                 renderInteractiveElements(pageDiv, pageData.elements, canvas.width, canvas.height);
+            } else {
+                console.log('⚠️ No elements found for page', index + 1);
             }
         }
         
@@ -618,16 +623,18 @@ function setupEventListeners() {
         $('#flipbook').turn('page', totalPages);
     });
     
-    // Zoom controls
+    // Zoom controls - standard 10% increments
     $('#zoom-in').on('click', async () => {
-        scale += 0.25;
+        scale += 0.1;
+        scale = Math.round(scale * 100) / 100; // Round to 2 decimals
         $('#zoom-level').text(Math.round(scale * 100) + '%');
         await reloadFlipbook();
     });
     
     $('#zoom-out').on('click', async () => {
-        if (scale > 0.5) {
-            scale -= 0.25;
+        if (scale > 0.35) {
+            scale -= 0.1;
+            scale = Math.round(scale * 100) / 100; // Round to 2 decimals
             $('#zoom-level').text(Math.round(scale * 100) + '%');
             await reloadFlipbook();
         }
