@@ -208,38 +208,6 @@ async function init() {
 }
 
 /**
- * Load project from Supabase
- */
-async function loadProjectFromSupabase(id) {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/pdf_projects?id=${id}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json'
-        }
-    });
-    
-    const result = await response.json();
-    
-    if (result.error) {
-        throw new Error('Failed to load project: ' + result.error);
-    }
-    
-    const project = result.data;
-    console.log('Project loaded from Supabase:', project);
-    
-    // Extract manifest from project_json
-    const manifestData = {
-        title: project.metadata.settings?.title || 'Untitled',
-        author: project.metadata.settings?.author || '',
-        pages: project.metadata.pages || [],
-        settings: project.metadata.settings || {}
-    };
-    
-    await initFromManifest(manifestData);
-}
-
-/**
  * Initialize from JSON manifest (builder preview or Supabase)
  */
 async function initFromManifest(manifestData) {
