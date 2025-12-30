@@ -405,6 +405,14 @@ function initFlipbook() {
     // Add pages to flipbook
     pageCanvases.forEach((canvas, index) => {
         const pageDiv = $('<div class="page"></div>');
+        
+        // Ensure canvas is properly styled and visible
+        $(canvas).css({
+            'display': 'block',
+            'width': '100%',
+            'height': '100%'
+        });
+        
         pageDiv.append(canvas);
         
         // Add interactive elements overlay
@@ -730,28 +738,28 @@ async function reloadFlipbook() {
  * Render interactive elements as overlays on page
  */
 function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
-    elements.forEach(element => {
-        if (!element.x && element.x !== 0) return;
-        if (!element.y && element.y !== 0) return;
+    // Filter out only positioned elements (ignore element container metadata)
+    const positionedElements = elements.filter(element => {
+        // Only render elements that have position coordinates and are actual page elements
+        return (element.x !== undefined && element.x !== null) && 
+               (element.y !== undefined && element.y !== null) &&
+               element.type !== 'container' &&
+               element.type !== 'element-container';
+    });
+    
+    console.log('🎯 Rendering', positionedElements.length, 'positioned elements (filtered from', elements.length, 'total)');
+    
+    positionedElements.forEach(element => {
         
         // Calculate scale ratio between canvas size and original A4 size
         // Canvas is scaled, but element positions are saved relative to full A4 size
         const scaleRatio = pageWidth / A4_WIDTH_PX;
-        
-        console.log('🔍 Element positioning debug:');
-        console.log('   Canvas width:', pageWidth, 'px');
-        console.log('   A4 width:', A4_WIDTH_PX, 'px');
-        console.log('   Scale ratio:', scaleRatio);
-        console.log('   First element raw x,y:', element.x, element.y);
         
         // Scale element position and size to match canvas zoom
         const scaledX = element.x * scaleRatio;
         const scaledY = element.y * scaleRatio;
         const scaledWidth = (element.width || 100) * scaleRatio;
         const scaledHeight = (element.height || 40) * scaleRatio;
-        
-        console.log('   Scaled position:', scaledX, scaledY);
-        console.log('   Scaled size:', scaledWidth, 'x', scaledHeight);
         
         const elementDiv = $('<div></div>').css({
             position: 'absolute',
