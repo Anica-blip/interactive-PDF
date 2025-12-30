@@ -10,6 +10,8 @@ let embeddedMode = false; // Toggle between embedded and link mode
 let flipbookMode = true; // Toggle for magazine-style flipbook (DEFAULT: ON)
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
+let copiedElement = null; // Store copied element for paste
+let selectedElementId = null; // Track currently selected element
 
 // Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
 const API_BASE = 'https://api.3c-public-library.org/pdf';
@@ -60,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Interactive PDF Creator v2 initialized');
     document.getElementById('pdfTitle').value = 'My Interactive PDF';
     document.getElementById('pdfAuthor').value = 'PDF Creator';
+    
+    // Add keyboard shortcuts for copy/paste
+    setupCopyPasteShortcuts();
     
     // Set up folder path preview listeners
     document.getElementById('pdfTitle')?.addEventListener('input', updateFolderPathPreview);
@@ -659,20 +664,9 @@ function renderPageElements() {
         
         // Click to select element
         item.onclick = () => {
-            // Remove selection from all items
-            container.querySelectorAll('.page-element-item').forEach(el => {
-                el.classList.remove('selected');
-            });
-            // Select this item
-            item.classList.add('selected');
-            
-            // Also select on canvas
-            document.querySelectorAll('.draggable-element').forEach(el => {
-                el.classList.remove('selected');
-            });
+            selectElement(element.id);
             const canvasElement = document.getElementById(`element-${element.id}`);
             if (canvasElement) {
-                canvasElement.classList.add('selected');
                 canvasElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         };
@@ -1400,6 +1394,13 @@ function startDrag(e) {
     // Prevent dragging if clicking on controls, buttons, or resize handle
     if (e.target.classList.contains('resize-handle')) return;
     if (e.target.closest('.element-controls')) return;
+    
+    // Select the element when clicked
+    const element = e.target.closest('.draggable-element');
+    if (element) {
+        const elementId = parseInt(element.id.replace('element-', ''));
+        selectElement(elementId);
+    }
     if (e.target.closest('button')) return;
     if (e.target.tagName === 'BUTTON') return;
     if (e.target.tagName === 'I' && e.target.closest('button')) return;
@@ -1531,6 +1532,100 @@ function deleteElement(elementId) {
     renderPages();
     renderPageElements();
     showStatus('Element deleted', 'info');
+}
+
+// ============================================
+// COPY/PASTE FUNCTIONALITY
+// ============================================
+
+function setupCopyPasteShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Check if we're not in an input field
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        // Ctrl+C or Cmd+C - Copy selected element
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+            e.preventDefault();
+            copySelectedElement();
+        }
+        
+        // Ctrl+V or Cmd+V - Paste copied element
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            e.preventDefault();
+            pasteElement();
+        }
+    });
+}
+
+function copySelectedElement() {
+    if (!selectedElementId) {
+        showStatus('⚠️ Select an element first (click on it)', 'warning');
+        return;
+    }
+    
+    const currentPage = pages[currentPageIndex];
+    const element = currentPage.elements.find(el => el.id === selectedElementId);
+    
+    if (!element) {
+        showStatus('⚠️ Element not found', 'warning');
+        return;
+    }
+    
+    // Deep copy the element
+    copiedElement = JSON.parse(JSON.stringify(element));
+    showStatus('✅ Element copied! Press Ctrl+V to paste', 'success');
+    console.log('Element copied:', copiedElement);
+}
+
+function pasteElement() {
+    if (!copiedElement) {
+        showStatus('⚠️ No element copied. Select and copy an element first (Ctrl+C)', 'warning');
+        return;
+    }
+    
+    const currentPage = pages[currentPageIndex];
+    
+    // Create new element with new ID and slightly offset position
+    const newElement = {
+        ...copiedElement,
+        id: Date.now() + Math.random(),
+        x: copiedElement.x + 20, // Offset by 20px
+        y: copiedElement.y + 20
+    };
+    
+    currentPage.elements.push(newElement);
+    
+    renderPages();
+    renderPageElements();
+    showStatus('✅ Element pasted!', 'success');
+    console.log('Element pasted:', newElement);
+}
+
+function selectElement(elementId) {
+    selectedElementId = elementId;
+    
+    // Update visual selection in sidebar
+    const container = document.getElementById('pageElementsContainer');
+    if (container) {
+        container.querySelectorAll('.page-element-item').forEach(el => {
+            el.classList.remove('selected');
+        });
+        const selectedItem = container.querySelector(`[data-element-id="${elementId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+    }
+    
+    // Update visual selection on canvas
+    document.querySelectorAll('.draggable-element').forEach(el => {
+        el.classList.remove('selected');
+    });
+    const canvasElement = document.getElementById(`element-${elementId}`);
+    if (canvasElement) {
+        canvasElement.classList.add('selected');
+    }
 }
 
 // ============================================
