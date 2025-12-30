@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-30-17:05 - Fixed zoom to 60%, element positioning with scaleRatio
+ * Deployed: 2024-12-30-20:00 - 60% zoom, instant CSS zoom (no reload), background fix
  */
 
 // PDF.js worker
@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.65; // 65% zoom - full page view
+let scale = 0.60; // 60% zoom - optimal page view
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -30,7 +30,7 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241228-2 - Loading with parameters:', {
+console.log('🚀 Flipbook v20241230-2000 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -240,7 +240,8 @@ async function initFromManifest(manifestData) {
     // Create canvases from page backgrounds
     pageCanvases = [];
     
-    for (const page of manifest.pages) {
+    for (let i = 0; i < manifest.pages.length; i++) {
+        const page = manifest.pages[i];
         const canvas = document.createElement('canvas');
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -257,11 +258,12 @@ async function initFromManifest(manifestData) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
+                console.log('✅ Background rendered for page', i + 1, '- Canvas size:', canvas.width, 'x', canvas.height);
                 resolve();
             };
-            img.onerror = () => {
+            img.onerror = (error) => {
                 // If image fails to load, create blank A4 canvas
-                console.warn('Failed to load background for page', page.pageNumber);
+                console.warn('❌ Failed to load background for page', i + 1, error);
                 canvas.width = A4_WIDTH_PX * scale;
                 canvas.height = A4_HEIGHT_PX * scale;
                 
@@ -272,15 +274,25 @@ async function initFromManifest(manifestData) {
                 resolve();
             };
             
-            // Handle base64 backgrounds
-            if (page.background && page.background.startsWith('data:')) {
-                img.src = page.background;
-            } else if (page.backgroundData) {
-                img.src = page.backgroundData;
+            // Handle base64 backgrounds - prioritize backgroundData
+            let backgroundSource = null;
+            
+            if (page.backgroundData) {
+                backgroundSource = page.backgroundData;
+                console.log('📸 Page', i + 1, '- Using backgroundData (base64, length:', page.backgroundData.length, ')');
+            } else if (page.background && page.background.startsWith('data:')) {
+                backgroundSource = page.background;
+                console.log('📸 Page', i + 1, '- Using background (base64, length:', page.background.length, ')');
             } else if (page.background) {
-                img.src = page.background;
+                backgroundSource = page.background;
+                console.log('📸 Page', i + 1, '- Using background (URL):', page.background);
+            }
+            
+            if (backgroundSource) {
+                img.src = backgroundSource;
             } else {
                 // No background - create blank
+                console.log('⚪ Page', i + 1, '- No background, creating blank canvas');
                 canvas.width = A4_WIDTH_PX * scale;
                 canvas.height = A4_HEIGHT_PX * scale;
                 const ctx = canvas.getContext('2d');
@@ -291,7 +303,7 @@ async function initFromManifest(manifestData) {
         });
         
         pageCanvases.push(canvas);
-        console.log('Rendered page:', page.pageNumber, '| Has elements:', page.elements?.length || 0);
+        console.log('Rendered page:', i + 1, '| Has elements:', page.elements?.length || 0);
     }
     
     // Initialize flipbook
@@ -623,22 +635,34 @@ function setupEventListeners() {
         $('#flipbook').turn('page', totalPages);
     });
     
-    // Zoom controls - standard 10% increments
-    $('#zoom-in').on('click', async () => {
-        scale += 0.1;
-        scale = Math.round(scale * 100) / 100; // Round to 2 decimals
-        $('#zoom-level').text(Math.round(scale * 100) + '%');
-        await reloadFlipbook();
+    // Zoom controls - use CSS transform for instant zoom without reload
+    let zoomLevel = 1.0; // CSS zoom multiplier (1.0 = 100% of base scale)
+    
+    $('#zoom-in').on('click', () => {
+        console.log('🔍 Zoom in clicked');
+        zoomLevel += 0.1;
+        zoomLevel = Math.round(zoomLevel * 100) / 100;
+        applyZoom();
     });
     
-    $('#zoom-out').on('click', async () => {
-        if (scale > 0.35) {
-            scale -= 0.1;
-            scale = Math.round(scale * 100) / 100; // Round to 2 decimals
-            $('#zoom-level').text(Math.round(scale * 100) + '%');
-            await reloadFlipbook();
+    $('#zoom-out').on('click', () => {
+        console.log('🔍 Zoom out clicked');
+        if (zoomLevel > 0.5) {
+            zoomLevel -= 0.1;
+            zoomLevel = Math.round(zoomLevel * 100) / 100;
+            applyZoom();
         }
     });
+    
+    function applyZoom() {
+        const displayPercent = Math.round(scale * zoomLevel * 100);
+        $('#zoom-level').text(displayPercent + '%');
+        $('#flipbook-wrapper').css({
+            'transform': `scale(${zoomLevel})`,
+            'transform-origin': 'center top'
+        });
+        console.log('✅ Zoom applied:', displayPercent + '%', '(base:', Math.round(scale * 100) + '%, multiplier:', zoomLevel + ')');
+    }
     
     // Close video
     closeVideoBtn.addEventListener('click', closeVideo);
@@ -668,24 +692,38 @@ function setupEventListeners() {
  * Reload flipbook after zoom change
  */
 async function reloadFlipbook() {
+    if (!loading) {
+        console.error('Loading element not found!');
+        return;
+    }
+    
     loading.classList.remove('hidden');
+    console.log('🔄 Reloading flipbook at', Math.round(scale * 100) + '% zoom');
     
-    // Destroy existing flipbook
-    if (flipbookInitialized) {
-        $('#flipbook').turn('destroy');
+    try {
+        // Destroy existing flipbook
+        if (flipbookInitialized) {
+            $('#flipbook').turn('destroy');
+            flipbookInitialized = false;
+        }
+        
+        // Re-render based on source
+        if (manifest && manifest.pages && !pdfDoc) {
+            // Re-render from manifest
+            await initFromManifest(manifest);
+        } else if (pdfDoc) {
+            // Re-render from PDF
+            await renderAllPages();
+            initFlipbook();
+            setupEventListeners();
+        }
+        
+        console.log('✅ Flipbook reloaded successfully');
+    } catch (error) {
+        console.error('❌ Error reloading flipbook:', error);
+    } finally {
+        loading.classList.add('hidden');
     }
-    
-    // Re-render based on source
-    if (manifest && manifest.pages && !pdfDoc) {
-        // Re-render from manifest
-        await initFromManifest(manifest);
-    } else if (pdfDoc) {
-        // Re-render from PDF
-        await renderAllPages();
-        initFlipbook();
-    }
-    
-    loading.classList.add('hidden');
 }
 
 /**
