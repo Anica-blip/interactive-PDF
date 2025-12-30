@@ -2310,42 +2310,16 @@ function openInFlipbook() {
         return;
     }
     
-    // Create manifest JSON from current project
-    const manifest = {
-        title: document.getElementById('pdfTitle').value || 'Interactive Flipbook',
-        author: document.getElementById('pdfAuthor').value || 'Chef',
-        pages: pages.map((page, index) => ({
-            pageNumber: index + 1,
-            background: page.backgroundData,
-            hotspots: page.elements.map(el => ({
-                type: el.type || 'button',
-                title: el.label || el.text || 'Interactive Element',
-                action: el.action || 'link',
-                url: el.url || el.link || '#',
-                videoUrl: el.videoUrl,
-                streamId: el.streamId,
-                mediaUrl: el.mediaUrl,
-                bounds: {
-                    x: el.x,
-                    y: el.y,
-                    width: el.width,
-                    height: el.height
-                }
-            }))
-        })),
-        settings: {
-            pageSize: document.getElementById('pageSize').value,
-            orientation: document.getElementById('orientation').value,
-            flipbookMode: flipbookMode
-        },
-        createdAt: new Date().toISOString()
-    };
+    // Check if project has been saved (has project ID)
+    if (!currentProjectId) {
+        showStatus('⚠️ Please save your project first before viewing in flipbook', 'warning');
+        alert('⚠️ Save Required\n\nPlease save your project first by clicking the "Save" button.\nThis will generate a project ID needed to view the flipbook.');
+        return;
+    }
     
-    // Store manifest in sessionStorage (temporary, will be cleared when window closes)
-    sessionStorage.setItem('flipbookManifest', JSON.stringify(manifest));
-    
-    // Open flipbook in new tab
-    window.open('flipbook.html', '_blank');
+    // Open flipbook with project ID
+    const flipbookUrl = `flipbook.html?project=${currentProjectId}`;
+    window.open(flipbookUrl, '_blank');
     
     showStatus('✅ Opening in flipbook viewer...', 'success');
 }

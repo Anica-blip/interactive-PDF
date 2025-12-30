@@ -96,6 +96,7 @@ async function loadProjectFromSupabase(projectId) {
         
         // Parse the JSON data from project_json column
         console.log('Raw project data:', project);
+        console.log('project_json column type:', typeof project.project_json);
         console.log('project_json column:', project.project_json);
         
         let projectData;
@@ -103,7 +104,10 @@ async function loadProjectFromSupabase(projectId) {
             throw new Error('project_json column is empty or null');
         }
         
-        if (typeof project.project_json === 'string') {
+        // Supabase JSONB columns are returned as objects, not strings
+        if (typeof project.project_json === 'object') {
+            projectData = project.project_json;
+        } else if (typeof project.project_json === 'string') {
             try {
                 projectData = JSON.parse(project.project_json);
             } catch (parseError) {
@@ -112,7 +116,7 @@ async function loadProjectFromSupabase(projectId) {
                 throw new Error(`Failed to parse project JSON: ${parseError.message}`);
             }
         } else {
-            projectData = project.project_json;
+            throw new Error('project_json is not an object or string');
         }
         
         // Create manifest from project data
