@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 1.125; // 75% zoom (1.5 * 0.75 = 1.125)
+let scale = 0.9; // 60% zoom (1.5 * 0.6 = 0.9)
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -371,6 +371,14 @@ function initFlipbook() {
         const pageDiv = $('<div class="page"></div>');
         pageDiv.append(canvas);
         
+        // Add interactive elements overlay
+        if (manifest && manifest.pages && manifest.pages[index]) {
+            const pageData = manifest.pages[index];
+            if (pageData.elements && pageData.elements.length > 0) {
+                renderInteractiveElements(pageDiv, pageData.elements, canvas.width, canvas.height);
+            }
+        }
+        
         // Add page number
         const pageNumber = $('<div class="page-number"></div>').text(index + 1);
         pageDiv.append(pageNumber);
@@ -382,11 +390,12 @@ function initFlipbook() {
     const pageWidth = pageCanvases[0].width;
     const pageHeight = pageCanvases[0].height;
     
-    // Initialize turn.js
+    // Initialize turn.js with magazine mode
     flipbook.turn({
         width: pageWidth * 2, // Double width for spread
         height: pageHeight,
         autoCenter: true,
+        display: 'single', // Start with single page (cover)
         gradients: true,
         elevation: 50,
         acceleration: true,
@@ -396,6 +405,13 @@ function initFlipbook() {
             turning: function(event, page, view) {
                 currentPage = page;
                 updatePageInfo();
+                
+                // Switch to double page view after first page
+                if (page === 1) {
+                    $(this).turn('display', 'single');
+                } else if (page === 2 && $(this).turn('display') === 'single') {
+                    $(this).turn('display', 'double');
+                }
             },
             turned: function(event, page, view) {
                 checkHotspots(page);
@@ -464,10 +480,9 @@ function handleHotspotClick(hotspot) {
     } else if (hotspot.type === 'gif') {
         showGif(hotspot);
     } else if (hotspot.type === 'link' || hotspot.type === 'button' || hotspot.type === 'hotspot') {
-        if (hotspot.action === 'internal') {
-            window.location.href = hotspot.url;
-        } else {
-            window.open(hotspot.url, '_blank');
+        if (hotspot.url) {
+            // Always open in new window/popup
+            window.open(hotspot.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
         }
     }
 }
@@ -640,6 +655,102 @@ async function reloadFlipbook() {
     }
     
     loading.classList.add('hidden');
+}
+
+/**
+ * Render interactive elements as overlays on page
+ */
+function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
+    elements.forEach(element => {
+        if (!element.x || !element.y) return;
+        
+        const elementDiv = $('<div></div>').css({
+            position: 'absolute',
+            left: element.x + 'px',
+            top: element.y + 'px',
+            width: (element.width || 100) + 'px',
+            height: (element.height || 40) + 'px',
+            cursor: 'pointer',
+            zIndex: 10
+        });
+        
+        // Handle different element types
+        if (element.type === 'button' || element.type === '3c-button') {
+            // Render visible button
+            const button = $('<button></button>')
+                .text(element.text || 'Click')
+                .css({
+                    width: '100%',
+                    height: '100%',
+                    background: element.backgroundColor || '#667eea',
+                    color: element.textColor || '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: (element.fontSize || 14) + 'px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    transition: 'all 0.2s'
+                })
+                .hover(
+                    function() { $(this).css('transform', 'scale(1.05)'); },
+                    function() { $(this).css('transform', 'scale(1)'); }
+                );
+            
+            button.on('click', function(e) {
+                e.stopPropagation();
+                if (element.url) {
+                    window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                } else if (element.videoUrl || element.streamId) {
+                    playVideo(element);
+                }
+            });
+            
+            elementDiv.append(button);
+        } else if (element.type === 'hotspot' || element.type === 'link') {
+            // Invisible clickable area
+            elementDiv.css({
+                background: 'transparent',
+                border: '2px dashed rgba(102, 126, 234, 0.3)'
+            }).hover(
+                function() { $(this).css('background', 'rgba(102, 126, 234, 0.1)'); },
+                function() { $(this).css('background', 'transparent'); }
+            );
+            
+            elementDiv.on('click', function(e) {
+                e.stopPropagation();
+                if (element.url) {
+                    window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                }
+            });
+        } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
+            // Video play button overlay
+            const playBtn = $('<div>▶</div>').css({
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                fontSize: '48px',
+                borderRadius: '8px',
+                transition: 'all 0.2s'
+            }).hover(
+                function() { $(this).css('background', 'rgba(0,0,0,0.8)'); },
+                function() { $(this).css('background', 'rgba(0,0,0,0.6)'); }
+            );
+            
+            playBtn.on('click', function(e) {
+                e.stopPropagation();
+                playVideo(element);
+            });
+            
+            elementDiv.append(playBtn);
+        }
+        
+        pageDiv.append(elementDiv);
+    });
 }
 
 /**
