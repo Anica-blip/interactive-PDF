@@ -689,11 +689,15 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         if (!element.x && element.x !== 0) return;
         if (!element.y && element.y !== 0) return;
         
+        // Calculate scale ratio between canvas size and original A4 size
+        // Canvas is scaled, but element positions are saved relative to full A4 size
+        const scaleRatio = pageWidth / A4_WIDTH_PX;
+        
         // Scale element position and size to match canvas zoom
-        const scaledX = element.x * scale;
-        const scaledY = element.y * scale;
-        const scaledWidth = (element.width || 100) * scale;
-        const scaledHeight = (element.height || 40) * scale;
+        const scaledX = element.x * scaleRatio;
+        const scaledY = element.y * scaleRatio;
+        const scaledWidth = (element.width || 100) * scaleRatio;
+        const scaledHeight = (element.height || 40) * scaleRatio;
         
         const elementDiv = $('<div></div>').css({
             position: 'absolute',
@@ -738,7 +742,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                     color: element.textColor || '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
-                    fontSize: Math.round((element.fontSize || 14) * scale) + 'px',
+                    fontSize: Math.round((element.fontSize || 14) * scaleRatio) + 'px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
@@ -798,8 +802,8 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: Math.round(64 * scale) + 'px',
-                height: Math.round(64 * scale) + 'px',
+                width: Math.round(64 * scaleRatio) + 'px',
+                height: Math.round(64 * scaleRatio) + 'px',
                 background: 'rgba(255,255,255,0.9)',
                 borderRadius: '50%',
                 display: 'flex',
@@ -807,7 +811,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 justifyContent: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
-            }).html('<i class="fas fa-play" style="color: #667eea; font-size: ' + Math.round(24 * scale) + 'px; margin-left: ' + Math.round(4 * scale) + 'px;"></i>').hover(
+            }).html('<i class="fas fa-play" style="color: #667eea; font-size: ' + Math.round(24 * scaleRatio) + 'px; margin-left: ' + Math.round(4 * scaleRatio) + 'px;"></i>').hover(
                 function() { $(this).css('transform', 'translate(-50%, -50%) scale(1.1)'); },
                 function() { $(this).css('transform', 'translate(-50%, -50%)'); }
             );
