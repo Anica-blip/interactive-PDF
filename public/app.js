@@ -1,4 +1,4 @@
-// Interactive PDF Creator v2.1 - Fixed duplicate constants
+// Interactive PDF Creator v2.2 - Fixed copiedElement redeclaration (2024-12-30)
 // Global state
 let pages = [];
 let currentPageIndex = 0;
