@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.75; // 75% zoom - standard default
+let scale = 0.65; // 65% zoom - full page view
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -700,11 +700,20 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         // Canvas is scaled, but element positions are saved relative to full A4 size
         const scaleRatio = pageWidth / A4_WIDTH_PX;
         
+        console.log('🔍 Element positioning debug:');
+        console.log('   Canvas width:', pageWidth, 'px');
+        console.log('   A4 width:', A4_WIDTH_PX, 'px');
+        console.log('   Scale ratio:', scaleRatio);
+        console.log('   First element raw x,y:', element.x, element.y);
+        
         // Scale element position and size to match canvas zoom
         const scaledX = element.x * scaleRatio;
         const scaledY = element.y * scaleRatio;
         const scaledWidth = (element.width || 100) * scaleRatio;
         const scaledHeight = (element.height || 40) * scaleRatio;
+        
+        console.log('   Scaled position:', scaledX, scaledY);
+        console.log('   Scaled size:', scaledWidth, 'x', scaledHeight);
         
         const elementDiv = $('<div></div>').css({
             position: 'absolute',
