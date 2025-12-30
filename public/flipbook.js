@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-30-20:00 - 60% zoom, instant CSS zoom (no reload), background fix
+ * Deployed: 2024-12-30-21:30 - 48% zoom, double page display, element positioning debug
  */
 
 // PDF.js worker
@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.60; // 60% zoom - optimal page view
+let scale = 0.48; // 48% zoom - optimal full page view
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -444,7 +444,7 @@ function initFlipbook() {
         width: pageWidth * 2, // Double width for spread
         height: pageHeight,
         autoCenter: true,
-        display: 'single', // Start with single page (cover)
+        display: 'double', // Start with double page view
         gradients: true,
         elevation: 50,
         acceleration: true,
@@ -454,13 +454,6 @@ function initFlipbook() {
             turning: function(event, page, view) {
                 currentPage = page;
                 updatePageInfo();
-                
-                // Switch to double page view after first page
-                if (page === 1) {
-                    $(this).turn('display', 'single');
-                } else if (page === 2 && $(this).turn('display') === 'single') {
-                    $(this).turn('display', 'double');
-                }
             },
             turned: function(event, page, view) {
                 checkHotspots(page);
