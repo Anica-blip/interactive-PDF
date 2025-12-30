@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.9; // 60% zoom (1.5 * 0.6 = 0.9)
+let scale = 0.6; // 60% zoom for better page visibility
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -686,21 +686,49 @@ async function reloadFlipbook() {
  */
 function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
     elements.forEach(element => {
-        if (!element.x || !element.y) return;
+        if (!element.x && element.x !== 0) return;
+        if (!element.y && element.y !== 0) return;
+        
+        // Scale element position and size to match canvas zoom
+        const scaledX = element.x * scale;
+        const scaledY = element.y * scale;
+        const scaledWidth = (element.width || 100) * scale;
+        const scaledHeight = (element.height || 40) * scale;
         
         const elementDiv = $('<div></div>').css({
             position: 'absolute',
-            left: element.x + 'px',
-            top: element.y + 'px',
-            width: (element.width || 100) + 'px',
-            height: (element.height || 40) + 'px',
+            left: scaledX + 'px',
+            top: scaledY + 'px',
+            width: scaledWidth + 'px',
+            height: scaledHeight + 'px',
             cursor: 'pointer',
             zIndex: 10
         });
         
         // Handle different element types
-        if (element.type === 'button' || element.type === '3c-button') {
-            // Render visible button
+        if (element.type === '3c-button' && element.imagePath) {
+            // 3C Button with image
+            const img = $('<img>').attr('src', element.imagePath).css({
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                cursor: 'pointer',
+                transition: 'transform 0.2s'
+            }).hover(
+                function() { $(this).css('transform', 'scale(1.05)'); },
+                function() { $(this).css('transform', 'scale(1)'); }
+            );
+            
+            img.on('click', function(e) {
+                e.stopPropagation();
+                if (element.url) {
+                    window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                }
+            });
+            
+            elementDiv.append(img);
+        } else if (element.type === 'button') {
+            // Regular button with text
             const button = $('<button></button>')
                 .text(element.text || 'Click')
                 .css({
@@ -710,7 +738,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                     color: element.textColor || '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
-                    fontSize: (element.fontSize || 14) + 'px',
+                    fontSize: Math.round((element.fontSize || 14) * scale) + 'px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
@@ -748,29 +776,51 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
-            // Video play button overlay
-            const playBtn = $('<div>▶</div>').css({
+            // Video with thumbnail and play button overlay
+            const thumbnailUrl = element.thumbnailUrl || element.poster || 'https://via.placeholder.com/400x300/667eea/ffffff?text=Video';
+            
+            const videoContainer = $('<div></div>').css({
                 width: '100%',
                 height: '100%',
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: '8px'
+            });
+            
+            const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+            });
+            
+            const playBtn = $('<div></div>').css({
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: Math.round(64 * scale) + 'px',
+                height: Math.round(64 * scale) + 'px',
+                background: 'rgba(255,255,255,0.9)',
+                borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0,0,0,0.6)',
-                color: 'white',
-                fontSize: '48px',
-                borderRadius: '8px',
+                cursor: 'pointer',
                 transition: 'all 0.2s'
-            }).hover(
-                function() { $(this).css('background', 'rgba(0,0,0,0.8)'); },
-                function() { $(this).css('background', 'rgba(0,0,0,0.6)'); }
+            }).html('<i class="fas fa-play" style="color: #667eea; font-size: ' + Math.round(24 * scale) + 'px; margin-left: ' + Math.round(4 * scale) + 'px;"></i>').hover(
+                function() { $(this).css('transform', 'translate(-50%, -50%) scale(1.1)'); },
+                function() { $(this).css('transform', 'translate(-50%, -50%)'); }
             );
             
-            playBtn.on('click', function(e) {
+            videoContainer.append(thumbnail);
+            videoContainer.append(playBtn);
+            
+            videoContainer.on('click', function(e) {
                 e.stopPropagation();
                 playVideo(element);
             });
             
-            elementDiv.append(playBtn);
+            elementDiv.append(videoContainer);
         }
         
         pageDiv.append(elementDiv);

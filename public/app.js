@@ -1349,6 +1349,25 @@ function createElementDiv(element) {
             </div>
             <div class="resize-handle"></div>
         `;
+    } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
+        // Video element with thumbnail and play button overlay
+        const thumbnailUrl = element.thumbnailUrl || element.poster || 'https://via.placeholder.com/400x300/667eea/ffffff?text=Video';
+        div.innerHTML = `
+            <div class="element-controls">
+                <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div class="relative w-full h-full">
+                <img src="${thumbnailUrl}" class="w-full h-full object-cover rounded">
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded">
+                    <div class="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+                        <i class="fas fa-play text-purple-600 text-2xl ml-1"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="resize-handle"></div>
+        `;
     } else if (element.type === 'image' || (element.url && (element.url.startsWith('data:image') || element.url.startsWith('http')))) {
         // Show actual image for image elements
         div.innerHTML = `
