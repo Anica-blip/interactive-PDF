@@ -26,8 +26,8 @@
             position: fixed;
             left: 0;
             top: 70px;
-            background: #f8f9fa;
-            border-right: 2px solid #e2e8f0;
+            background: #1a1a2e;
+            border-right: 2px solid #3d3d5c;
             padding-bottom: 300px;
         }
         
@@ -453,12 +453,16 @@
         }
         
         .sidebar::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #0f0f1e;
         }
         
         .sidebar::-webkit-scrollbar-thumb {
-            background: #888;
+            background: #3d3d5c;
             border-radius: 3px;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #4d4d6c;
         }
         
         /* Sidebar sections - ensure proper stacking */
@@ -466,6 +470,39 @@
             position: relative;
             margin-bottom: 12px;
             z-index: auto;
+            background: #252541 !important;
+            border: 1px solid #3d3d5c;
+        }
+        
+        /* Dark mode text colors for sidebar */
+        .sidebar .text-gray-800 {
+            color: #e5e5f0 !important;
+        }
+        
+        .sidebar .text-gray-600 {
+            color: #b0b0c8 !important;
+        }
+        
+        .sidebar .text-gray-500 {
+            color: #8a8aa0 !important;
+        }
+        
+        .sidebar .text-gray-400 {
+            color: #6a6a80 !important;
+        }
+        
+        /* Dark mode borders */
+        .sidebar .border-purple-300 {
+            border-color: #6b5b95 !important;
+        }
+        
+        .sidebar .border-dashed {
+            border-color: #4d4d6c !important;
+        }
+        
+        /* Hover states for dark mode */
+        .sidebar .hover\:bg-purple-50:hover {
+            background: #2d2d4a !important;
         }
         
         .collapsible-section {
