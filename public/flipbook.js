@@ -189,15 +189,16 @@ async function init() {
             // Clear sessionStorage after loading
             sessionStorage.removeItem('flipbookManifest');
         }
-        // Priority 3: Check for PDF URL (from 3C Content Library)
+        // Priority 3: Check for manifest URL (from 3C Content Library - JSON only)
+        else if (manifestUrl) {
+            console.log('Loading from manifest URL (3C Content Library)');
+            const manifestData = await loadManifestFromUrl(manifestUrl);
+            await initFromManifest(manifestData);
+        }
+        // Priority 4: Check for PDF URL (legacy PDF viewing)
         else if (pdfUrl) {
             console.log('Loading from PDF URL');
             await loadPDF(pdfUrl);
-            
-            // Load manifest if available
-            if (manifestUrl) {
-                await loadManifest(manifestUrl);
-            }
             
             // Render all pages
             await renderAllPages();
@@ -210,7 +211,7 @@ async function init() {
         }
         // No data source
         else {
-            alert('⚠️ No flipbook data found!\n\nTo view flipbook:\n1. From builder: Click "View Flipbook" button\n2. From Supabase: Use URL ?project=PROJECT_ID\n3. From library: Use URL ?pdf=PDF_URL\n\nExample: flipbook.html?project=123');
+            alert('⚠️ No flipbook data found!\n\nTo view flipbook:\n1. From editor: Click "View Flipbook" button\n2. From Supabase: Use URL ?project=PROJECT_ID\n3. From library: Use URL ?manifest=JSON_URL\n4. Legacy PDF: Use URL ?pdf=PDF_URL\n\nExample: flipbook.html?manifest=https://files.3c-public-library.org/flipbooks/my-flipbook.json');
             loading.classList.add('hidden');
             return;
         }
@@ -315,7 +316,30 @@ async function loadPDF(url) {
 }
 
 /**
- * Load manifest JSON
+ * Load manifest JSON from URL (for 3C Content Library)
+ */
+async function loadManifestFromUrl(url) {
+    try {
+        console.log('📥 Fetching manifest from:', url);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const manifestData = await response.json();
+        console.log('✅ Manifest loaded from URL:', manifestData.title || 'Untitled');
+        console.log('📄 Pages:', manifestData.pages?.length || 0);
+        
+        return manifestData;
+    } catch (error) {
+        console.error('❌ Failed to load manifest from URL:', error);
+        throw new Error(`Failed to load flipbook manifest: ${error.message}`);
+    }
+}
+
+/**
+ * Load manifest JSON (legacy function)
  */
 async function loadManifest(url) {
     try {
