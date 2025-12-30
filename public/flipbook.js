@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-30-21:30 - 48% zoom, double page display, element positioning debug
+ * Deployed: 2024-12-30-22:00 - 48% zoom, double page display, popup fix
  */
 
 // PDF.js worker
@@ -30,7 +30,7 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241230-2000 - Loading with parameters:', {
+console.log('🚀 Flipbook v20241230-2200 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -780,8 +780,15 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             
             img.on('click', function(e) {
                 e.stopPropagation();
+                console.log('🖱️ 3C Button clicked:', element.text, '| URL:', element.url);
                 if (element.url) {
-                    window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                    const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
+                    if (!popup) {
+                        console.error('❌ Popup blocked by browser');
+                        alert('Please allow popups for this site to open links');
+                    } else {
+                        console.log('✅ Popup opened successfully');
+                    }
                 }
             });
             
