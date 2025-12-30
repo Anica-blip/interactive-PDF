@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-30-01:50 - Fixed duplicate function, added detailed logging
+ * Deployed: 2024-12-30-17:05 - Fixed zoom to 60%, element positioning with scaleRatio
  */
 
 // PDF.js worker
