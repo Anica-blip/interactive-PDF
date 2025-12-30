@@ -1226,9 +1226,6 @@ function addAssetToPage(asset) {
 // ELEMENT MANAGEMENT
 // ============================================
 
-// Copy/Paste functionality
-let copiedElement = null;
-
 // Keyboard shortcuts for copy/paste
 document.addEventListener('keydown', (e) => {
     // Ctrl+C or Cmd+C - Copy

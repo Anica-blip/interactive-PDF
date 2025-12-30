@@ -1073,7 +1073,11 @@
             
             if (statusEl) {
                 statusEl.style.cursor = 'pointer';
-                statusEl.onclick = testSupabaseConnectionStatus;
+                statusEl.onclick = () => {
+                    if (typeof testSupabaseConnectionStatus === 'function') {
+                        testSupabaseConnectionStatus();
+                    }
+                };
             }
             
             // Auto-test connection
