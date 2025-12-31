@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-31-01:25 - FIXED image quality (2x resolution rendering)
+ * Version: 2024-12-31-2023 - COMPLETE REWRITE: Fixed zoom mechanics and element positioning
  */
 
 // PDF.js worker
@@ -15,7 +15,7 @@ const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.48; // 48% zoom - optimal full page view
+let scale = 0.48; // Current zoom level (0.48 = 48%)
 let manifest = null;
 let pageCanvases = [];
 let flipbookInitialized = false;
@@ -24,13 +24,17 @@ let flipbookInitialized = false;
 const A4_WIDTH_PX = 794;  // 210mm at 96 DPI
 const A4_HEIGHT_PX = 1123; // 297mm at 96 DPI
 
+// Editor canvas dimensions (75% of A4 - this is what the editor uses)
+const EDITOR_WIDTH_PX = 595;  // 794 * 0.75
+const EDITOR_HEIGHT_PX = 842;  // 1123 * 0.75
+
 // Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
 const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241231-0125 - Loading with parameters:', {
+console.log('🚀 Flipbook v20241231-2023 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -234,11 +238,32 @@ async function initFromManifest(manifestData) {
     document.getElementById('total-pages').textContent = totalPages;
     console.log('Manifest loaded:', totalPages, 'pages');
     
-    // Update zoom display
+    // Update zoom display to show actual scale percentage
     document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
     
-    // Create canvases from page backgrounds
+    // Render all pages at current scale
+    await renderPagesAtScale();
+    
+    // Initialize flipbook
+    initFlipbook();
+    
+    // Setup event listeners
+    setupEventListeners();
+}
+
+/**
+ * Render all pages at the current scale
+ * This is called on init and whenever zoom changes
+ */
+async function renderPagesAtScale() {
     pageCanvases = [];
+    
+    // Calculate actual display dimensions at current zoom
+    const pageWidth = Math.round(A4_WIDTH_PX * scale);
+    const pageHeight = Math.round(A4_HEIGHT_PX * scale);
+    
+    console.log('🎨 Rendering', manifest.pages.length, 'pages at', Math.round(scale * 100) + '% zoom');
+    console.log('   Page dimensions:', pageWidth, 'x', pageHeight, 'px');
     
     for (let i = 0; i < manifest.pages.length; i++) {
         const page = manifest.pages[i];
@@ -248,77 +273,56 @@ async function initFromManifest(manifestData) {
         
         await new Promise((resolve, reject) => {
             img.onload = () => {
-                // Render at higher resolution for better quality, then scale with CSS
-                // Use 2x resolution for crisp rendering
-                const displayWidth = A4_WIDTH_PX * scale;
-                const displayHeight = A4_HEIGHT_PX * scale;
-                const renderScale = 2; // Render at 2x for quality
-                
-                canvas.width = displayWidth * renderScale;
-                canvas.height = displayHeight * renderScale;
+                // Render at 2x resolution for quality, then scale display with CSS
+                const renderScale = 2;
+                canvas.width = pageWidth * renderScale;
+                canvas.height = pageHeight * renderScale;
                 
                 const ctx = canvas.getContext('2d');
-                
-                // Enable high-quality image smoothing
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                
-                // Draw image at 2x resolution
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                // Scale canvas display back to normal size with CSS
-                canvas.style.width = displayWidth + 'px';
-                canvas.style.height = displayHeight + 'px';
+                // Set CSS display size to actual zoom size
+                canvas.style.width = pageWidth + 'px';
+                canvas.style.height = pageHeight + 'px';
                 
-                console.log('✅ Background rendered for page', i + 1, '- Canvas:', canvas.width, 'x', canvas.height, '(display:', displayWidth, 'x', displayHeight + ')');
                 resolve();
             };
+            
             img.onerror = (error) => {
-                // If image fails to load, create blank A4 canvas
-                console.warn('❌ Failed to load background for page', i + 1, error);
-                const displayWidth = A4_WIDTH_PX * scale;
-                const displayHeight = A4_HEIGHT_PX * scale;
+                console.warn('❌ Failed to load background for page', i + 1);
                 const renderScale = 2;
-                
-                canvas.width = displayWidth * renderScale;
-                canvas.height = displayHeight * renderScale;
-                canvas.style.width = displayWidth + 'px';
-                canvas.style.height = displayHeight + 'px';
+                canvas.width = pageWidth * renderScale;
+                canvas.height = pageHeight * renderScale;
+                canvas.style.width = pageWidth + 'px';
+                canvas.style.height = pageHeight + 'px';
                 
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
                 resolve();
             };
             
-            // Handle base64 backgrounds - prioritize backgroundData
+            // Get background source
             let backgroundSource = null;
-            
             if (page.backgroundData) {
                 backgroundSource = page.backgroundData;
-                console.log('📸 Page', i + 1, '- Using backgroundData (base64, length:', page.backgroundData.length, ')');
             } else if (page.background && page.background.startsWith('data:')) {
                 backgroundSource = page.background;
-                console.log('📸 Page', i + 1, '- Using background (base64, length:', page.background.length, ')');
             } else if (page.background) {
                 backgroundSource = page.background;
-                console.log('📸 Page', i + 1, '- Using background (URL):', page.background);
             }
             
             if (backgroundSource) {
                 img.src = backgroundSource;
             } else {
-                // No background - create blank
-                console.log('⚪ Page', i + 1, '- No background, creating blank canvas');
-                const displayWidth = A4_WIDTH_PX * scale;
-                const displayHeight = A4_HEIGHT_PX * scale;
+                // Create blank canvas
                 const renderScale = 2;
-                
-                canvas.width = displayWidth * renderScale;
-                canvas.height = displayHeight * renderScale;
-                canvas.style.width = displayWidth + 'px';
-                canvas.style.height = displayHeight + 'px';
+                canvas.width = pageWidth * renderScale;
+                canvas.height = pageHeight * renderScale;
+                canvas.style.width = pageWidth + 'px';
+                canvas.style.height = pageHeight + 'px';
                 
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff';
@@ -328,14 +332,9 @@ async function initFromManifest(manifestData) {
         });
         
         pageCanvases.push(canvas);
-        console.log('Rendered page:', i + 1, '| Has elements:', page.elements?.length || 0);
     }
     
-    // Initialize flipbook
-    initFlipbook();
-    
-    // Setup event listeners
-    setupEventListeners();
+    console.log('✅ All pages rendered at', Math.round(scale * 100) + '%');
 }
 
 /**
@@ -427,11 +426,17 @@ function initFlipbook() {
     // Clear existing content
     flipbook.empty();
     
+    // Get actual page dimensions from CSS-styled canvas
+    const pageWidth = Math.round(A4_WIDTH_PX * scale);
+    const pageHeight = Math.round(A4_HEIGHT_PX * scale);
+    
+    console.log('📖 Initializing flipbook with page size:', pageWidth, 'x', pageHeight);
+    
     // Add pages to flipbook
     pageCanvases.forEach((canvas, index) => {
         const pageDiv = $('<div class="page"></div>');
         
-        // Ensure canvas is properly styled and visible
+        // Ensure canvas fills the page div
         $(canvas).css({
             'display': 'block',
             'width': '100%',
@@ -443,13 +448,9 @@ function initFlipbook() {
         // Add interactive elements overlay
         if (manifest && manifest.pages && manifest.pages[index]) {
             const pageData = manifest.pages[index];
-            console.log('📍 Page', index + 1, '- Elements in manifest:', pageData.elements?.length || 0);
             if (pageData.elements && pageData.elements.length > 0) {
-                console.log('🎯 Rendering', pageData.elements.length, 'elements on page', index + 1);
-                console.log('📊 First element:', pageData.elements[0]);
-                renderInteractiveElements(pageDiv, pageData.elements, canvas.width, canvas.height);
-            } else {
-                console.log('⚠️ No elements found for page', index + 1);
+                console.log('🎯 Page', index + 1, '- Rendering', pageData.elements.length, 'elements');
+                renderInteractiveElements(pageDiv, pageData.elements, pageWidth, pageHeight);
             }
         }
         
@@ -460,16 +461,12 @@ function initFlipbook() {
         flipbook.append(pageDiv);
     });
     
-    // Calculate dimensions
-    const pageWidth = pageCanvases[0].width;
-    const pageHeight = pageCanvases[0].height;
-    
-    // Initialize turn.js with magazine mode
+    // Initialize turn.js with correct dimensions
     flipbook.turn({
         width: pageWidth * 2, // Double width for spread
         height: pageHeight,
         autoCenter: true,
-        display: 'double', // Start with double page view
+        display: 'double',
         gradients: true,
         elevation: 50,
         acceleration: true,
@@ -489,7 +486,7 @@ function initFlipbook() {
     flipbookInitialized = true;
     updatePageInfo();
     
-    console.log('Flipbook initialized at', Math.round(scale * 100) + '% zoom');
+    console.log('✅ Flipbook initialized at', Math.round(scale * 100) + '% zoom');
 }
 
 /**
@@ -661,34 +658,22 @@ function setupEventListeners() {
         $('#flipbook').turn('page', totalPages);
     });
     
-    // Zoom controls - use CSS transform for instant zoom without reload
-    let zoomLevel = 1.0; // CSS zoom multiplier (1.0 = 100% of base scale)
-    
+    // Zoom controls - properly re-render at new scale
     $('#zoom-in').on('click', () => {
         console.log('🔍 Zoom in clicked');
-        zoomLevel += 0.1;
-        zoomLevel = Math.round(zoomLevel * 100) / 100;
-        applyZoom();
+        scale += 0.05; // Increase by 5%
+        scale = Math.round(scale * 100) / 100; // Round to 2 decimals
+        if (scale > 1.5) scale = 1.5; // Max 150%
+        reloadFlipbook();
     });
     
     $('#zoom-out').on('click', () => {
         console.log('🔍 Zoom out clicked');
-        if (zoomLevel > 0.5) {
-            zoomLevel -= 0.1;
-            zoomLevel = Math.round(zoomLevel * 100) / 100;
-            applyZoom();
-        }
+        scale -= 0.05; // Decrease by 5%
+        scale = Math.round(scale * 100) / 100; // Round to 2 decimals
+        if (scale < 0.3) scale = 0.3; // Min 30%
+        reloadFlipbook();
     });
-    
-    function applyZoom() {
-        const displayPercent = Math.round(scale * zoomLevel * 100);
-        $('#zoom-level').text(displayPercent + '%');
-        $('#flipbook-wrapper').css({
-            'transform': `scale(${zoomLevel})`,
-            'transform-origin': 'center top'
-        });
-        console.log('✅ Zoom applied:', displayPercent + '%', '(base:', Math.round(scale * 100) + '%, multiplier:', zoomLevel + ')');
-    }
     
     // Close video
     closeVideoBtn.addEventListener('click', closeVideo);
@@ -726,6 +711,9 @@ async function reloadFlipbook() {
     loading.classList.remove('hidden');
     console.log('🔄 Reloading flipbook at', Math.round(scale * 100) + '% zoom');
     
+    // Update zoom display
+    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+    
     try {
         // Destroy existing flipbook
         if (flipbookInitialized) {
@@ -735,16 +723,16 @@ async function reloadFlipbook() {
         
         // Re-render based on source
         if (manifest && manifest.pages && !pdfDoc) {
-            // Re-render from manifest
-            await initFromManifest(manifest);
+            // Re-render pages at new scale
+            await renderPagesAtScale();
+            initFlipbook();
         } else if (pdfDoc) {
             // Re-render from PDF
             await renderAllPages();
             initFlipbook();
-            setupEventListeners();
         }
         
-        console.log('✅ Flipbook reloaded successfully');
+        console.log('✅ Flipbook reloaded at', Math.round(scale * 100) + '%');
     } catch (error) {
         console.error('❌ Error reloading flipbook:', error);
     } finally {
@@ -754,44 +742,43 @@ async function reloadFlipbook() {
 
 /**
  * Render interactive elements as overlays on page
+ * Elements are positioned based on editor coordinates (595px x 842px canvas)
  */
 function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
     // Filter out only positioned elements (ignore element container metadata)
     const positionedElements = elements.filter(element => {
-        // Only render elements that have position coordinates and are actual page elements
         return (element.x !== undefined && element.x !== null) && 
                (element.y !== undefined && element.y !== null) &&
                element.type !== 'container' &&
                element.type !== 'element-container';
     });
     
-    console.log('🎯 Rendering', positionedElements.length, 'positioned elements (filtered from', elements.length, 'total)');
+    if (positionedElements.length === 0) return;
+    
+    console.log('🎯 Rendering', positionedElements.length, 'elements on page');
     
     positionedElements.forEach((element, idx) => {
+        // Element positions are saved relative to editor canvas (595px x 842px)
+        // We need to scale them to current viewer size (pageWidth x pageHeight)
+        const scaleX = pageWidth / EDITOR_WIDTH_PX;
+        const scaleY = pageHeight / EDITOR_HEIGHT_PX;
         
-        // Calculate scale ratio between canvas size and original A4 size
-        // Canvas is scaled, but element positions are saved relative to full A4 size
-        const scaleRatio = pageWidth / A4_WIDTH_PX;
-        
-        // Debug first element to understand JSON scale
         if (idx === 0) {
-            console.log('🔍 Element positioning analysis:');
-            console.log('   Canvas width:', pageWidth, 'px (viewer at', Math.round(scale * 100) + '%)');
-            console.log('   A4 full width:', A4_WIDTH_PX, 'px');
-            console.log('   Scale ratio:', scaleRatio);
-            console.log('   Element raw position:', element.x, element.y);
-            console.log('   Element raw size:', element.width, element.height);
+            console.log('🔍 Element scaling:');
+            console.log('   Editor canvas:', EDITOR_WIDTH_PX, 'x', EDITOR_HEIGHT_PX);
+            console.log('   Viewer page:', pageWidth, 'x', pageHeight);
+            console.log('   Scale factors:', scaleX.toFixed(3), 'x', scaleY.toFixed(3));
+            console.log('   Element raw:', element.x, element.y, element.width, element.height);
         }
         
-        // Scale element position and size to match canvas zoom
-        const scaledX = element.x * scaleRatio;
-        const scaledY = element.y * scaleRatio;
-        const scaledWidth = (element.width || 100) * scaleRatio;
-        const scaledHeight = (element.height || 40) * scaleRatio;
+        // Scale element position and size to match current page size
+        const scaledX = element.x * scaleX;
+        const scaledY = element.y * scaleY;
+        const scaledWidth = (element.width || 100) * scaleX;
+        const scaledHeight = (element.height || 40) * scaleY;
         
         if (idx === 0) {
-            console.log('   Scaled position:', scaledX, scaledY);
-            console.log('   Scaled size:', scaledWidth, scaledHeight);
+            console.log('   Scaled to:', scaledX.toFixed(1), scaledY.toFixed(1), scaledWidth.toFixed(1), scaledHeight.toFixed(1));
         }
         
         const elementDiv = $('<div></div>').css({
@@ -844,7 +831,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                     color: element.textColor || '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
-                    fontSize: Math.round((element.fontSize || 14) * scaleRatio) + 'px',
+                    fontSize: Math.round((element.fontSize || 14) * scaleX) + 'px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
@@ -904,8 +891,8 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: Math.round(64 * scaleRatio) + 'px',
-                height: Math.round(64 * scaleRatio) + 'px',
+                width: Math.round(64 * scaleX) + 'px',
+                height: Math.round(64 * scaleX) + 'px',
                 background: 'rgba(255,255,255,0.9)',
                 borderRadius: '50%',
                 display: 'flex',
@@ -913,7 +900,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 justifyContent: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
-            }).html('<i class="fas fa-play" style="color: #667eea; font-size: ' + Math.round(24 * scaleRatio) + 'px; margin-left: ' + Math.round(4 * scaleRatio) + 'px;"></i>').hover(
+            }).html('<i class="fas fa-play" style="color: #667eea; font-size: ' + Math.round(24 * scaleX) + 'px; margin-left: ' + Math.round(4 * scaleX) + 'px;"></i>').hover(
                 function() { $(this).css('transform', 'translate(-50%, -50%) scale(1.1)'); },
                 function() { $(this).css('transform', 'translate(-50%, -50%)'); }
             );

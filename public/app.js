@@ -1298,8 +1298,13 @@ function createElementDiv(element) {
     
     if (element.type === '3c-button') {
         // 3C Button with image
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1307,11 +1312,20 @@ function createElementDiv(element) {
             <img src="${element.imagePath}" class="w-full h-full object-contain cursor-pointer" title="${element.text} → ${element.url}">
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     } else if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
         // 3C Emoji Badge (circular)
         const title = element.url ? `${element.text} → ${element.url}` : element.text;
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1319,10 +1333,19 @@ function createElementDiv(element) {
             <img src="${element.imagePath}" class="w-full h-full object-contain rounded-full cursor-pointer" title="${title}">
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     } else if (element.type === 'button') {
         // Visible button with styling
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1332,12 +1355,21 @@ function createElementDiv(element) {
             </div>
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     } else if (element.type === 'hotspot') {
         // Invisible/transparent hotspot
         div.style.background = 'rgba(255, 165, 0, 0.2)';
         div.style.border = '2px dashed orange';
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1349,11 +1381,20 @@ function createElementDiv(element) {
             </div>
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
         // Video element with thumbnail and play button overlay
         const thumbnailUrl = element.thumbnailUrl || element.poster || 'https://via.placeholder.com/400x300/667eea/ffffff?text=Video';
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1368,10 +1409,19 @@ function createElementDiv(element) {
             </div>
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     } else if (element.type === 'image' || (element.url && (element.url.startsWith('data:image') || element.url.startsWith('http')))) {
         // Show actual image for image elements
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1379,10 +1429,19 @@ function createElementDiv(element) {
             <img src="${element.url}" class="w-full h-full object-contain">
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     } else {
         const embeddedBadge = element.embedded ? '<span class="text-xs bg-purple-500 text-white px-1 rounded">▶</span>' : '';
+        const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
             <div class="element-controls">
+                <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
+                    <i class="fas ${lockIcon}"></i>
+                </button>
                 <button onclick="deleteElement(${element.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1394,6 +1453,10 @@ function createElementDiv(element) {
             </div>
             <div class="resize-handle"></div>
         `;
+        if (element.locked) {
+            div.classList.add('locked');
+            div.style.cursor = 'not-allowed';
+        }
     }
     
     // Make draggable
@@ -1416,6 +1479,14 @@ function startDrag(e) {
     if (element) {
         const elementId = parseInt(element.id.replace('element-', ''));
         selectElement(elementId);
+        
+        // Check if element is locked
+        const currentPage = pages[currentPageIndex];
+        const elementData = currentPage.elements.find(el => el.id === elementId);
+        if (elementData && elementData.locked) {
+            showStatus('🔒 Element is locked. Unlock it first to move or resize.', 'warning');
+            return;
+        }
     }
     if (e.target.closest('button')) return;
     if (e.target.tagName === 'BUTTON') return;
@@ -1494,8 +1565,19 @@ function stopDrag() {
 
 function startResize(e) {
     e.stopPropagation();
-    resizing = true;
+    
     draggedElement = e.target.closest('.draggable-element');
+    
+    // Check if element is locked
+    const elementId = parseInt(draggedElement.id.replace('element-', ''));
+    const currentPage = pages[currentPageIndex];
+    const elementData = currentPage.elements.find(el => el.id === elementId);
+    if (elementData && elementData.locked) {
+        showStatus('🔒 Element is locked. Unlock it first to move or resize.', 'warning');
+        return;
+    }
+    
+    resizing = true;
     
     document.addEventListener('mousemove', resize);
     document.addEventListener('mouseup', stopResize);
@@ -1544,10 +1626,30 @@ function stopResize() {
 
 function deleteElement(elementId) {
     const currentPage = pages[currentPageIndex];
+    const element = currentPage.elements.find(el => el.id === elementId);
+    
+    // Check if element is locked
+    if (element && element.locked) {
+        showStatus('🔒 Element is locked. Unlock it first to delete.', 'warning');
+        return;
+    }
+    
     currentPage.elements = currentPage.elements.filter(el => el.id !== elementId);
     renderPages();
     renderPageElements();
     showStatus('Element deleted', 'info');
+}
+
+// Toggle lock state of an element
+function toggleLockElement(elementId) {
+    const currentPage = pages[currentPageIndex];
+    const element = currentPage.elements.find(el => el.id === elementId);
+    
+    if (element) {
+        element.locked = !element.locked;
+        renderPages();
+        showStatus(element.locked ? '🔒 Element locked' : '🔓 Element unlocked', 'success');
+    }
 }
 
 // ============================================
