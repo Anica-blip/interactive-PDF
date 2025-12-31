@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-31-00:50 - FIXED element positioning (editor 75% to viewer 48%)
+ * Deployed: 2024-12-31-01:25 - FIXED image quality (2x resolution rendering)
  */
 
 // PDF.js worker
@@ -30,7 +30,7 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241231-0050 - Loading with parameters:', {
+console.log('🚀 Flipbook v20241231-0125 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -248,24 +248,42 @@ async function initFromManifest(manifestData) {
         
         await new Promise((resolve, reject) => {
             img.onload = () => {
-                // Calculate canvas size based on A4 proportions
-                const targetWidth = A4_WIDTH_PX * scale;
-                const targetHeight = A4_HEIGHT_PX * scale;
+                // Render at higher resolution for better quality, then scale with CSS
+                // Use 2x resolution for crisp rendering
+                const displayWidth = A4_WIDTH_PX * scale;
+                const displayHeight = A4_HEIGHT_PX * scale;
+                const renderScale = 2; // Render at 2x for quality
                 
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
+                canvas.width = displayWidth * renderScale;
+                canvas.height = displayHeight * renderScale;
                 
                 const ctx = canvas.getContext('2d');
+                
+                // Enable high-quality image smoothing
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Draw image at 2x resolution
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                console.log('✅ Background rendered for page', i + 1, '- Canvas size:', canvas.width, 'x', canvas.height);
+                // Scale canvas display back to normal size with CSS
+                canvas.style.width = displayWidth + 'px';
+                canvas.style.height = displayHeight + 'px';
+                
+                console.log('✅ Background rendered for page', i + 1, '- Canvas:', canvas.width, 'x', canvas.height, '(display:', displayWidth, 'x', displayHeight + ')');
                 resolve();
             };
             img.onerror = (error) => {
                 // If image fails to load, create blank A4 canvas
                 console.warn('❌ Failed to load background for page', i + 1, error);
-                canvas.width = A4_WIDTH_PX * scale;
-                canvas.height = A4_HEIGHT_PX * scale;
+                const displayWidth = A4_WIDTH_PX * scale;
+                const displayHeight = A4_HEIGHT_PX * scale;
+                const renderScale = 2;
+                
+                canvas.width = displayWidth * renderScale;
+                canvas.height = displayHeight * renderScale;
+                canvas.style.width = displayWidth + 'px';
+                canvas.style.height = displayHeight + 'px';
                 
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff';
@@ -293,8 +311,15 @@ async function initFromManifest(manifestData) {
             } else {
                 // No background - create blank
                 console.log('⚪ Page', i + 1, '- No background, creating blank canvas');
-                canvas.width = A4_WIDTH_PX * scale;
-                canvas.height = A4_HEIGHT_PX * scale;
+                const displayWidth = A4_WIDTH_PX * scale;
+                const displayHeight = A4_HEIGHT_PX * scale;
+                const renderScale = 2;
+                
+                canvas.width = displayWidth * renderScale;
+                canvas.height = displayHeight * renderScale;
+                canvas.style.width = displayWidth + 'px';
+                canvas.style.height = displayHeight + 'px';
+                
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
