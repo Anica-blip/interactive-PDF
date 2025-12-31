@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-30-22:30 - 48% zoom, element positioning debug, popup fix
+ * Deployed: 2024-12-31-00:50 - FIXED element positioning (editor 75% to viewer 48%)
  */
 
 // PDF.js worker
@@ -30,7 +30,7 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241230-2230 - Loading with parameters:', {
+console.log('🚀 Flipbook v20241231-0050 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -920,6 +920,9 @@ function updatePageInfo() {
 }
 
 // Initialize on load
+$(document).ready(() => {
+    init();
+});
 $(document).ready(() => {
     init();
 });
