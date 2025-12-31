@@ -545,17 +545,58 @@ function handleHotspotClick(hotspot) {
         showGif(hotspot);
     } else if (hotspot.type === 'link' || hotspot.type === 'button' || hotspot.type === 'hotspot') {
         if (hotspot.url) {
-            // Always open in new window/popup
-            window.open(hotspot.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+            // Check if it's a video URL - use overlay popup
+            if (isVideoUrl(hotspot.url)) {
+                playVideo(hotspot);
+            } else {
+                // Regular link - open in new window
+                window.open(hotspot.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+            }
         }
     }
+}
+
+/**
+ * Detect if URL is a video platform link
+ */
+function isVideoUrl(url) {
+    if (!url) return false;
+    const videoPatterns = [
+        /youtube\.com\/watch/i,
+        /youtu\.be\//i,
+        /vimeo\.com\//i,
+        /\.mp4$/i,
+        /\.webm$/i,
+        /\.ogg$/i,
+        /\.mov$/i
+    ];
+    return videoPatterns.some(pattern => pattern.test(url));
+}
+
+/**
+ * Convert video URL to embed iframe URL
+ */
+function getVideoEmbedUrl(url) {
+    // YouTube
+    let match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\?]+)/);
+    if (match) {
+        return `https://www.youtube.com/embed/${match[1]}?autoplay=1`;
+    }
+    
+    // Vimeo
+    match = url.match(/vimeo\.com\/(\d+)/);
+    if (match) {
+        return `https://player.vimeo.com/video/${match[1]}?autoplay=1`;
+    }
+    
+    return null;
 }
 
 /**
  * Play video in transparent floating player
  */
 function playVideo(hotspot) {
-    videoTitle.textContent = hotspot.title || 'Video';
+    videoTitle.textContent = hotspot.title || hotspot.text || 'Video';
     videoPlayerWrapper.innerHTML = '';
     
     if (hotspot.type === 'cloudflare-stream' && hotspot.streamId) {
@@ -574,14 +615,27 @@ function playVideo(hotspot) {
         iframe.allowFullscreen = true;
         videoPlayerWrapper.appendChild(iframe);
     } else if (hotspot.mediaUrl || hotspot.url || hotspot.videoUrl) {
-        const video = document.createElement('video');
-        video.src = hotspot.mediaUrl || hotspot.url || hotspot.videoUrl;
-        video.controls = true;
-        video.autoplay = true;
-        if (hotspot.thumbnailUrl || hotspot.poster) {
-            video.poster = hotspot.thumbnailUrl || hotspot.poster;
+        const url = hotspot.mediaUrl || hotspot.url || hotspot.videoUrl;
+        
+        // Check if it's a YouTube/Vimeo URL that needs iframe
+        const embedUrl = getVideoEmbedUrl(url);
+        if (embedUrl) {
+            const iframe = document.createElement('iframe');
+            iframe.src = embedUrl;
+            iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
+            iframe.allowFullscreen = true;
+            videoPlayerWrapper.appendChild(iframe);
+        } else {
+            // Direct video file
+            const video = document.createElement('video');
+            video.src = url;
+            video.controls = true;
+            video.autoplay = true;
+            if (hotspot.thumbnailUrl || hotspot.poster) {
+                video.poster = hotspot.thumbnailUrl || hotspot.poster;
+            }
+            videoPlayerWrapper.appendChild(video);
         }
-        videoPlayerWrapper.appendChild(video);
     }
     
     videoOverlay.classList.add('active');
@@ -809,12 +863,19 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 e.stopPropagation();
                 console.log('🖱️ 3C Button clicked:', element.text, '| URL:', element.url);
                 if (element.url) {
-                    const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
-                    if (!popup) {
-                        console.error('❌ Popup blocked by browser');
-                        alert('Please allow popups for this site to open links');
+                    // Check if it's a video URL - use overlay popup
+                    if (isVideoUrl(element.url)) {
+                        console.log('📹 Video URL detected - opening in overlay');
+                        playVideo(element);
                     } else {
-                        console.log('✅ Popup opened successfully');
+                        // Regular link - open in new window
+                        const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
+                        if (!popup) {
+                            console.error('❌ Popup blocked by browser');
+                            alert('Please allow popups for this site to open links');
+                        } else {
+                            console.log('✅ Popup opened successfully');
+                        }
                     }
                 }
             });
@@ -845,7 +906,12 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             button.on('click', function(e) {
                 e.stopPropagation();
                 if (element.url) {
-                    window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                    // Check if it's a video URL - use overlay popup
+                    if (isVideoUrl(element.url)) {
+                        playVideo(element);
+                    } else {
+                        window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                    }
                 } else if (element.videoUrl || element.streamId) {
                     playVideo(element);
                 }
@@ -865,7 +931,12 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             elementDiv.on('click', function(e) {
                 e.stopPropagation();
                 if (element.url) {
-                    window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                    // Check if it's a video URL - use overlay popup
+                    if (isVideoUrl(element.url)) {
+                        playVideo(element);
+                    } else {
+                        window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                    }
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
