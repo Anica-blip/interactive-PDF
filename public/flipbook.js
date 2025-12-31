@@ -1,7 +1,7 @@
 /**
  * 3C Interactive Flipbook Viewer
  * Real page turning with interactive media support + Supabase integration
- * Deployed: 2024-12-30-22:00 - 48% zoom, double page display, popup fix
+ * Deployed: 2024-12-30-22:30 - 48% zoom, element positioning debug, popup fix
  */
 
 // PDF.js worker
@@ -30,7 +30,7 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241230-2200 - Loading with parameters:', {
+console.log('🚀 Flipbook v20241230-2230 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -742,17 +742,32 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
     
     console.log('🎯 Rendering', positionedElements.length, 'positioned elements (filtered from', elements.length, 'total)');
     
-    positionedElements.forEach(element => {
+    positionedElements.forEach((element, idx) => {
         
         // Calculate scale ratio between canvas size and original A4 size
         // Canvas is scaled, but element positions are saved relative to full A4 size
         const scaleRatio = pageWidth / A4_WIDTH_PX;
+        
+        // Debug first element to understand JSON scale
+        if (idx === 0) {
+            console.log('🔍 Element positioning analysis:');
+            console.log('   Canvas width:', pageWidth, 'px (viewer at', Math.round(scale * 100) + '%)');
+            console.log('   A4 full width:', A4_WIDTH_PX, 'px');
+            console.log('   Scale ratio:', scaleRatio);
+            console.log('   Element raw position:', element.x, element.y);
+            console.log('   Element raw size:', element.width, element.height);
+        }
         
         // Scale element position and size to match canvas zoom
         const scaledX = element.x * scaleRatio;
         const scaledY = element.y * scaleRatio;
         const scaledWidth = (element.width || 100) * scaleRatio;
         const scaledHeight = (element.height || 40) * scaleRatio;
+        
+        if (idx === 0) {
+            console.log('   Scaled position:', scaledX, scaledY);
+            console.log('   Scaled size:', scaledWidth, scaledHeight);
+        }
         
         const elementDiv = $('<div></div>').css({
             position: 'absolute',
