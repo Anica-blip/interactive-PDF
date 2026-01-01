@@ -233,6 +233,17 @@ async function init() {
  */
 async function initFromManifest(manifestData) {
     manifest = manifestData;
+    
+    // Sort pages by pageNumber to ensure correct order
+    if (manifest.pages && manifest.pages.length > 0) {
+        manifest.pages.sort((a, b) => {
+            const pageA = a.pageNumber || 0;
+            const pageB = b.pageNumber || 0;
+            return pageA - pageB;
+        });
+        console.log('📄 Pages sorted by pageNumber:', manifest.pages.map(p => p.pageNumber || '?').join(', '));
+    }
+    
     totalPages = manifest.pages.length;
     
     document.getElementById('total-pages').textContent = totalPages;
@@ -865,9 +876,10 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 if (element.url) {
                     // Check if it's a video URL - use overlay popup
                     if (isVideoUrl(element.url)) {
-                        console.log('📹 Video URL detected - opening in overlay');
+                        console.log('📹 Video URL detected - opening in overlay:', element.url);
                         playVideo(element);
                     } else {
+                        console.log('🔗 Regular link - opening in new window:', element.url);
                         // Regular link - open in new window
                         const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
                         if (!popup) {
@@ -948,7 +960,8 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 height: '100%',
                 position: 'relative',
                 overflow: 'hidden',
-                borderRadius: '8px'
+                borderRadius: '8px',
+                background: 'rgba(0, 0, 0, 0.3)'
             });
             
             const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
@@ -964,16 +977,17 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 transform: 'translate(-50%, -50%)',
                 width: Math.round(64 * scaleX) + 'px',
                 height: Math.round(64 * scaleX) + 'px',
-                background: 'rgba(255,255,255,0.9)',
+                background: 'rgba(102, 126, 234, 0.95)',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
-            }).html('<i class="fas fa-play" style="color: #667eea; font-size: ' + Math.round(24 * scaleX) + 'px; margin-left: ' + Math.round(4 * scaleX) + 'px;"></i>').hover(
-                function() { $(this).css('transform', 'translate(-50%, -50%) scale(1.1)'); },
-                function() { $(this).css('transform', 'translate(-50%, -50%)'); }
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+            }).html('<i class="fas fa-play" style="color: white; font-size: ' + Math.round(24 * scaleX) + 'px; margin-left: ' + Math.round(4 * scaleX) + 'px;"></i>').hover(
+                function() { $(this).css({'transform': 'translate(-50%, -50%) scale(1.15)', 'background': 'rgba(102, 126, 234, 1)'}); },
+                function() { $(this).css({'transform': 'translate(-50%, -50%)', 'background': 'rgba(102, 126, 234, 0.95)'}); }
             );
             
             videoContainer.append(thumbnail);

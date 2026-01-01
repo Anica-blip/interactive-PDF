@@ -363,6 +363,7 @@ function addNewPage() {
     const pageId = Date.now();
     const page = {
         id: pageId,
+        pageNumber: pages.length + 1,
         background: null,
         backgroundData: null,
         elements: []
@@ -1624,7 +1625,7 @@ function stopResize() {
     document.removeEventListener('mouseup', stopResize);
 }
 
-function deleteElement(elementId) {
+window.deleteElement = function(elementId) {
     const currentPage = pages[currentPageIndex];
     const element = currentPage.elements.find(el => el.id === elementId);
     
@@ -1641,13 +1642,14 @@ function deleteElement(elementId) {
 }
 
 // Toggle lock state of an element
-function toggleLockElement(elementId) {
+window.toggleLockElement = function(elementId) {
     const currentPage = pages[currentPageIndex];
     const element = currentPage.elements.find(el => el.id === elementId);
     
     if (element) {
         element.locked = !element.locked;
         renderPages();
+        renderPageElements();
         showStatus(element.locked ? '🔒 Element locked' : '🔓 Element unlocked', 'success');
     }
 }
