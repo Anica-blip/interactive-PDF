@@ -210,6 +210,11 @@ function updateFolderPathPreview() {
 // ============================================
 
 async function saveDraft(silent = false) {
+    // Renumber all pages to ensure correct order before saving
+    pages.forEach((page, index) => {
+        page.pageNumber = index + 1;
+    });
+    
     // 1. Validate Project Settings
     const title = document.getElementById('pdfTitle').value.trim();
     const author = document.getElementById('pdfAuthor').value.trim();
@@ -719,6 +724,7 @@ function duplicatePage(pageIndex) {
     const originalPage = pages[pageIndex];
     const newPage = {
         id: Date.now(),
+        pageNumber: pageIndex + 2,
         background: originalPage.background,
         backgroundData: originalPage.backgroundData,
         elements: originalPage.elements.map(el => ({
@@ -728,6 +734,12 @@ function duplicatePage(pageIndex) {
     };
     
     pages.splice(pageIndex + 1, 0, newPage);
+    
+    // Renumber all pages after insertion
+    for (let i = pageIndex + 2; i < pages.length; i++) {
+        pages[i].pageNumber = i + 1;
+    }
+    
     currentPageIndex = pageIndex + 1;
     
     renderPages();
@@ -767,6 +779,10 @@ function movePageUp(pageIndex) {
     // Swap pages
     [pages[pageIndex - 1], pages[pageIndex]] = [pages[pageIndex], pages[pageIndex - 1]];
     
+    // Update pageNumber for both swapped pages
+    pages[pageIndex - 1].pageNumber = pageIndex;
+    pages[pageIndex].pageNumber = pageIndex + 1;
+    
     // Update current page index if needed
     if (currentPageIndex === pageIndex) {
         currentPageIndex = pageIndex - 1;
@@ -785,6 +801,10 @@ function movePageDown(pageIndex) {
     
     // Swap pages
     [pages[pageIndex], pages[pageIndex + 1]] = [pages[pageIndex + 1], pages[pageIndex]];
+    
+    // Update pageNumber for both swapped pages
+    pages[pageIndex].pageNumber = pageIndex + 1;
+    pages[pageIndex + 1].pageNumber = pageIndex + 2;
     
     // Update current page index if needed
     if (currentPageIndex === pageIndex) {

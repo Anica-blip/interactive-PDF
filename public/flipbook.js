@@ -607,6 +607,14 @@ function getVideoEmbedUrl(url) {
  * Play video in transparent floating player
  */
 function playVideo(hotspot) {
+    console.log('🎬 playVideo called with:', hotspot);
+    console.log('   - Type:', hotspot.type);
+    console.log('   - URL:', hotspot.url);
+    console.log('   - VideoURL:', hotspot.videoUrl);
+    console.log('   - MediaURL:', hotspot.mediaUrl);
+    console.log('   - StreamID:', hotspot.streamId);
+    console.log('   - IframeURL:', hotspot.iframeUrl);
+    
     videoTitle.textContent = hotspot.title || hotspot.text || 'Video';
     videoPlayerWrapper.innerHTML = '';
     
@@ -985,7 +993,17 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-            }).html('<i class="fas fa-play" style="color: white; font-size: ' + Math.round(24 * scaleX) + 'px; margin-left: ' + Math.round(4 * scaleX) + 'px;"></i>').hover(
+            });
+            
+            // Create play icon separately to ensure it renders
+            const playIcon = $('<i class="fas fa-play"></i>').css({
+                color: 'white',
+                fontSize: Math.round(24 * scaleX) + 'px',
+                marginLeft: Math.round(4 * scaleX) + 'px'
+            });
+            
+            playBtn.append(playIcon);
+            playBtn.hover(
                 function() { $(this).css({'transform': 'translate(-50%, -50%) scale(1.15)', 'background': 'rgba(102, 126, 234, 1)'}); },
                 function() { $(this).css({'transform': 'translate(-50%, -50%)', 'background': 'rgba(102, 126, 234, 0.95)'}); }
             );
