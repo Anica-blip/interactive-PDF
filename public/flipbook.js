@@ -985,7 +985,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 transform: 'translate(-50%, -50%)',
                 width: Math.round(64 * scaleX) + 'px',
                 height: Math.round(64 * scaleX) + 'px',
-                background: 'rgba(102, 126, 234, 0.95)',
+                background: 'rgba(102, 126, 234, 0.3)',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
@@ -997,7 +997,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             
             // Create play icon separately to ensure it renders
             const playIcon = $('<i class="fas fa-play"></i>').css({
-                color: 'white',
+                color: '#a78bfa',
                 fontSize: Math.round(24 * scaleX) + 'px',
                 marginLeft: Math.round(4 * scaleX) + 'px'
             });

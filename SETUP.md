@@ -59,29 +59,45 @@ git push → GitHub Actions → wrangler deploy → Cloudflare Worker
 
 ### Pages Deployment (Frontend)
 
-**Deploys via:** Cloudflare Dashboard → Direct Git Connection
+**⚠️ IMPORTANT: Cloudflare Direct Git auto-deployment is UNRELIABLE**
+
+**Use Wrangler CLI for deployment instead:**
+
+```bash
+npx wrangler pages deploy public --project-name=interactive-pdf
+```
+
+**Why CLI deployment:**
+- Cloudflare's GitHub auto-deployment often fails to pick up changes
+- Direct CLI deployment ensures immediate updates
+- Same method used successfully for 3c-content-library project
 
 **Configuration:**
-- **Project name:** `builder` (or `interactive-pdf`)
+- **Project name:** `interactive-pdf` (NOT "builder")
 - **Production branch:** `main`
 - **Build directory:** `public`
 - **Build command:** (empty)
 - **Framework:** None
 
-**Setup Steps:**
-1. Cloudflare Dashboard → Workers & Pages → Create
-2. Pages tab → Connect to Git
-3. Select repository: `Anica-blip/interactive-PDF`
-4. Configure settings as above
-5. Save and Deploy
-
 **Custom Domain:**
-- Add: `builder.3c-public-library.org`
+- Domain: `builder.3c-public-library.org`
 - Cloudflare handles SSL automatically
 
-**How it works:**
+**Deployment workflow:**
+```bash
+# 1. Make code changes
+# 2. Deploy directly via Wrangler CLI
+npx wrangler pages deploy public --project-name=interactive-pdf
+
+# 3. Verify deployment
+curl -s "https://builder.3c-public-library.org/flipbook.js" | head -n 5
+
+# 4. Hard refresh browser (Ctrl+Shift+R)
 ```
-git push → Cloudflare detects push → Auto-deploys public/ folder
+
+**To check existing projects:**
+```bash
+npx wrangler pages project list
 ```
 
 ---
