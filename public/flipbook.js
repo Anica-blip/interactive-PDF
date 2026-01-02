@@ -237,8 +237,8 @@ async function initFromManifest(manifestData) {
     // Sort pages by pageNumber to ensure correct order
     if (manifest.pages && manifest.pages.length > 0) {
         manifest.pages.sort((a, b) => {
-            const pageA = a.pageNumber || 0;
-            const pageB = b.pageNumber || 0;
+            const pageA = parseInt(a.pageNumber) || 0;
+            const pageB = parseInt(b.pageNumber) || 0;
             return pageA - pageB;
         });
         console.log('Pages sorted by pageNumber:', manifest.pages.map(p => p.pageNumber || '?').join(', '));
@@ -260,9 +260,6 @@ async function initFromManifest(manifestData) {
     
     // Setup event listeners
     setupEventListeners();
-    
-    // Fit to screen on initial load
-    setTimeout(() => fitToScreen(), 500);
 }
 
 /**
@@ -446,9 +443,12 @@ function initFlipbook() {
     
     console.log('Initializing flipbook with page size:', pageWidth, 'x', pageHeight);
     
-    // Add pages to flipbook
+    // Add pages to flipbook - ensure proper structure for turn.js
     pageCanvases.forEach((canvas, index) => {
-        const pageDiv = $('<div class="page"></div>');
+        const pageDiv = $('<div class="page"></div>').css({
+            width: pageWidth + 'px',
+            height: pageHeight + 'px'
+        });
         
         // Ensure canvas fills the page div
         $(canvas).css({
@@ -595,6 +595,8 @@ function isVideoUrl(url) {
         /youtube\.com\/watch/i,
         /youtu\.be\//i,
         /vimeo\.com\//i,
+        /cloudflarestream\.com/i,
+        /customer-.*\.cloudflarestream\.com/i,
         /\.mp4$/i,
         /\.webm$/i,
         /\.ogg$/i,
@@ -626,7 +628,7 @@ function getVideoEmbedUrl(url) {
  * Play video in transparent floating player
  */
 function playVideo(hotspot) {
-    console.log('🎬 playVideo called with:', hotspot);
+    console.log('playVideo called with:', hotspot);
     console.log('   - Type:', hotspot.type);
     console.log('   - URL:', hotspot.url);
     console.log('   - VideoURL:', hotspot.videoUrl);
@@ -667,11 +669,11 @@ function playVideo(hotspot) {
     } else if (hotspot.mediaUrl || hotspot.url || hotspot.videoUrl) {
         const url = hotspot.mediaUrl || hotspot.url || hotspot.videoUrl;
         
-        console.log('🎥 Processing video URL:', url);
+        console.log('Processing video URL:', url);
         
-        // Check if URL contains 'iframe' - it's already an iframe URL
-        if (url.includes('/iframe') || url.includes('cloudflarestream.com')) {
-            console.log('📺 Cloudflare Stream iframe detected');
+        // Check if URL contains 'iframe' or is a Cloudflare Stream URL
+        if (url.includes('/iframe') || url.includes('cloudflarestream.com') || url.includes('customer-')) {
+            console.log('Cloudflare Stream iframe detected');
             const iframe = document.createElement('iframe');
             iframe.src = url;
             iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
@@ -684,7 +686,7 @@ function playVideo(hotspot) {
             // Check if it's a YouTube/Vimeo URL that needs iframe
             const embedUrl = getVideoEmbedUrl(url);
             if (embedUrl) {
-                console.log('📺 YouTube/Vimeo embed detected');
+                console.log('YouTube/Vimeo embed detected');
                 const iframe = document.createElement('iframe');
                 iframe.src = embedUrl;
                 iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
@@ -695,7 +697,7 @@ function playVideo(hotspot) {
                 videoPlayerWrapper.appendChild(iframe);
             } else {
                 // Direct video file
-                console.log('🎬 Direct video file detected');
+                console.log('Direct video file detected');
                 const video = document.createElement('video');
                 video.src = url;
                 video.controls = true;
@@ -829,72 +831,6 @@ function setupEventListeners() {
     });
 }
 
-/**
- * Fit flipbook to screen
- */
-async function fitToScreen() {
-    if (!loading) return;
-    
-    loading.classList.remove('hidden');
-    console.log('📐 Calculating fit-to-screen scale');
-    
-    try {
-        // Get available viewport size (minus toolbar)
-        const viewportHeight = window.innerHeight - 50; // 50px toolbar
-        const viewportWidth = window.innerWidth;
-        
-        // Calculate scale to fit A4 double-page spread
-        const doublePageWidth = A4_WIDTH_PX * 2;
-        const scaleWidth = viewportWidth / doublePageWidth;
-        const scaleHeight = viewportHeight / A4_HEIGHT_PX;
-        
-        // Use the smaller scale to ensure both dimensions fit
-        scale = Math.min(scaleWidth, scaleHeight) * 0.95; // 95% to add padding
-        scale = Math.round(scale * 100) / 100;
-        
-        console.log('📐 Fit-to-screen scale:', scale);
-        
-        // Update zoom display
-        document.getElementById('zoom-level').textContent = 'Fit';
-        
-        // Store current page
-        const savedPage = currentPage;
-        
-        // Destroy and rebuild
-        if (flipbookInitialized) {
-            $('#flipbook').turn('destroy');
-            flipbookInitialized = false;
-        }
-        
-        if (manifest && manifest.pages && !pdfDoc) {
-            await renderPagesAtScale();
-            initFlipbook();
-        } else if (pdfDoc) {
-            await renderAllPages();
-            initFlipbook();
-        }
-        
-        // Restore page
-        if (savedPage > 1) {
-            setTimeout(() => {
-                $('#flipbook').turn('page', savedPage);
-            }, 100);
-        }
-        
-        // Resize container
-        const pageWidth = Math.round(A4_WIDTH_PX * scale);
-        const pageHeight = Math.round(A4_HEIGHT_PX * scale);
-        $('#flipbook').css({
-            width: (pageWidth * 2) + 'px',
-            height: pageHeight + 'px'
-        });
-        
-    } catch (error) {
-        console.error('Error fitting to screen:', error);
-    } finally {
-        loading.classList.add('hidden');
-    }
-}
 
 /**
  * Reload flipbook after zoom change
