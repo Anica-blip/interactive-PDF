@@ -1160,14 +1160,9 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             });
             
             playBtn.append(playIcon);
-            playe.BreventDefautt();
-                try {
-                    pln.hover();
-                } catch (error {
-                    console.error('❌ Error playing video:', error)
-                }
-                function() { $(this).css({'transform': 'translate(-50%, -50%) scale(1.15)', 'background': 'rgba(102, 126, 234, 1)'}); },
-                function() { $(this).css({'transform': 'translate(-50%, -50%)', 'background': 'rgba(102, 126, 234, 0.95)'}); }
+            playBtn.hover(
+                function() { $(this).css({'transform': 'translate(-50%, -50%) scale(1.15)', 'background': 'rgba(102, 126, 234, 0.6)'}); },
+                function() { $(this).css({'transform': 'translate(-50%, -50%)', 'background': 'rgba(102, 126, 234, 0.3)'}); }
             );
             
             videoContainer.append(thumbnail);
