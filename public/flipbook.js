@@ -805,12 +805,6 @@ function setupEventListeners() {
         reloadFlipbook();
     });
     
-    // Fit to screen button
-    $('#fit-screen').on('click', () => {
-        console.log('📐 Fit to screen clicked');
-        fitToScreen();
-    });
-    
     // Close video
     closeVideoBtn.addEventListener('click', closeVideo);
     videoOverlay.addEventListener('click', (e) => {
@@ -1103,23 +1097,23 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 border: '2px dashed rgba(102, 126, 234, 0.3)'
             }).hover(
                 function() { $(this).css('background', 'rgba(102, 126, 234, 0.1)'); },
+                function() { $(this).css('background', 'transparent'); }
+            );
+            
+            elementDiv.on('click', function(e) {
+                e.stopPropagation();
                 e.preventDefault();
                 try {
-                    function() { $(this).css('background', 'transparent'); }
-                );
-                
-                elementDiv.on('click', function(e) {
-                    e.stopPropagation();
                     if (element.url) {
+                        // Check if it's a video URL - use overlay popup
+                        if (isVideoUrl(element.url)) {
+                            playVideo(element);
+                        } else {
+                            window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
                         }
-                    /
-                } catch (error) {
-                    console.error('❌ Error handling element click:', error);/ Check if it's a video URL - use overlay popup
-                    if (isVideoUrl(element.url)) {
-                        playVideo(element);
-                    } else {
-                        window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
                     }
+                } catch (error) {
+                    console.error('❌ Error handling element click:', error);
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
