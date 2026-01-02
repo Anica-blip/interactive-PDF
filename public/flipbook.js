@@ -485,11 +485,27 @@ function initFlipbook() {
         pages: totalPages,
         when: {
             turning: function(event, page, view) {
-                currentPage = page;
-                updatePageInfo();
+                try {
+                    currentPage = page;
+                    updatePageInfo();
+                } catch (error) {
+                    console.error('Error during page turn:', error);
+                    return true; // Allow turn to continue
+                }
             },
             turned: function(event, page, view) {
-                checkHotspots(page);
+                try {
+                    checkHotspots(page);
+                } catch (error) {
+                    console.error('Error after page turn:', error);
+                }
+            },
+            start: function(event, pageObject, corner) {
+                // Prevent turn if element is being clicked
+                if ($(event.target).closest('.interactive-element').length > 0) {
+                    event.preventDefault();
+                    return false;
+                }
             }
         }
     });
@@ -615,8 +631,18 @@ function playVideo(hotspot) {
     console.log('   - StreamID:', hotspot.streamId);
     console.log('   - IframeURL:', hotspot.iframeUrl);
     
-    videoTitle.textContent = hotspot.title || hotspot.text || 'Video';
-    videoPlayerWrapper.innerHTML = '';
+    try {
+        videoTitle.textContent = hotspot.title || hotspot.text || 'Video';
+        videoPlayerWrapper.innerHTML = '';
+        
+        // Get the video URL from any available property
+        const videoUrl = hotspot.url || hotspot.videoUrl || hotspot.mediaUrl || hotspot.iframeUrl;
+        
+        if (!videoUrl && !hotspot.streamId) {
+            console.error('❌ No video URL found in element:', hotspot);
+            alert('Video URL not found. Please check the element configuration.');
+            return;
+        }
     
     if (hotspot.type === 'cloudflare-stream' && hotspot.streamId) {
         const streamElement = document.createElement('stream');
@@ -658,6 +684,10 @@ function playVideo(hotspot) {
     }
     
     videoOverlay.classList.add('active');
+    } catch (error) {
+        console.error('❌ Error playing video:', error);
+        alert('Failed to play video: ' + error.message);
+    }
 }
 
 /**
@@ -788,6 +818,9 @@ async function reloadFlipbook() {
     document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
     
     try {
+        // Store current page before destroying
+        const savedPage = currentPage;
+        
         // Destroy existing flipbook
         if (flipbookInitialized) {
             $('#flipbook').turn('destroy');
@@ -804,6 +837,21 @@ async function reloadFlipbook() {
             await renderAllPages();
             initFlipbook();
         }
+        
+        // Restore page position after reload
+        if (savedPage > 1) {
+            setTimeout(() => {
+                $('#flipbook').turn('page', savedPage);
+            }, 100);
+        }
+        
+        // Resize container to fit new dimensions
+        const pageWidth = Math.round(A4_WIDTH_PX * scale);
+        const pageHeight = Math.round(A4_HEIGHT_PX * scale);
+        $('#flipbook').css({
+            width: (pageWidth * 2) + 'px',
+            height: pageHeight + 'px'
+        });
         
         console.log('✅ Flipbook reloaded at', Math.round(scale * 100) + '%');
     } catch (error) {
@@ -880,23 +928,28 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             
             img.on('click', function(e) {
                 e.stopPropagation();
-                console.log('🖱️ 3C Button clicked:', element.text, '| URL:', element.url);
-                if (element.url) {
-                    // Check if it's a video URL - use overlay popup
-                    if (isVideoUrl(element.url)) {
-                        console.log('📹 Video URL detected - opening in overlay:', element.url);
-                        playVideo(element);
-                    } else {
-                        console.log('🔗 Regular link - opening in new window:', element.url);
-                        // Regular link - open in new window
-                        const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
-                        if (!popup) {
-                            console.error('❌ Popup blocked by browser');
-                            alert('Please allow popups for this site to open links');
+                e.preventDefault();
+                try {
+                    console.log('🖱️ 3C Button clicked:', element.text, '| URL:', element.url);
+                    if (element.url) {
+                        // Check if it's a video URL - use overlay popup
+                        if (isVideoUrl(element.url)) {
+                            console.log('📹 Video URL detected - opening in overlay:', element.url);
+                            playVideo(element);
                         } else {
-                            console.log('✅ Popup opened successfully');
+                            console.log('🔗 Regular link - opening in new window:', element.url);
+                            // Regular link - open in new window
+                            const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
+                            if (!popup) {
+                                console.error('❌ Popup blocked by browser');
+                                alert('Please allow popups for this site to open links');
+                            } else {
+                                console.log('✅ Popup opened successfully');
+                            }
                         }
                     }
+                } catch (error) {
+                    console.error('❌ Error handling button click:', error);
                 }
             });
             
@@ -925,15 +978,20 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             
             button.on('click', function(e) {
                 e.stopPropagation();
-                if (element.url) {
-                    // Check if it's a video URL - use overlay popup
-                    if (isVideoUrl(element.url)) {
+                e.preventDefault();
+                try {
+                    if (element.url) {
+                        // Check if it's a video URL - use overlay popup
+                        if (isVideoUrl(element.url)) {
+                            playVideo(element);
+                        } else {
+                            window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+                        }
+                    } else if (element.videoUrl || element.streamId) {
                         playVideo(element);
-                    } else {
-                        window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
                     }
-                } else if (element.videoUrl || element.streamId) {
-                    playVideo(element);
+                } catch (error) {
+                    console.error('❌ Error handling button click:', error);
                 }
             });
             
@@ -945,13 +1003,18 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 border: '2px dashed rgba(102, 126, 234, 0.3)'
             }).hover(
                 function() { $(this).css('background', 'rgba(102, 126, 234, 0.1)'); },
-                function() { $(this).css('background', 'transparent'); }
-            );
-            
-            elementDiv.on('click', function(e) {
-                e.stopPropagation();
-                if (element.url) {
-                    // Check if it's a video URL - use overlay popup
+                e.preventDefault();
+                try {
+                    function() { $(this).css('background', 'transparent'); }
+                );
+                
+                elementDiv.on('click', function(e) {
+                    e.stopPropagation();
+                    if (element.url) {
+                        }
+                    /
+                } catch (error) {
+                    console.error('❌ Error handling element click:', error);/ Check if it's a video URL - use overlay popup
                     if (isVideoUrl(element.url)) {
                         playVideo(element);
                     } else {
@@ -1003,7 +1066,12 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             });
             
             playBtn.append(playIcon);
-            playBtn.hover(
+            playe.BreventDefautt();
+                try {
+                    pln.hover();
+                } catch (error {
+                    console.error('❌ Error playing video:', error)
+                }
                 function() { $(this).css({'transform': 'translate(-50%, -50%) scale(1.15)', 'background': 'rgba(102, 126, 234, 1)'}); },
                 function() { $(this).css({'transform': 'translate(-50%, -50%)', 'background': 'rgba(102, 126, 234, 0.95)'}); }
             );
