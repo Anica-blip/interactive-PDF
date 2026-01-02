@@ -34,7 +34,7 @@ const pdfUrl = urlParams.get('pdf') || '';
 const manifestUrl = urlParams.get('manifest') || '';
 const projectId = urlParams.get('project') || '';
 
-console.log('🚀 Flipbook v20241231-2023 - Loading with parameters:', {
+console.log('Flipbook v20241231-2023 - Loading with parameters:', {
     projectId: projectId,
     pdfUrl: pdfUrl,
     manifestUrl: manifestUrl
@@ -86,39 +86,39 @@ async function loadProjectFromSupabase(projectId) {
             }
         });
         
-        console.log('🌐 Response status:', response.status, response.statusText);
-        console.log('🌐 Response headers:', response.headers.get('content-type'));
+        console.log('Response status:', response.status, response.statusText);
+        console.log('Response headers:', response.headers.get('content-type'));
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Response error text:', errorText);
+            console.error('Response error text:', errorText);
             throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
         
         // Get response as text first to debug
         const responseText = await response.text();
-        console.log('📝 Raw response text (first 500 chars):', responseText.substring(0, 500));
+        console.log('Raw response text (first 500 chars):', responseText.substring(0, 500));
         
         let projects;
         try {
             projects = JSON.parse(responseText);
         } catch (parseError) {
-            console.error('❌ Failed to parse response as JSON');
+            console.error('Failed to parse response as JSON');
             console.error('Full response text:', responseText);
             throw new Error(`Invalid JSON response: ${parseError.message}`);
         }
-        console.log('📦 Response from Supabase:', projects);
+        console.log('Response from Supabase:', projects);
         
         if (!projects || projects.length === 0) {
             throw new Error('Project not found');
         }
         
         const project = projects[0];
-        console.log('✅ Project loaded:', project.title || 'Untitled');
-        console.log('📊 Full project object:', project);
-        console.log('🔍 project_json exists?', !!project.project_json);
-        console.log('🔍 project_json type:', typeof project.project_json);
-        console.log('🔍 project_json value:', project.project_json);
+        console.log('Project loaded:', project.title || 'Untitled');
+        console.log('Full project object:', project);
+        console.log('project_json exists?', !!project.project_json);
+        console.log('project_json type:', typeof project.project_json);
+        console.log('project_json value:', project.project_json);
         
         // Parse the JSON data from project_json column
         
@@ -129,26 +129,26 @@ async function loadProjectFromSupabase(projectId) {
         
         // Supabase JSONB columns are returned as objects, not strings
         if (typeof project.project_json === 'object' && project.project_json !== null) {
-            console.log('✅ project_json is an object, using directly');
+            console.log('project_json is an object, using directly');
             projectData = project.project_json;
         } else if (typeof project.project_json === 'string') {
-            console.log('⚠️ project_json is a string, attempting to parse');
+            console.log('project_json is a string, attempting to parse');
             try {
                 projectData = JSON.parse(project.project_json);
             } catch (parseError) {
-                console.error('❌ JSON parse error:', parseError);
+                console.error('JSON parse error:', parseError);
                 console.error('Raw JSON string (first 500 chars):', project.project_json.substring(0, 500));
                 throw new Error(`Failed to parse project JSON: ${parseError.message}`);
             }
         } else {
-            console.error('❌ project_json type is invalid:', typeof project.project_json);
+            console.error('project_json type is invalid:', typeof project.project_json);
             console.error('project_json value:', project.project_json);
             throw new Error(`project_json is not an object or string, it is: ${typeof project.project_json}`);
         }
         
-        console.log('✅ projectData parsed successfully');
-        console.log('📄 projectData.pages count:', projectData.pages?.length || 0);
-        console.log('⚙️ projectData.settings:', projectData.settings);
+        console.log('projectData parsed successfully');
+        console.log('projectData.pages count:', projectData.pages?.length || 0);
+        console.log('projectData.settings:', projectData.settings);
         
         // Create manifest from project data
         const manifest = {
@@ -159,8 +159,8 @@ async function loadProjectFromSupabase(projectId) {
             createdAt: project.created_at
         };
         
-        console.log('📖 Manifest created with', manifest.pages.length, 'pages');
-        console.log('🎨 First page preview:', manifest.pages[0]);
+        console.log('Manifest created with', manifest.pages.length, 'pages');
+        console.log('First page preview:', manifest.pages[0]);
         
         await initFromManifest(manifest);
         
@@ -241,7 +241,7 @@ async function initFromManifest(manifestData) {
             const pageB = b.pageNumber || 0;
             return pageA - pageB;
         });
-        console.log('📄 Pages sorted by pageNumber:', manifest.pages.map(p => p.pageNumber || '?').join(', '));
+        console.log('Pages sorted by pageNumber:', manifest.pages.map(p => p.pageNumber || '?').join(', '));
     }
     
     totalPages = manifest.pages.length;
@@ -276,7 +276,7 @@ async function renderPagesAtScale() {
     const pageWidth = Math.round(A4_WIDTH_PX * scale);
     const pageHeight = Math.round(A4_HEIGHT_PX * scale);
     
-    console.log('🎨 Rendering', manifest.pages.length, 'pages at', Math.round(scale * 100) + '% zoom');
+    console.log('Rendering', manifest.pages.length, 'pages at', Math.round(scale * 100) + '% zoom');
     console.log('   Page dimensions:', pageWidth, 'x', pageHeight, 'px');
     
     for (let i = 0; i < manifest.pages.length; i++) {
@@ -305,7 +305,7 @@ async function renderPagesAtScale() {
             };
             
             img.onerror = (error) => {
-                console.warn('❌ Failed to load background for page', i + 1);
+                console.warn('Failed to load background for page', i + 1);
                 const renderScale = 2;
                 canvas.width = pageWidth * renderScale;
                 canvas.height = pageHeight * renderScale;
@@ -348,7 +348,7 @@ async function renderPagesAtScale() {
         pageCanvases.push(canvas);
     }
     
-    console.log('✅ All pages rendered at', Math.round(scale * 100) + '%');
+    console.log('All pages rendered at', Math.round(scale * 100) + '%');
 }
 
 /**
@@ -370,7 +370,7 @@ async function loadPDF(url) {
  */
 async function loadManifestFromUrl(url) {
     try {
-        console.log('📥 Fetching manifest from:', url);
+        console.log('Fetching manifest from:', url);
         const response = await fetch(url);
         
         if (!response.ok) {
@@ -378,12 +378,12 @@ async function loadManifestFromUrl(url) {
         }
         
         const manifestData = await response.json();
-        console.log('✅ Manifest loaded from URL:', manifestData.title || 'Untitled');
-        console.log('📄 Pages:', manifestData.pages?.length || 0);
+        console.log('Manifest loaded from URL:', manifestData.title || 'Untitled');
+        console.log('Pages:', manifestData.pages?.length || 0);
         
         return manifestData;
     } catch (error) {
-        console.error('❌ Failed to load manifest from URL:', error);
+        console.error('Failed to load manifest from URL:', error);
         throw new Error(`Failed to load flipbook manifest: ${error.message}`);
     }
 }
@@ -444,7 +444,7 @@ function initFlipbook() {
     const pageWidth = Math.round(A4_WIDTH_PX * scale);
     const pageHeight = Math.round(A4_HEIGHT_PX * scale);
     
-    console.log('📖 Initializing flipbook with page size:', pageWidth, 'x', pageHeight);
+    console.log('Initializing flipbook with page size:', pageWidth, 'x', pageHeight);
     
     // Add pages to flipbook
     pageCanvases.forEach((canvas, index) => {
@@ -463,7 +463,7 @@ function initFlipbook() {
         if (manifest && manifest.pages && manifest.pages[index]) {
             const pageData = manifest.pages[index];
             if (pageData.elements && pageData.elements.length > 0) {
-                console.log('🎯 Page', index + 1, '- Rendering', pageData.elements.length, 'elements');
+                console.log('Page', index + 1, '- Rendering', pageData.elements.length, 'elements');
                 renderInteractiveElements(pageDiv, pageData.elements, pageWidth, pageHeight);
             }
         }
@@ -516,7 +516,7 @@ function initFlipbook() {
     flipbookInitialized = true;
     updatePageInfo();
     
-    console.log('✅ Flipbook initialized at', Math.round(scale * 100) + '% zoom');
+    console.log('Flipbook initialized at', Math.round(scale * 100) + '% zoom');
 }
 
 /**
@@ -644,7 +644,7 @@ function playVideo(hotspot) {
         console.log('✅ Video URL found:', videoUrl);
         
         if (!videoUrl && !hotspot.streamId) {
-            console.error('❌ No video URL found in element:', hotspot);
+            console.error('No video URL found in element:', hotspot);
             alert('Video URL not found. Please check the element configuration.');
             return;
         }
@@ -712,7 +712,7 @@ function playVideo(hotspot) {
     
     videoOverlay.classList.add('active');
     } catch (error) {
-        console.error('❌ Error playing video:', error);
+        console.error('Error playing video:', error);
         alert('Failed to play video: ' + error.message);
     }
 }
@@ -890,7 +890,7 @@ async function fitToScreen() {
         });
         
     } catch (error) {
-        console.error('❌ Error fitting to screen:', error);
+        console.error('Error fitting to screen:', error);
     } finally {
         loading.classList.add('hidden');
     }
@@ -906,7 +906,7 @@ async function reloadFlipbook() {
     }
     
     loading.classList.remove('hidden');
-    console.log('🔄 Reloading flipbook at', Math.round(scale * 100) + '% zoom');
+    console.log('Reloading flipbook at', Math.round(scale * 100) + '% zoom');
     
     // Update zoom display
     document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
@@ -947,9 +947,9 @@ async function reloadFlipbook() {
             height: pageHeight + 'px'
         });
         
-        console.log('✅ Flipbook reloaded at', Math.round(scale * 100) + '%');
+        console.log('Flipbook reloaded at', Math.round(scale * 100) + '%');
     } catch (error) {
-        console.error('❌ Error reloading flipbook:', error);
+        console.error('Error reloading flipbook:', error);
     } finally {
         loading.classList.add('hidden');
     }
@@ -970,7 +970,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
     
     if (positionedElements.length === 0) return;
     
-    console.log('🎯 Rendering', positionedElements.length, 'elements on page');
+    console.log('Rendering', positionedElements.length, 'elements on page');
     
     positionedElements.forEach((element, idx) => {
         // Element positions are saved relative to editor canvas (595px x 842px)
@@ -979,7 +979,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         const scaleY = pageHeight / EDITOR_HEIGHT_PX;
         
         if (idx === 0) {
-            console.log('🔍 Element scaling:');
+            console.log('Element scaling:');
             console.log('   Editor canvas:', EDITOR_WIDTH_PX, 'x', EDITOR_HEIGHT_PX);
             console.log('   Viewer page:', pageWidth, 'x', pageHeight);
             console.log('   Scale factors:', scaleX.toFixed(3), 'x', scaleY.toFixed(3));
@@ -1024,21 +1024,21 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 e.stopPropagation();
                 e.preventDefault();
                 try {
-                    console.log('🖱️ 3C Button clicked:', element.text, '| URL:', element.url);
+                    console.log('3C Button clicked:', element.text, '| URL:', element.url);
                     if (element.url) {
                         // Check if it's a video URL - use overlay popup
                         if (isVideoUrl(element.url)) {
-                            console.log('📹 Video URL detected - opening in overlay:', element.url);
+                            console.log('Video URL detected - opening in overlay:', element.url);
                             playVideo(element);
                         } else {
-                            console.log('🔗 Regular link - opening in new window:', element.url);
+                            console.log('Regular link - opening in new window:', element.url);
                             // Regular link - open in new window
                             const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
                             if (!popup) {
-                                console.error('❌ Popup blocked by browser');
+                                console.error('Popup blocked by browser');
                                 alert('Please allow popups for this site to open links');
                             } else {
-                                console.log('✅ Popup opened successfully');
+                                console.log('Popup opened successfully');
                             }
                         }
                     }
@@ -1085,7 +1085,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                         playVideo(element);
                     }
                 } catch (error) {
-                    console.error('❌ Error handling button click:', error);
+                    console.error('Error handling button click:', error);
                 }
             });
             
@@ -1113,7 +1113,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                         }
                     }
                 } catch (error) {
-                    console.error('❌ Error handling element click:', error);
+                    console.error('Error handling element click:', error);
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
