@@ -260,6 +260,9 @@ async function initFromManifest(manifestData) {
     
     // Setup event listeners
     setupEventListeners();
+    
+    // Fit to screen on initial load
+    setTimeout(() => fitToScreen(), 500);
 }
 
 /**
@@ -638,13 +641,15 @@ function playVideo(hotspot) {
         // Get the video URL from any available property
         const videoUrl = hotspot.url || hotspot.videoUrl || hotspot.mediaUrl || hotspot.iframeUrl;
         
+        console.log('✅ Video URL found:', videoUrl);
+        
         if (!videoUrl && !hotspot.streamId) {
             console.error('❌ No video URL found in element:', hotspot);
             alert('Video URL not found. Please check the element configuration.');
             return;
         }
     
-    if (hotspot.type === 'cloudflare-stream' && hotspot.streamId) {
+        if (hotspot.type === 'cloudflare-stream' && hotspot.streamId) {
         const streamElement = document.createElement('stream');
         streamElement.setAttribute('src', hotspot.streamId);
         streamElement.setAttribute('controls', '');
@@ -662,24 +667,46 @@ function playVideo(hotspot) {
     } else if (hotspot.mediaUrl || hotspot.url || hotspot.videoUrl) {
         const url = hotspot.mediaUrl || hotspot.url || hotspot.videoUrl;
         
-        // Check if it's a YouTube/Vimeo URL that needs iframe
-        const embedUrl = getVideoEmbedUrl(url);
-        if (embedUrl) {
+        console.log('🎥 Processing video URL:', url);
+        
+        // Check if URL contains 'iframe' - it's already an iframe URL
+        if (url.includes('/iframe') || url.includes('cloudflarestream.com')) {
+            console.log('📺 Cloudflare Stream iframe detected');
             const iframe = document.createElement('iframe');
-            iframe.src = embedUrl;
+            iframe.src = url;
             iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
             iframe.allowFullscreen = true;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
             videoPlayerWrapper.appendChild(iframe);
         } else {
-            // Direct video file
-            const video = document.createElement('video');
-            video.src = url;
-            video.controls = true;
-            video.autoplay = true;
-            if (hotspot.thumbnailUrl || hotspot.poster) {
-                video.poster = hotspot.thumbnailUrl || hotspot.poster;
+            // Check if it's a YouTube/Vimeo URL that needs iframe
+            const embedUrl = getVideoEmbedUrl(url);
+            if (embedUrl) {
+                console.log('📺 YouTube/Vimeo embed detected');
+                const iframe = document.createElement('iframe');
+                iframe.src = embedUrl;
+                iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                videoPlayerWrapper.appendChild(iframe);
+            } else {
+                // Direct video file
+                console.log('🎬 Direct video file detected');
+                const video = document.createElement('video');
+                video.src = url;
+                video.controls = true;
+                video.autoplay = true;
+                video.style.width = '100%';
+                video.style.height = 'auto';
+                if (hotspot.thumbnailUrl || hotspot.poster) {
+                    video.poster = hotspot.thumbnailUrl || hotspot.poster;
+                }
+                videoPlayerWrapper.appendChild(video);
             }
-            videoPlayerWrapper.appendChild(video);
         }
     }
     
@@ -778,6 +805,12 @@ function setupEventListeners() {
         reloadFlipbook();
     });
     
+    // Fit to screen button
+    $('#fit-screen').on('click', () => {
+        console.log('📐 Fit to screen clicked');
+        fitToScreen();
+    });
+    
     // Close video
     closeVideoBtn.addEventListener('click', closeVideo);
     videoOverlay.addEventListener('click', (e) => {
@@ -800,6 +833,73 @@ function setupEventListeners() {
             closeVideo();
         }
     });
+}
+
+/**
+ * Fit flipbook to screen
+ */
+async function fitToScreen() {
+    if (!loading) return;
+    
+    loading.classList.remove('hidden');
+    console.log('📐 Calculating fit-to-screen scale');
+    
+    try {
+        // Get available viewport size (minus toolbar)
+        const viewportHeight = window.innerHeight - 50; // 50px toolbar
+        const viewportWidth = window.innerWidth;
+        
+        // Calculate scale to fit A4 double-page spread
+        const doublePageWidth = A4_WIDTH_PX * 2;
+        const scaleWidth = viewportWidth / doublePageWidth;
+        const scaleHeight = viewportHeight / A4_HEIGHT_PX;
+        
+        // Use the smaller scale to ensure both dimensions fit
+        scale = Math.min(scaleWidth, scaleHeight) * 0.95; // 95% to add padding
+        scale = Math.round(scale * 100) / 100;
+        
+        console.log('📐 Fit-to-screen scale:', scale);
+        
+        // Update zoom display
+        document.getElementById('zoom-level').textContent = 'Fit';
+        
+        // Store current page
+        const savedPage = currentPage;
+        
+        // Destroy and rebuild
+        if (flipbookInitialized) {
+            $('#flipbook').turn('destroy');
+            flipbookInitialized = false;
+        }
+        
+        if (manifest && manifest.pages && !pdfDoc) {
+            await renderPagesAtScale();
+            initFlipbook();
+        } else if (pdfDoc) {
+            await renderAllPages();
+            initFlipbook();
+        }
+        
+        // Restore page
+        if (savedPage > 1) {
+            setTimeout(() => {
+                $('#flipbook').turn('page', savedPage);
+            }, 100);
+        }
+        
+        // Resize container
+        const pageWidth = Math.round(A4_WIDTH_PX * scale);
+        const pageHeight = Math.round(A4_HEIGHT_PX * scale);
+        $('#flipbook').css({
+            width: (pageWidth * 2) + 'px',
+            height: pageHeight + 'px'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fitting to screen:', error);
+    } finally {
+        loading.classList.add('hidden');
+    }
 }
 
 /**
