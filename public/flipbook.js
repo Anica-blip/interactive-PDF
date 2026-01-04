@@ -490,6 +490,7 @@ function initFlipbook() {
             turning: function(event, page, view) {
                 try {
                     currentPage = page;
+                    console.log('Page turning to:', page);
                     updatePageInfo();
                 } catch (error) {
                     console.error('Error during page turn:', error);
@@ -498,6 +499,9 @@ function initFlipbook() {
             },
             turned: function(event, page, view) {
                 try {
+                    currentPage = page;
+                    console.log('Page turned to:', page);
+                    updatePageInfo();
                     checkHotspots(page);
                 } catch (error) {
                     console.error('Error after page turn:', error);
@@ -1060,7 +1064,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
-            // Video with thumbnail and play button overlay
+            // Video element - directly clickable (no overlay play button)
             const thumbnailUrl = element.thumbnailUrl || element.poster || 'https://via.placeholder.com/400x300/667eea/ffffff?text=Video';
             
             const videoContainer = $('<div></div>').css({
@@ -1069,7 +1073,9 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: '8px',
-                background: 'rgba(0, 0, 0, 0.3)'
+                background: 'rgba(0, 0, 0, 0.3)',
+                cursor: 'pointer',
+                transition: 'transform 0.2s'
             });
             
             const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
@@ -1078,41 +1084,25 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 objectFit: 'cover'
             });
             
-            const playBtn = $('<div></div>').css({
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: Math.round(64 * scaleX) + 'px',
-                height: Math.round(64 * scaleX) + 'px',
-                background: 'rgba(102, 126, 234, 0.3)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-            });
+            videoContainer.append(thumbnail);
             
-            // Create play icon separately to ensure it renders
-            const playIcon = $('<i class="fas fa-play"></i>').css({
-                color: '#a78bfa',
-                fontSize: Math.round(24 * scaleX) + 'px',
-                marginLeft: Math.round(4 * scaleX) + 'px'
-            });
-            
-            playBtn.append(playIcon);
-            playBtn.hover(
-                function() { $(this).css({'transform': 'translate(-50%, -50%) scale(1.15)', 'background': 'rgba(102, 126, 234, 0.6)'}); },
-                function() { $(this).css({'transform': 'translate(-50%, -50%)', 'background': 'rgba(102, 126, 234, 0.3)'}); }
+            // Hover effect
+            videoContainer.hover(
+                function() { $(this).css('transform', 'scale(1.02)'); },
+                function() { $(this).css('transform', 'scale(1)'); }
             );
             
-            videoContainer.append(thumbnail);
-            videoContainer.append(playBtn);
-            
+            // Direct click to play video
             videoContainer.on('click', function(e) {
                 e.stopPropagation();
+                e.preventDefault();
+                console.log('playVideo called with:', element);
+                console.log('   - Type:', element.type);
+                console.log('   - URL:', element.url);
+                console.log('   - VideoURL:', element.videoUrl);
+                console.log('   - MediaURL:', element.mediaUrl);
+                console.log('   - StreamID:', element.streamId);
+                console.log('   - IframeURL:', element.iframeUrl);
                 playVideo(element);
             });
             
