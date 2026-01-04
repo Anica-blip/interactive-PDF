@@ -490,7 +490,6 @@ function initFlipbook() {
             turning: function(event, page, view) {
                 try {
                     currentPage = page;
-                    console.log('Page turning to:', page);
                     updatePageInfo();
                 } catch (error) {
                     console.error('Error during page turn:', error);
@@ -500,7 +499,6 @@ function initFlipbook() {
             turned: function(event, page, view) {
                 try {
                     currentPage = page;
-                    console.log('Page turned to:', page);
                     updatePageInfo();
                     checkHotspots(page);
                 } catch (error) {
@@ -1084,13 +1082,23 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 objectFit: 'cover'
             });
             
-            videoContainer.append(thumbnail);
+            // Play button - visible
+            const playBtn = $('<div></div>').css({
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '64px',
+                height: '64px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }).html('<i class="fas fa-play" style="color: #764ba2; font-size: 24px; margin-left: 4px;"></i>');
             
-            // Hover effect
-            videoContainer.hover(
-                function() { $(this).css('transform', 'scale(1.02)'); },
-                function() { $(this).css('transform', 'scale(1)'); }
-            );
+            videoContainer.append(thumbnail);
+            videoContainer.append(playBtn);
             
             // Direct click to play video
             videoContainer.on('click', function(e) {
