@@ -204,13 +204,17 @@
 
         #video-container {
             position: relative;
-            max-width: 90%;
-            max-height: 90%;
+            max-width: 90vw;
+            max-height: 85vh;
+            width: auto;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
             animation: slideUp 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         @keyframes slideUp {
@@ -226,21 +230,33 @@
 
         #video-player-wrapper {
             position: relative;
-            width: 100%;
-            max-width: 1200px;
-            aspect-ratio: 16/9;
+            width: auto;
+            height: auto;
+            max-width: 90vw;
+            max-height: 70vh;
             border-radius: 12px;
             overflow: hidden;
             background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #video-player-wrapper stream,
         #video-player-wrapper iframe,
         #video-player-wrapper video,
-        #video-player-wrapper audio,
         #video-player-wrapper img {
+            max-width: 100%;
+            max-height: 70vh;
+            width: auto;
+            height: auto;
+            border: none;
+            object-fit: contain;
+        }
+
+        #video-player-wrapper audio {
             width: 100%;
-            height: 100%;
+            max-width: 600px;
             border: none;
         }
 

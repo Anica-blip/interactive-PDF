@@ -678,8 +678,10 @@ function playVideo(hotspot) {
             iframe.src = url;
             iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
             iframe.allowFullscreen = true;
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
+            iframe.style.maxWidth = '100%';
+            iframe.style.maxHeight = '70vh';
+            iframe.style.width = 'auto';
+            iframe.style.height = 'auto';
             iframe.style.border = 'none';
             videoPlayerWrapper.appendChild(iframe);
         } else {
@@ -691,8 +693,10 @@ function playVideo(hotspot) {
                 iframe.src = embedUrl;
                 iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
                 iframe.allowFullscreen = true;
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
+                iframe.style.maxWidth = '100%';
+                iframe.style.maxHeight = '70vh';
+                iframe.style.width = 'auto';
+                iframe.style.height = 'auto';
                 iframe.style.border = 'none';
                 videoPlayerWrapper.appendChild(iframe);
             } else {
@@ -702,8 +706,11 @@ function playVideo(hotspot) {
                 video.src = url;
                 video.controls = true;
                 video.autoplay = true;
-                video.style.width = '100%';
+                video.style.maxWidth = '100%';
+                video.style.maxHeight = '70vh';
+                video.style.width = 'auto';
                 video.style.height = 'auto';
+                video.style.objectFit = 'contain';
                 if (hotspot.thumbnailUrl || hotspot.poster) {
                     video.poster = hotspot.thumbnailUrl || hotspot.poster;
                 }
