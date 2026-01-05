@@ -168,7 +168,7 @@ updateProjectDB = async function(projectId, projectData) {
 };
 
 /**
- * Publish project with PDF URL - Uses Edge Function for final export
+ * Publish project with PDF URL - DIRECT to Supabase (no Edge Function)
  */
 publishProjectDB = async function(projectId, pdfUrl, projectData) {
     // Enrich project_json with metadata
@@ -186,19 +186,20 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
         }
     };
 
-    const response = await fetch(EDGE_FUNCTION_URL, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-            action: 'update',
-            id: projectId,
-            data: {
-                project_json: enrichedData,
-                pdf_url: pdfUrl,
-                status: 'published',
-                updated_at: new Date().toISOString()
-            }
-        })
+    const payload = {
+        project_json: enrichedData,
+        pdf_url: pdfUrl,
+        status: 'published',
+        updated_at: new Date().toISOString()
+    };
+
+    const response = await fetch(`${DIRECT_API_URL}?id=eq.${projectId}`, {
+        method: 'PATCH',
+        headers: {
+            ...getHeaders(),
+            'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
@@ -207,7 +208,7 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
     }
 
     const result = await response.json();
-    return result.data;
+    return Array.isArray(result) ? result[0] : result;
 };
 
 /**
