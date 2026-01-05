@@ -685,7 +685,18 @@ function renderPageElements() {
     });
 }
 
-// ...
+function updatePageCounter() {
+    document.getElementById('currentPageNum').textContent = currentPageIndex + 1;
+    document.getElementById('totalPages').textContent = pages.length;
+}
+
+function updateAllPageSizes() {
+    renderPages();
+}
+
+// ============================================
+// THUMBNAIL DROPDOWN & PAGE ACTIONS
+// ============================================
 
 function renderAssetLibrary() {
     const grid = document.getElementById('assetGrid');
