@@ -830,6 +830,37 @@ function addAssetToPage(asset) {
 }
 
 // ============================================
+// BACKGROUND UPLOAD
+// ============================================
+
+async function handleBackgroundUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.match('image/(png|jpeg|jpg)')) {
+        showStatus('⚠️ Please upload a PNG or JPG image', 'warning');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const currentPage = pages[currentPageIndex];
+        currentPage.background = file.name;
+        currentPage.backgroundData = e.target.result;
+        
+        renderPages();
+        renderPageThumbnails();
+        
+        document.getElementById('backgroundInfo').classList.remove('hidden');
+        showStatus(`✅ Background set for page ${currentPageIndex + 1}`, 'success');
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input
+    event.target.value = '';
+}
+
+// ============================================
 // ELEMENT MANAGEMENT
 // ============================================
 
@@ -1353,6 +1384,19 @@ function selectElement(elementId) {
     if (canvasElement) {
         canvasElement.classList.add('selected');
     }
+}
+
+function getAssetThumbnail(type, url) {
+    // For URLs, we'll show icons. For uploaded files, we'll show the actual file
+    const icons = {
+        button: 'fas fa-hand-pointer text-indigo-500',
+        hotspot: 'fas fa-mouse-pointer text-orange-500',
+        video: 'fas fa-video text-red-500',
+        audio: 'fas fa-music text-blue-500',
+        gif: 'fas fa-image text-purple-500',
+        link: 'fas fa-link text-green-500'
+    };
+    return icons[type] || 'fas fa-file';
 }
 
 // ============================================
