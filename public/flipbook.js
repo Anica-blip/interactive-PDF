@@ -1080,7 +1080,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
-            // Video element - directly clickable using the element's own image/thumbnail
+            // Video element - use thumbnail if available
             const thumbnailUrl = element.thumbnailUrl || element.poster || element.imagePath;
             
             if (thumbnailUrl) {
@@ -1105,15 +1105,18 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 
                 elementDiv.append(thumbnail);
             } else {
-                // No thumbnail - make the element itself clickable
+                // No thumbnail - transparent element with play icon
                 elementDiv.css({
-                    background: 'rgba(102, 126, 234, 0.2)',
+                    background: 'rgba(0, 0, 0, 0.4)',
                     border: '2px solid rgba(102, 126, 234, 0.5)',
-                    borderRadius: '8px'
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                 }).hover(
-                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.3)'); },
-                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.2)'); }
-                );
+                    function() { $(this).css('background', 'rgba(0, 0, 0, 0.5)'); },
+                    function() { $(this).css('background', 'rgba(0, 0, 0, 0.4)'); }
+                ).html('<i class="fas fa-play-circle" style="color: #ffffff; font-size: 48px;"></i>');
                 
                 elementDiv.on('click', function(e) {
                     e.stopPropagation();

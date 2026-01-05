@@ -1233,7 +1233,10 @@ function addAssetToPage(asset) {
         width: width,
         height: height,
         embedded: asset.embedded || false,
-        imagePath: asset.imagePath || null
+        imagePath: asset.imagePath || null,
+        thumbnailUrl: asset.thumbnailUrl || asset.thumbnail || null,
+        poster: asset.poster || null,
+        streamId: asset.streamId || null
     };
     
     pages[currentPageIndex].elements.push(element);
