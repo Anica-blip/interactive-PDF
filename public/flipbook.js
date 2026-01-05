@@ -1084,36 +1084,87 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             const thumbnailUrl = element.thumbnailUrl || element.poster || element.imagePath;
             
             if (thumbnailUrl) {
+                // Create wrapper for thumbnail + play button overlay
+                const videoWrapper = $('<div>').css({
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                });
+                
+                // Thumbnail image
                 const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
-                    cursor: 'pointer',
+                    display: 'block'
+                });
+                
+                // Play button overlay (matching editor style)
+                const playOverlay = $('<div>').css({
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0, 0, 0, 0.4)',
                     borderRadius: '8px',
+                    transition: 'background 0.2s'
+                });
+                
+                const playButton = $('<div>').css({
+                    width: '64px',
+                    height: '64px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     transition: 'transform 0.2s'
-                }).hover(
-                    function() { $(this).css('transform', 'scale(1.05)'); },
-                    function() { $(this).css('transform', 'scale(1)'); }
+                }).html('<i class="fas fa-play" style="color: #667eea; font-size: 24px; margin-left: 4px;"></i>');
+                
+                playOverlay.append(playButton);
+                videoWrapper.append(thumbnail, playOverlay);
+                
+                // Hover effects
+                videoWrapper.hover(
+                    function() { 
+                        playOverlay.css('background', 'rgba(0, 0, 0, 0.5)');
+                        playButton.css('transform', 'scale(1.1)');
+                    },
+                    function() { 
+                        playOverlay.css('background', 'rgba(0, 0, 0, 0.4)');
+                        playButton.css('transform', 'scale(1)');
+                    }
                 );
                 
-                thumbnail.on('click', function(e) {
+                // Click handler
+                videoWrapper.on('click', function(e) {
                     e.stopPropagation();
                     e.preventDefault();
                     console.log('Video element clicked:', element);
                     playVideo(element);
                 });
                 
-                elementDiv.append(thumbnail);
+                elementDiv.append(videoWrapper);
             } else {
-                // No thumbnail - make the element itself clickable
+                // No thumbnail - make the element itself clickable with play icon
                 elementDiv.css({
                     background: 'rgba(102, 126, 234, 0.2)',
                     border: '2px solid rgba(102, 126, 234, 0.5)',
-                    borderRadius: '8px'
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                 }).hover(
                     function() { $(this).css('background', 'rgba(102, 126, 234, 0.3)'); },
                     function() { $(this).css('background', 'rgba(102, 126, 234, 0.2)'); }
-                );
+                ).html('<i class="fas fa-play-circle" style="color: #667eea; font-size: 48px;"></i>');
                 
                 elementDiv.on('click', function(e) {
                     e.stopPropagation();
