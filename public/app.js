@@ -780,7 +780,15 @@ function renderAssetLibrary() {
     });
 }
 
-// ...
+function deleteAsset(assetId) {
+    assets = assets.filter(a => a.id !== assetId);
+    renderAssetLibrary();
+    showStatus('Asset deleted', 'info');
+}
+
+function startAssetDrag(e, asset) {
+    e.dataTransfer.setData('asset', JSON.stringify(asset));
+}
 
 function addAssetToPage(asset) {
     let width, height;
@@ -2067,6 +2075,122 @@ setTimeout(() => {
     document.getElementById('assetLibrary').style.maxHeight = '500px';
     renderPageElements(); // Initialize element container
 }, 100);
+
+// ============================================
+// 3C BUTTONS AND EMOJIS
+// ============================================
+
+function add3CButton(buttonType) {
+    const url = prompt('Enter URL for this 3C button:');
+    if (!url) return;
+    
+    const buttonImages = {
+        'generic': '/3C Buttons/3C Web Buttons - Generic.png',
+        'clubhouse': '/3C Buttons/3C Web Buttons - Clubhouse.png',
+        'training': '/3C Buttons/3C Web Buttons - Training.png',
+        'reframe': '/3C Buttons/3C Web Buttons - Reframe.png'
+    };
+    
+    const buttonNames = {
+        'generic': '3C Generic',
+        'clubhouse': '3C ClubHouse',
+        'training': '3C Training',
+        'reframe': '3C Reframe'
+    };
+    
+    const imagePath = buttonImages[buttonType];
+    const buttonName = buttonNames[buttonType];
+    
+    const asset = {
+        id: Date.now(),
+        type: '3c-button',
+        url: url,
+        imagePath: imagePath,
+        name: buttonName,
+        thumbnail: imagePath,
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ ${buttonName} added with URL`, 'success');
+}
+
+function add3CEmoji(emojiType) {
+    const url = prompt('Enter URL for this 3C emoji badge (optional - leave empty for decoration only):');
+    
+    const emojiImages = {
+        'clubhouse': '/3C Buttons/Emoji/3C Emoji - ClubHouse.png',
+        'training': '/3C Buttons/Emoji/3C Emoji - Training.png',
+        'diamond': '/3C Buttons/Emoji/3C Emoji - Diamond.png'
+    };
+    
+    const emojiNames = {
+        'clubhouse': '3C ClubHouse Badge',
+        'training': '3C Training Badge',
+        'diamond': '3C Diamond Badge'
+    };
+    
+    const imagePath = emojiImages[emojiType];
+    const emojiName = emojiNames[emojiType];
+    
+    const asset = {
+        id: Date.now(),
+        type: url ? '3c-emoji' : '3c-emoji-decoration',
+        url: url || null,
+        imagePath: imagePath,
+        name: emojiName,
+        thumbnail: imagePath,
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ ${emojiName} added${url ? ' with URL' : ' as decoration'}`, 'success');
+}
+
+function addButton() {
+    const url = prompt('Enter URL for button:');
+    if (!url) return;
+    
+    const text = prompt('Enter button text:', 'Click Me');
+    if (!text) return;
+    
+    const asset = {
+        id: Date.now(),
+        type: 'button',
+        url: url,
+        text: text,
+        name: `Button: ${text}`,
+        thumbnail: 'fas fa-hand-pointer text-indigo-500',
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ Button "${text}" added`, 'success');
+}
+
+function addHotspot() {
+    const url = prompt('Enter URL for hotspot:');
+    if (!url) return;
+    
+    const label = prompt('Enter hotspot label (optional):', '');
+    
+    const asset = {
+        id: Date.now(),
+        type: 'hotspot',
+        url: url,
+        text: label || url,
+        name: label || 'Hotspot',
+        thumbnail: 'fas fa-mouse-pointer text-orange-500',
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ Hotspot added`, 'success');
+}
 
 // ============================================
 // CUSTOM 3C BUTTON/EMOJI UPLOAD
