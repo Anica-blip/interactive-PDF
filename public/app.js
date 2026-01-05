@@ -614,6 +614,8 @@ function renderPageElements() {
         '3c-button': '3C Button',
         '3c-emoji': '3C Emoji',
         '3c-emoji-decoration': '3C Decoration',
+        '3c-custom': '3C Custom',
+        '3c-custom-decoration': '3C Custom Decoration',
         'button': 'Button',
         'hotspot': 'Hotspot'
     };
@@ -627,6 +629,8 @@ function renderPageElements() {
         '3c-button': 'fas fa-star text-blue-500',
         '3c-emoji': 'fas fa-smile text-purple-500',
         '3c-emoji-decoration': 'fas fa-smile text-purple-500',
+        '3c-custom': 'fas fa-star text-orange-500',
+        '3c-custom-decoration': 'fas fa-smile text-orange-500',
         'button': 'fas fa-hand-pointer text-indigo-500',
         'hotspot': 'fas fa-mouse-pointer text-orange-500'
     };
@@ -648,7 +652,7 @@ function renderPageElements() {
         } else if (element.type === 'hotspot' && element.text && !element.text.includes('http')) {
             // Hotspot with custom label
             displayName = element.text;
-        } else if (element.type === '3c-button' || element.type === '3c-emoji') {
+        } else if (element.type === '3c-button' || element.type === '3c-emoji' || element.type === '3c-custom' || element.type === '3c-custom-decoration') {
             // 3C assets - use their name if available
             displayName = element.text || typeLabel;
         } else {
@@ -681,433 +685,7 @@ function renderPageElements() {
     });
 }
 
-function updatePageCounter() {
-    document.getElementById('currentPageNum').textContent = currentPageIndex + 1;
-    document.getElementById('totalPages').textContent = pages.length;
-}
-
-function updateAllPageSizes() {
-    renderPages();
-}
-
-// ============================================
-// THUMBNAIL DROPDOWN & PAGE ACTIONS
-// ============================================
-
-function toggleThumbDropdown(pageIndex) {
-    const dropdown = document.getElementById(`dropdown-${pageIndex}`);
-    if (!dropdown) return;
-    
-    // Close all other dropdowns
-    document.querySelectorAll('.thumb-dropdown-menu').forEach(menu => {
-        if (menu !== dropdown) {
-            menu.classList.remove('active');
-        }
-    });
-    
-    dropdown.classList.toggle('active');
-    
-    // Close dropdown when clicking outside
-    if (dropdown.classList.contains('active')) {
-        setTimeout(() => {
-            document.addEventListener('click', function closeDropdown(e) {
-                if (!e.target.closest('.thumb-dropdown')) {
-                    dropdown.classList.remove('active');
-                    document.removeEventListener('click', closeDropdown);
-                }
-            });
-        }, 10);
-    }
-}
-
-function duplicatePage(pageIndex) {
-    const originalPage = pages[pageIndex];
-    const newPage = {
-        id: Date.now(),
-        pageNumber: pageIndex + 2,
-        background: originalPage.background,
-        backgroundData: originalPage.backgroundData,
-        elements: originalPage.elements.map(el => ({
-            ...el,
-            id: Date.now() + Math.random()
-        }))
-    };
-    
-    pages.splice(pageIndex + 1, 0, newPage);
-    
-    // Renumber all pages after insertion
-    for (let i = pageIndex + 2; i < pages.length; i++) {
-        pages[i].pageNumber = i + 1;
-    }
-    
-    currentPageIndex = pageIndex + 1;
-    
-    renderPages();
-    renderPageThumbnails();
-    renderPageElements();
-    updatePageCounter();
-    
-    showStatus(`✅ Page ${pageIndex + 1} duplicated`, 'success');
-    
-    // Close dropdown
-    document.querySelectorAll('.thumb-dropdown-menu').forEach(menu => {
-        menu.classList.remove('active');
-    });
-}
-
-// ============================================
-// SETTINGS SIDEBAR
-// ============================================
-
-function openSettingsSidebar() {
-    document.getElementById('settingsSidebar').classList.add('active');
-    document.getElementById('settingsOverlay').classList.add('active');
-}
-
-function closeSettingsSidebar() {
-    document.getElementById('settingsSidebar').classList.remove('active');
-    document.getElementById('settingsOverlay').classList.remove('active');
-}
-
-// ============================================
-// PAGE REORDERING
-// ============================================
-
-function movePageUp(pageIndex) {
-    if (pageIndex === 0) return; // Already at top
-    
-    // Swap pages
-    [pages[pageIndex - 1], pages[pageIndex]] = [pages[pageIndex], pages[pageIndex - 1]];
-    
-    // Update pageNumber for both swapped pages
-    pages[pageIndex - 1].pageNumber = pageIndex;
-    pages[pageIndex].pageNumber = pageIndex + 1;
-    
-    // Update current page index if needed
-    if (currentPageIndex === pageIndex) {
-        currentPageIndex = pageIndex - 1;
-    } else if (currentPageIndex === pageIndex - 1) {
-        currentPageIndex = pageIndex;
-    }
-    
-    renderPages();
-    renderPageThumbnails();
-    renderPageElements();
-    showStatus('✅ Page moved up', 'success');
-}
-
-function movePageDown(pageIndex) {
-    if (pageIndex === pages.length - 1) return; // Already at bottom
-    
-    // Swap pages
-    [pages[pageIndex], pages[pageIndex + 1]] = [pages[pageIndex + 1], pages[pageIndex]];
-    
-    // Update pageNumber for both swapped pages
-    pages[pageIndex].pageNumber = pageIndex + 1;
-    pages[pageIndex + 1].pageNumber = pageIndex + 2;
-    
-    // Update current page index if needed
-    if (currentPageIndex === pageIndex) {
-        currentPageIndex = pageIndex + 1;
-    } else if (currentPageIndex === pageIndex + 1) {
-        currentPageIndex = pageIndex;
-    }
-    
-    renderPages();
-    renderPageThumbnails();
-    renderPageElements();
-    showStatus('✅ Page moved down', 'success');
-}
-
-// ============================================
-// BACKGROUND UPLOAD
-// ============================================
-
-async function handleBackgroundUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (!file.type.match('image/(png|jpeg|jpg)')) {
-        showStatus('⚠️ Please upload a PNG or JPG image', 'warning');
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const currentPage = pages[currentPageIndex];
-        currentPage.background = file.name;
-        currentPage.backgroundData = e.target.result;
-        
-        renderPages();
-        renderPageThumbnails();
-        
-        document.getElementById('backgroundInfo').classList.remove('hidden');
-        showStatus(`✅ Background set for page ${currentPageIndex + 1}`, 'success');
-    };
-    reader.readAsDataURL(file);
-    
-    // Reset input
-    event.target.value = '';
-}
-
-// ============================================
-// ASSET LIBRARY
-// ============================================
-
-// Add media from URL
-function addMediaFromURL() {
-    const urlInput = document.getElementById('mediaUrl');
-    const url = urlInput.value.trim();
-    
-    if (!url) {
-        showStatus('⚠️ Please enter a URL', 'warning');
-        return;
-    }
-    
-    // Detect media type from URL
-    let type = 'link';
-    let iframeUrl = null;
-    let videoId = null;
-    
-    // Check for YouTube URLs
-    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-    if (youtubeMatch) {
-        type = 'video';
-        videoId = youtubeMatch[1];
-        iframeUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-    }
-    
-    // Check for Vimeo URLs
-    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) {
-        type = 'video';
-        videoId = vimeoMatch[1];
-        iframeUrl = `https://player.vimeo.com/video/${videoId}?autoplay=1`;
-    }
-    
-    // Check for file extensions
-    if (!iframeUrl) {
-        if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-            type = 'image';
-        } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
-            type = 'video';
-        } else if (url.match(/\.(mp3|wav|ogg|m4a)$/i)) {
-            type = 'audio';
-        }
-    }
-    
-    const fileName = url.split('/').pop().split('?')[0] || (iframeUrl ? `${type.charAt(0).toUpperCase() + type.slice(1)} from URL` : 'Media');
-    
-    const asset = {
-        id: Date.now(),
-        type: type,
-        url: url,
-        iframeUrl: iframeUrl, // For YouTube/Vimeo embeds
-        videoId: videoId,
-        name: fileName,
-        thumbnail: type === 'image' ? url : getAssetThumbnail(type, url),
-        embedded: embeddedMode || !!iframeUrl // YouTube/Vimeo are always embedded in popup
-    };
-    
-    assets.push(asset);
-    renderAssetLibrary();
-    urlInput.value = ''; // Clear input
-    
-    const modeText = iframeUrl ? ' (will play in popup)' : (embeddedMode ? ' (embedded)' : ' (link)');
-    showStatus(`✅ ${type} added from URL${modeText}`, 'success');
-}
-
-// Upload media file
-function uploadMediaFile(type) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = getAcceptType(type);
-    input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        showStatus(`📤 Uploading ${file.name} to Cloudflare...`, 'info');
-        
-        try {
-            // Upload video to Cloudflare Stream
-            if (type === 'video') {
-                const streamData = await uploadToStream(file);
-                const asset = {
-                    id: Date.now(),
-                    type: 'video',
-                    streamId: streamData.videoId,
-                    url: streamData.iframeUrl,
-                    thumbnailUrl: streamData.thumbnailUrl,
-                    name: file.name,
-                    thumbnail: streamData.thumbnailUrl,
-                    embedded: true // Stream videos are always embedded
-                };
-                
-                assets.push(asset);
-                renderAssetLibrary();
-                showStatus(`✅ ${file.name} uploaded to Cloudflare Stream!`, 'success');
-            } else {
-                // For images and audio, upload to R2
-                const r2Data = await uploadToR2(file, type);
-                const asset = {
-                    id: Date.now(),
-                    type: type,
-                    url: r2Data.url,
-                    name: file.name,
-                    thumbnail: type === 'image' ? r2Data.url : getAssetThumbnail(type),
-                    embedded: embeddedMode
-                };
-                
-                assets.push(asset);
-                renderAssetLibrary();
-                showStatus(`✅ ${file.name} uploaded to R2!`, 'success');
-            }
-        } catch (error) {
-            console.error('Upload failed:', error);
-            showStatus(`❌ Upload failed: ${error.message}`, 'error');
-        }
-    };
-    input.click();
-}
-
-// Add 3C button (branded button with image)
-function add3CButton(buttonType) {
-    const url = prompt('Enter URL for this 3C button:');
-    if (!url) return;
-    
-    // Map button types to their image files
-    const buttonImages = {
-        'generic': '/3C Buttons/3C Web Buttons - Generic.png',
-        'clubhouse': '/3C Buttons/3C Web Buttons - ClubHouse.png',
-        'training': '/3C Buttons/3C Web Buttons - Trainning.png',
-        'reframe': '/3C Buttons/3C Web Buttons - Reframe.png'
-    };
-    
-    const buttonNames = {
-        'generic': '3C Generic',
-        'clubhouse': '3C ClubHouse',
-        'training': '3C Training',
-        'reframe': '3C Reframe'
-    };
-    
-    const imagePath = buttonImages[buttonType];
-    const buttonName = buttonNames[buttonType];
-    
-    const asset = {
-        id: Date.now(),
-        type: '3c-button',
-        url: url,
-        imagePath: imagePath,
-        name: buttonName,
-        thumbnail: imagePath,
-        embedded: false
-    };
-    
-    assets.push(asset);
-    renderAssetLibrary();
-    showStatus(`✅ ${buttonName} added with URL`, 'success');
-}
-
-// Add 3C emoji badge (circular emoji badges)
-function add3CEmoji(emojiType) {
-    const url = prompt('Enter URL for this 3C emoji badge (optional - leave empty for decoration only):');
-    
-    // Map emoji types to their image files
-    const emojiImages = {
-        'clubhouse': '/3C Buttons/Emoji/3C Emoji - ClubHouse.png',
-        'training': '/3C Buttons/Emoji/3C Emoji - Training.png',
-        'diamond': '/3C Buttons/Emoji/3C Emoji - Diamond.png'
-    };
-    
-    const emojiNames = {
-        'clubhouse': '3C ClubHouse Badge',
-        'training': '3C Training Badge',
-        'diamond': '3C Diamond Badge'
-    };
-    
-    const imagePath = emojiImages[emojiType];
-    const emojiName = emojiNames[emojiType];
-    
-    const asset = {
-        id: Date.now(),
-        type: url ? '3c-emoji' : '3c-emoji-decoration',
-        url: url || null,
-        imagePath: imagePath,
-        name: emojiName,
-        thumbnail: imagePath,
-        embedded: false
-    };
-    
-    assets.push(asset);
-    renderAssetLibrary();
-    showStatus(`✅ ${emojiName} added${url ? ' with URL' : ' as decoration'}`, 'success');
-}
-
-// Add button (interactive element)
-function addButton() {
-    const url = prompt('Enter URL for button:');
-    if (!url) return;
-    
-    const text = prompt('Enter button text:') || 'Click Here';
-    
-    const asset = {
-        id: Date.now(),
-        type: 'button',
-        url: url,
-        name: text,
-        thumbnail: getAssetThumbnail('button', url),
-        embedded: false // Buttons are always links
-    };
-    
-    assets.push(asset);
-    renderAssetLibrary();
-    showStatus(`✅ Button added`, 'success');
-}
-
-// Add hotspot (interactive element)
-function addHotspot() {
-    const url = prompt('Enter URL for hotspot:');
-    if (!url) return;
-    
-    const text = prompt('Enter hotspot name (for reference):') || 'Hotspot';
-    
-    const asset = {
-        id: Date.now(),
-        type: 'hotspot',
-        url: url,
-        name: text,
-        thumbnail: getAssetThumbnail('hotspot', url),
-        embedded: false // Hotspots are always links
-    };
-    
-    assets.push(asset);
-    renderAssetLibrary();
-    showStatus(`✅ Hotspot added`, 'success');
-}
-
-function getAcceptType(type) {
-    const accepts = {
-        video: 'video/*',
-        audio: 'audio/*',
-        image: 'image/*',
-        gif: 'image/gif,image/*',
-        link: '*'
-    };
-    return accepts[type] || '*';
-}
-
-function getAssetThumbnail(type, url) {
-    // For URLs, we'll show icons. For uploaded files, we'll show the actual file
-    const icons = {
-        button: 'fas fa-hand-pointer text-indigo-500',
-        hotspot: 'fas fa-mouse-pointer text-orange-500',
-        video: 'fas fa-video text-red-500',
-        audio: 'fas fa-music text-blue-500',
-        gif: 'fas fa-image text-purple-500',
-        link: 'fas fa-link text-green-500'
-    };
-    return icons[type] || 'fas fa-file';
-}
+// ...
 
 function renderAssetLibrary() {
     const grid = document.getElementById('assetGrid');
@@ -1129,6 +707,8 @@ function renderAssetLibrary() {
         '3c-button': '3C Button',
         '3c-emoji': '3C Emoji',
         '3c-emoji-decoration': '3C Decoration',
+        '3c-custom': '3C Custom',
+        '3c-custom-decoration': '3C Custom Decoration',
         'button': 'Button',
         'hotspot': 'Hotspot'
     };
@@ -1143,13 +723,13 @@ function renderAssetLibrary() {
         const typeLabel = typeLabels[asset.type] || asset.type.toUpperCase();
         
         // Show image thumbnail for 3C buttons, emojis, and images
-        if (asset.type === '3c-button') {
+        if (asset.type === '3c-button' || asset.type === '3c-custom') {
             assetDiv.innerHTML = `
                 <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded mb-1">
                 <p class="text-xs font-medium text-blue-700 truncate">${asset.name}</p>
                 <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
-        } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
+        } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration' || asset.type === '3c-custom-decoration') {
             assetDiv.innerHTML = `
                 <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded-full mb-1">
                 <p class="text-xs font-medium text-purple-700 truncate">${asset.name}</p>
@@ -1189,24 +769,16 @@ function renderAssetLibrary() {
     });
 }
 
-function deleteAsset(assetId) {
-    assets = assets.filter(a => a.id !== assetId);
-    renderAssetLibrary();
-    showStatus('Asset deleted', 'info');
-}
-
-function startAssetDrag(e, asset) {
-    e.dataTransfer.setData('asset', JSON.stringify(asset));
-}
+// ...
 
 function addAssetToPage(asset) {
     let width, height;
     
     // Set default sizes based on type
-    if (asset.type === '3c-button') {
+    if (asset.type === '3c-button' || asset.type === '3c-custom') {
         width = 200;
         height = 80;
-    } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
+    } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration' || asset.type === '3c-custom-decoration') {
         width = 120;
         height = 120;
     } else if (asset.type === 'button') {
@@ -1320,10 +892,11 @@ function createElementDiv(element) {
     // Element content
     const icon = getAssetThumbnail(element.type, element.url);
     
-    if (element.type === '3c-button') {
-        // 3C Button with image
+    if (element.type === '3c-button' || element.type === '3c-custom') {
+        // 3C Button with image (includes custom uploaded buttons)
         const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
         const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
+        const title = element.url ? `${element.text} → ${element.url}` : element.text;
         div.innerHTML = `
             <div class="element-controls">
                 <button onclick="toggleLockElement(${element.id})" class="${lockColor} text-white px-2 py-1 rounded text-xs" title="${element.locked ? 'Unlock' : 'Lock'} element">
@@ -1333,14 +906,14 @@ function createElementDiv(element) {
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-            <img src="${element.imagePath}" class="w-full h-full object-contain cursor-pointer" title="${element.text} → ${element.url}">
+            <img src="${element.imagePath}" class="w-full h-full object-contain cursor-pointer" title="${title}">
             <div class="resize-handle"></div>
         `;
         if (element.locked) {
             div.classList.add('locked');
             div.style.cursor = 'not-allowed';
         }
-    } else if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
+    } else if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration' || element.type === '3c-custom-decoration') {
         // 3C Emoji Badge (circular)
         const title = element.url ? `${element.text} → ${element.url}` : element.text;
         const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';

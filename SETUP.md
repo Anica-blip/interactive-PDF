@@ -234,7 +234,26 @@ git push origin main
 
 ## ⚠️ Important Notes
 
-### Latest Update (December 2, 2025)
+### Latest Update (January 5, 2026)
+
+**Fixed: Custom 3C Button/Emoji Image Display**
+- **Issue:** Custom uploaded buttons/emojis (via "Upload Custom 3C Assets") were not displaying images in editor or flipbook viewer
+- **Root Cause:** Element rendering code only checked for predefined types (`'3c-button'`, `'3c-emoji'`, `'3c-emoji-decoration'`) but not custom types (`'3c-custom'`, `'3c-custom-decoration'`)
+- **Solution:** Added support for custom 3C types in:
+  - `app.js` - Editor element rendering (`createElementDiv` function)
+  - `app.js` - Asset library rendering
+  - `app.js` - Type labels and icons mapping
+  - `flipbook.js` - Viewer element rendering
+- **Result:** Custom uploaded images now display correctly with full functionality (image display, URL linking, hover effects)
+
+**How it works:**
+- Upload custom button/emoji → Creates asset with type `'3c-custom'` or `'3c-custom-decoration'`
+- Asset stores image as base64 data URL in `imagePath` property
+- Rendering code now checks for both predefined AND custom types
+- Images display in editor, asset library, and flipbook viewer
+- URL functionality works identically to predefined 3C buttons
+
+### Previous Update (December 2, 2025)
 
 **Fixed:**
 - Element dragging now works in all directions (removed constraints)
@@ -318,4 +337,4 @@ git push origin main
 
 ---
 
-**Last Updated:** December 2, 2025
+**Last Updated:** January 5, 2026

@@ -970,25 +970,31 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         });
         
         // Handle different element types
-        if (element.type === '3c-button' && element.imagePath) {
-            // 3C Button with image
+        if ((element.type === '3c-button' || element.type === '3c-custom' || element.type === '3c-emoji' || element.type === '3c-emoji-decoration' || element.type === '3c-custom-decoration') && element.imagePath) {
+            // 3C Button/Emoji with image (includes custom uploaded assets)
+            const isEmoji = element.type === '3c-emoji' || element.type === '3c-emoji-decoration' || element.type === '3c-custom-decoration';
+            
             const img = $('<img>').attr('src', element.imagePath).css({
                 width: '100%',
                 height: '100%',
                 objectFit: 'contain',
-                cursor: 'pointer',
-                transition: 'transform 0.2s'
-            }).hover(
-                function() { $(this).css('transform', 'scale(1.05)'); },
-                function() { $(this).css('transform', 'scale(1)'); }
-            );
+                cursor: element.url ? 'pointer' : 'default',
+                transition: 'transform 0.2s',
+                borderRadius: isEmoji ? '50%' : '0'
+            });
             
-            img.on('click', function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                try {
-                    console.log('3C Button clicked:', element.text, '| URL:', element.url);
-                    if (element.url) {
+            // Add hover effect only if there's a URL
+            if (element.url) {
+                img.hover(
+                    function() { $(this).css('transform', 'scale(1.05)'); },
+                    function() { $(this).css('transform', 'scale(1)'); }
+                );
+                
+                img.on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    try {
+                        console.log('3C Asset clicked:', element.text, '| URL:', element.url);
                         // Check if it's a video URL - use overlay popup
                         if (isVideoUrl(element.url)) {
                             console.log('Video URL detected - opening in overlay:', element.url);
@@ -1004,11 +1010,11 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                                 console.log('Popup opened successfully');
                             }
                         }
+                    } catch (error) {
+                        console.error('❌ Error handling asset click:', error);
                     }
-                } catch (error) {
-                    console.error('❌ Error handling button click:', error);
-                }
-            });
+                });
+            }
             
             elementDiv.append(img);
         } else if (element.type === 'button') {
