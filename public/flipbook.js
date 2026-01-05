@@ -241,7 +241,8 @@ async function initFromManifest(manifestData) {
             const pageB = parseInt(b.pageNumber) || 0;
             return pageA - pageB;
         });
-        console.log('Pages sorted by pageNumber:', manifest.pages.map(p => p.pageNumber || '?').join(', '));
+        console.log('✅ Pages sorted in correct order:', manifest.pages.map(p => p.pageNumber || '?').join(', '));
+        console.log('✅ First page will be:', manifest.pages[0].pageNumber || 1);
     }
     
     totalPages = manifest.pages.length;
@@ -486,6 +487,7 @@ function initFlipbook() {
         acceleration: true,
         duration: 1000,
         pages: totalPages,
+        page: 1, // ALWAYS start on page 1
         when: {
             turning: function(event, page, view) {
                 try {
@@ -504,21 +506,21 @@ function initFlipbook() {
                 } catch (error) {
                     console.error('Error after page turn:', error);
                 }
-            },
-            start: function(event, pageObject, corner) {
-                // Prevent turn if element is being clicked
-                if ($(event.target).closest('.interactive-element').length > 0) {
-                    event.preventDefault();
-                    return false;
-                }
             }
         }
     });
     
     flipbookInitialized = true;
-    updatePageInfo();
     
-    console.log('Flipbook initialized at', Math.round(scale * 100) + '% zoom');
+    // Force set to page 1 after initialization
+    currentPage = 1;
+    setTimeout(() => {
+        $('#flipbook').turn('page', 1);
+        updatePageInfo();
+        console.log('✅ Flipbook locked to page 1 on load');
+    }, 100);
+    
+    console.log('Flipbook initialized at', Math.round(scale * 100) + '% zoom with', totalPages, 'pages');
 }
 
 /**
@@ -784,18 +786,28 @@ function closeVideo() {
 function setupEventListeners() {
     // Navigation buttons
     $('#first-page').on('click', () => {
+        console.log('First page clicked - going to page 1');
         $('#flipbook').turn('page', 1);
     });
     
     $('#prev-page').on('click', () => {
-        $('#flipbook').turn('previous');
+        const current = $('#flipbook').turn('page');
+        console.log('Previous clicked - current:', current, 'going to:', current - 1);
+        if (current > 1) {
+            $('#flipbook').turn('page', current - 1);
+        }
     });
     
     $('#next-page').on('click', () => {
-        $('#flipbook').turn('next');
+        const current = $('#flipbook').turn('page');
+        console.log('Next clicked - current:', current, 'going to:', current + 1);
+        if (current < totalPages) {
+            $('#flipbook').turn('page', current + 1);
+        }
     });
     
     $('#last-page').on('click', () => {
+        console.log('Last page clicked - going to page', totalPages);
         $('#flipbook').turn('page', totalPages);
     });
     
@@ -827,9 +839,15 @@ function setupEventListeners() {
     // Keyboard shortcuts
     $(document).on('keydown', (e) => {
         if (e.key === 'ArrowLeft') {
-            $('#flipbook').turn('previous');
+            const current = $('#flipbook').turn('page');
+            if (current > 1) {
+                $('#flipbook').turn('page', current - 1);
+            }
         } else if (e.key === 'ArrowRight') {
-            $('#flipbook').turn('next');
+            const current = $('#flipbook').turn('page');
+            if (current < totalPages) {
+                $('#flipbook').turn('page', current + 1);
+            }
         } else if (e.key === 'Home') {
             $('#flipbook').turn('page', 1);
         } else if (e.key === 'End') {
@@ -1062,59 +1080,120 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
-            // Video element - directly clickable (no overlay play button)
-            const thumbnailUrl = element.thumbnailUrl || element.poster || 'https://via.placeholder.com/400x300/667eea/ffffff?text=Video';
+            // Video element - directly clickable using the element's own image/thumbnail
+            const thumbnailUrl = element.thumbnailUrl || element.poster || element.imagePath;
             
-            const videoContainer = $('<div></div>').css({
-                width: '100%',
-                height: '100%',
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: '8px',
-                background: 'rgba(0, 0, 0, 0.3)',
-                cursor: 'pointer',
-                transition: 'transform 0.2s'
-            });
+            if (thumbnailUrl) {
+                const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'transform 0.2s'
+                }).hover(
+                    function() { $(this).css('transform', 'scale(1.05)'); },
+                    function() { $(this).css('transform', 'scale(1)'); }
+                );
+                
+                thumbnail.on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Video element clicked:', element);
+                    playVideo(element);
+                });
+                
+                elementDiv.append(thumbnail);
+            } else {
+                // No thumbnail - make the element itself clickable
+                elementDiv.css({
+                    background: 'rgba(102, 126, 234, 0.2)',
+                    border: '2px solid rgba(102, 126, 234, 0.5)',
+                    borderRadius: '8px'
+                }).hover(
+                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.3)'); },
+                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.2)'); }
+                );
+                
+                elementDiv.on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Video element clicked:', element);
+                    playVideo(element);
+                });
+            }
+        } else if (element.type === 'audio') {
+            // Audio element - clickable with audio icon or thumbnail
+            const thumbnailUrl = element.thumbnailUrl || element.imagePath;
             
-            const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-            });
+            if (thumbnailUrl) {
+                const thumbnail = $('<img>').attr('src', thumbnailUrl).css({
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'transform 0.2s'
+                }).hover(
+                    function() { $(this).css('transform', 'scale(1.05)'); },
+                    function() { $(this).css('transform', 'scale(1)'); }
+                );
+                
+                thumbnail.on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Audio element clicked:', element);
+                    playAudio(element);
+                });
+                
+                elementDiv.append(thumbnail);
+            } else {
+                // No thumbnail - show audio icon
+                elementDiv.css({
+                    background: 'rgba(102, 126, 234, 0.2)',
+                    border: '2px solid rgba(102, 126, 234, 0.5)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }).hover(
+                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.3)'); },
+                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.2)'); }
+                ).html('<i class="fas fa-volume-up" style="color: #667eea; font-size: 24px;"></i>');
+                
+                elementDiv.on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Audio element clicked:', element);
+                    playAudio(element);
+                });
+            }
+        } else if (element.type === 'gif') {
+            // GIF element - clickable animated image
+            const gifUrl = element.mediaUrl || element.url || element.imagePath;
             
-            // Play button - visible
-            const playBtn = $('<div></div>').css({
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '64px',
-                height: '64px',
-                background: 'rgba(255, 255, 255, 0.9)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }).html('<i class="fas fa-play" style="color: #764ba2; font-size: 24px; margin-left: 4px;"></i>');
-            
-            videoContainer.append(thumbnail);
-            videoContainer.append(playBtn);
-            
-            // Direct click to play video
-            videoContainer.on('click', function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log('playVideo called with:', element);
-                console.log('   - Type:', element.type);
-                console.log('   - URL:', element.url);
-                console.log('   - VideoURL:', element.videoUrl);
-                console.log('   - MediaURL:', element.mediaUrl);
-                console.log('   - StreamID:', element.streamId);
-                console.log('   - IframeURL:', element.iframeUrl);
-                playVideo(element);
-            });
-            
-            elementDiv.append(videoContainer);
+            if (gifUrl) {
+                const gifImg = $('<img>').attr('src', gifUrl).css({
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'transform 0.2s'
+                }).hover(
+                    function() { $(this).css('transform', 'scale(1.05)'); },
+                    function() { $(this).css('transform', 'scale(1)'); }
+                );
+                
+                gifImg.on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('GIF element clicked:', element);
+                    showGif(element);
+                });
+                
+                elementDiv.append(gifImg);
+            }
         }
         
         pageDiv.append(elementDiv);

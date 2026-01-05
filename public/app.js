@@ -1423,7 +1423,7 @@ function createElementDiv(element) {
             <div class="relative w-full h-full">
                 <img src="${thumbnailUrl}" class="w-full h-full object-cover rounded">
                 <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded">
-                    <div class="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center">
                         <i class="fas fa-play text-purple-600 text-2xl ml-1"></i>
                     </div>
                 </div>
