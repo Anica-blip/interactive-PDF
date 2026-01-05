@@ -2498,3 +2498,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-test on load
     testSupabaseConnectionStatus();
 });
+
+// ============================================
+// SETTINGS SIDEBAR
+// ============================================
+
+function openSettingsSidebar() {
+    const sidebar = document.getElementById('settingsSidebar');
+    const overlay = document.getElementById('settingsOverlay');
+    
+    if (sidebar) sidebar.classList.add('active');
+    if (overlay) overlay.classList.add('active');
+}
+
+function closeSettingsSidebar() {
+    const sidebar = document.getElementById('settingsSidebar');
+    const overlay = document.getElementById('settingsOverlay');
+    
+    if (sidebar) sidebar.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+}
