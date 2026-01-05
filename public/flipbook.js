@@ -970,31 +970,25 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         });
         
         // Handle different element types
-        if ((element.type === '3c-button' || element.type === '3c-custom' || element.type === '3c-emoji' || element.type === '3c-emoji-decoration' || element.type === '3c-custom-decoration') && element.imagePath) {
-            // 3C Button/Emoji with image (includes custom uploaded assets)
-            const isEmoji = element.type === '3c-emoji' || element.type === '3c-emoji-decoration' || element.type === '3c-custom-decoration';
-            
+        if (element.type === '3c-button' && element.imagePath) {
+            // 3C Button with image
             const img = $('<img>').attr('src', element.imagePath).css({
                 width: '100%',
                 height: '100%',
                 objectFit: 'contain',
-                cursor: element.url ? 'pointer' : 'default',
-                transition: 'transform 0.2s',
-                borderRadius: isEmoji ? '50%' : '0'
-            });
+                cursor: 'pointer',
+                transition: 'transform 0.2s'
+            }).hover(
+                function() { $(this).css('transform', 'scale(1.05)'); },
+                function() { $(this).css('transform', 'scale(1)'); }
+            );
             
-            // Add hover effect only if there's a URL
-            if (element.url) {
-                img.hover(
-                    function() { $(this).css('transform', 'scale(1.05)'); },
-                    function() { $(this).css('transform', 'scale(1)'); }
-                );
-                
-                img.on('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    try {
-                        console.log('3C Asset clicked:', element.text, '| URL:', element.url);
+            img.on('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                try {
+                    console.log('3C Button clicked:', element.text, '| URL:', element.url);
+                    if (element.url) {
                         // Check if it's a video URL - use overlay popup
                         if (isVideoUrl(element.url)) {
                             console.log('Video URL detected - opening in overlay:', element.url);
@@ -1010,11 +1004,11 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                                 console.log('Popup opened successfully');
                             }
                         }
-                    } catch (error) {
-                        console.error('❌ Error handling asset click:', error);
                     }
-                });
-            }
+                } catch (error) {
+                    console.error('❌ Error handling button click:', error);
+                }
+            });
             
             elementDiv.append(img);
         } else if (element.type === 'button') {
@@ -1086,7 +1080,7 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }
             });
         } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
-            // Video element - use thumbnail if available
+            // Video element - directly clickable using the element's own image/thumbnail
             const thumbnailUrl = element.thumbnailUrl || element.poster || element.imagePath;
             
             if (thumbnailUrl) {
@@ -1111,18 +1105,15 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 
                 elementDiv.append(thumbnail);
             } else {
-                // No thumbnail - transparent element with play icon
+                // No thumbnail - make the element itself clickable
                 elementDiv.css({
-                    background: 'rgba(0, 0, 0, 0.4)',
+                    background: 'rgba(102, 126, 234, 0.2)',
                     border: '2px solid rgba(102, 126, 234, 0.5)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    borderRadius: '8px'
                 }).hover(
-                    function() { $(this).css('background', 'rgba(0, 0, 0, 0.5)'); },
-                    function() { $(this).css('background', 'rgba(0, 0, 0, 0.4)'); }
-                ).html('<i class="fas fa-play-circle" style="color: #ffffff; font-size: 48px;"></i>');
+                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.3)'); },
+                    function() { $(this).css('background', 'rgba(102, 126, 234, 0.2)'); }
+                );
                 
                 elementDiv.on('click', function(e) {
                     e.stopPropagation();
