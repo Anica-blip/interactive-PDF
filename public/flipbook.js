@@ -491,21 +491,36 @@ function initFlipbook() {
         when: {
             turning: function(event, page, view) {
                 try {
+                    // Validate page number is within bounds
+                    if (page < 1 || page > totalPages) {
+                        console.warn('⚠️ Invalid page number during turn:', page, '(valid: 1-' + totalPages + ')');
+                        return false; // Cancel invalid turn
+                    }
                     currentPage = page;
                     updatePageInfo();
                 } catch (error) {
                     console.error('Error during page turn:', error);
-                    return true; // Allow turn to continue
+                    return false; // Cancel turn on error
                 }
             },
             turned: function(event, page, view) {
                 try {
+                    // Validate page number is within bounds
+                    if (page < 1 || page > totalPages) {
+                        console.warn('⚠️ Invalid page number after turn:', page, '(valid: 1-' + totalPages + ')');
+                        return;
+                    }
                     currentPage = page;
                     updatePageInfo();
                     checkHotspots(page);
                 } catch (error) {
                     console.error('Error after page turn:', error);
                 }
+            },
+            missing: function(event, pages) {
+                // Handle missing pages gracefully
+                console.error('❌ Turn.js missing pages:', pages);
+                console.log('🔄 This may cause navigation issues. Use refresh button if needed.');
             }
         }
     });
@@ -787,7 +802,28 @@ function setupEventListeners() {
     // Navigation buttons
     $('#first-page').on('click', () => {
         console.log('First page clicked - going to page 1');
-        $('#flipbook').turn('page', 1);
+        // In double-page mode with large documents, turn.js can throw errors
+        // when jumping from end to beginning. Use try-catch and verify.
+        try {
+            const currentPage = $('#flipbook').turn('page');
+            console.log('   Current page before jump:', currentPage);
+            
+            $('#flipbook').turn('page', 1);
+            
+            // Double-check after a short delay
+            setTimeout(() => {
+                const actualPage = $('#flipbook').turn('page');
+                if (actualPage !== 1) {
+                    console.log('⚠️ Page mismatch detected, correcting:', actualPage, '→ 1');
+                    $('#flipbook').turn('page', 1);
+                }
+            }, 100);
+        } catch (error) {
+            console.error('❌ Error navigating to first page:', error);
+            console.log('🔄 Attempting to reload flipbook to fix navigation...');
+            // If navigation fails, reload the flipbook
+            reloadFlipbook();
+        }
     });
     
     $('#prev-page').on('click', () => {
