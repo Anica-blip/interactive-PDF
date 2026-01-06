@@ -1238,9 +1238,16 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 elementDiv.on('click', function(e) {
                     e.stopPropagation();
                     e.preventDefault();
-                    console.log('Video element clicked (no thumbnail):', element);
+                    console.log('✅ Video element clicked (no thumbnail):', element);
                     playVideo(element);
                 });
+                
+                // Test if element is actually clickable
+                elementDiv.on('mouseenter', function() {
+                    console.log('🖱️ Mouse entered video element (no thumbnail)');
+                });
+                
+                console.log('✅ Video element (no thumbnail) appended to page');
             }
         } else if (element.type === 'audio') {
             // Audio element - clickable with audio icon or thumbnail
