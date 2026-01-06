@@ -1154,6 +1154,8 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 elementDiv.append(videoWrapper);
             } else {
                 // No thumbnail - make the element itself clickable with play icon
+                console.log('🎬 Video without thumbnail - creating play icon');
+                
                 elementDiv.css({
                     background: 'rgba(102, 126, 234, 0.2)',
                     border: '2px solid rgba(102, 126, 234, 0.5)',
@@ -1164,12 +1166,21 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }).hover(
                     function() { $(this).css('background', 'rgba(102, 126, 234, 0.3)'); },
                     function() { $(this).css('background', 'rgba(102, 126, 234, 0.2)'); }
-                ).html('<i class="fas fa-play-circle" style="color: #667eea; font-size: 48px;"></i>');
+                );
                 
+                // Add play icon
+                const playIcon = $('<i class="fas fa-play-circle"></i>').css({
+                    color: '#667eea',
+                    fontSize: '48px',
+                    pointerEvents: 'none'  // Let clicks pass through to parent
+                });
+                elementDiv.append(playIcon);
+                
+                // Attach click handler
                 elementDiv.on('click', function(e) {
                     e.stopPropagation();
                     e.preventDefault();
-                    console.log('Video element clicked:', element);
+                    console.log('Video element clicked (no thumbnail):', element);
                     playVideo(element);
                 });
             }
