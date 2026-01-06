@@ -785,16 +785,35 @@ function showGif(hotspot) {
  * Close video overlay
  */
 function closeVideo() {
-    videoOverlay.classList.remove('active');
+    console.log('🔴 Closing video overlay - cleaning up all media');
     
+    // Stop all video and audio elements
     videoPlayerWrapper.querySelectorAll('video, audio').forEach(media => {
         media.pause();
         media.currentTime = 0;
+        media.src = ''; // Clear source to fully release
+        media.load(); // Reset media element
     });
     
-    setTimeout(() => {
-        videoPlayerWrapper.innerHTML = '';
-    }, 300);
+    // Remove all iframes (YouTube, Vimeo, Cloudflare Stream)
+    videoPlayerWrapper.querySelectorAll('iframe').forEach(iframe => {
+        iframe.src = 'about:blank'; // Clear iframe source
+        iframe.remove();
+    });
+    
+    // Remove Cloudflare Stream elements
+    videoPlayerWrapper.querySelectorAll('stream').forEach(stream => {
+        stream.remove();
+    });
+    
+    // Clear all content immediately
+    videoPlayerWrapper.innerHTML = '';
+    videoTitle.textContent = '';
+    
+    // Remove active class to hide overlay
+    videoOverlay.classList.remove('active');
+    
+    console.log('✅ Video overlay cleaned and closed - ready for next video');
 }
 
 /**

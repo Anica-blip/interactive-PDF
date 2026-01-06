@@ -217,7 +217,10 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 getProjectDB = async function(projectId) {
     const response = await fetch(`${DIRECT_API_URL}?id=eq.${projectId}&select=*`, {
         method: 'GET',
-        headers: getHeaders()
+        headers: {
+            ...getHeaders(),
+            'Accept-Encoding': 'gzip, deflate'
+        }
     });
 
     if (!response.ok) {
@@ -225,6 +228,7 @@ getProjectDB = async function(projectId) {
         throw new Error(`Failed to get project: ${error}`);
     }
 
+    // Stream response to avoid Content-Length issues with large projects
     const result = await response.json();
     return Array.isArray(result) && result.length > 0 ? result[0] : null;
 };
