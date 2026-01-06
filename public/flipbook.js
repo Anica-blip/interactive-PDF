@@ -1201,13 +1201,15 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                     }
                 );
                 
-                // Click handler
-                videoWrapper.on('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    console.log('Video element clicked:', element);
-                    playVideo(element);
-                });
+                // Click handler - capture element in closure for multiple videos
+                (function(capturedElement) {
+                    videoWrapper.on('click', function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        console.log('Video element clicked:', capturedElement);
+                        playVideo(capturedElement);
+                    });
+                })(element);
                 
                 elementDiv.append(videoWrapper);
             } else {
@@ -1234,18 +1236,20 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 });
                 elementDiv.append(playIcon);
                 
-                // Attach click handler
-                elementDiv.on('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    console.log('✅ Video element clicked (no thumbnail):', element);
-                    playVideo(element);
-                });
-                
-                // Test if element is actually clickable
-                elementDiv.on('mouseenter', function() {
-                    console.log('🖱️ Mouse entered video element (no thumbnail)');
-                });
+                // Attach click handler - capture element in closure for multiple videos
+                (function(capturedElement) {
+                    elementDiv.on('click', function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        console.log('✅ Video element clicked (no thumbnail):', capturedElement);
+                        playVideo(capturedElement);
+                    });
+                    
+                    // Test if element is actually clickable
+                    elementDiv.on('mouseenter', function() {
+                        console.log('🖱️ Mouse entered video element (no thumbnail)');  
+                    });
+                })(element);
                 
                 console.log('✅ Video element (no thumbnail) appended to page');
             }
