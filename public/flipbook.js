@@ -808,7 +808,27 @@ function setupEventListeners() {
     
     $('#last-page').on('click', () => {
         console.log('Last page clicked - going to page', totalPages);
-        $('#flipbook').turn('page', totalPages);
+        // In double-page mode, ensure we go to the actual last page
+        // Turn.js can get confused at the end, so we force it
+        try {
+            $('#flipbook').turn('page', totalPages);
+            // Double-check after a short delay
+            setTimeout(() => {
+                const actualPage = $('#flipbook').turn('page');
+                if (actualPage !== totalPages) {
+                    console.log('⚠️ Page mismatch detected, correcting:', actualPage, '→', totalPages);
+                    $('#flipbook').turn('page', totalPages);
+                }
+            }, 100);
+        } catch (error) {
+            console.error('Error navigating to last page:', error);
+        }
+    });
+    
+    // Refresh button - reload flipbook if pages go out of sync
+    $('#refresh-flipbook').on('click', () => {
+        console.log('🔄 Refresh flipbook clicked');
+        reloadFlipbook();
     });
     
     // Zoom controls - properly re-render at new scale
