@@ -978,8 +978,8 @@ function add3CButton(buttonType) {
     // Map button types to their image files
     const buttonImages = {
         'generic': '/3C Buttons/3C Web Buttons - Generic.png',
-        'clubhouse': '/3C Buttons/3C Web Buttons - ClubHouse.png',
-        'training': '/3C Buttons/3C Web Buttons - Trainning.png',
+        'clubhouse': '/3C Buttons/3C Web Buttons - Clubhouse.png',
+        'training': '/3C Buttons/3C Web Buttons - Training.png',
         'reframe': '/3C Buttons/3C Web Buttons - Reframe.png'
     };
     
@@ -1409,6 +1409,8 @@ function createElementDiv(element) {
     } else if (element.type === 'video' || element.type === 'cloudflare-stream') {
         // Video element with thumbnail and play button overlay
         const thumbnailUrl = element.thumbnailUrl || element.poster || 'https://via.placeholder.com/400x300/667eea/ffffff?text=Video';
+        const videoUrl = element.url || element.videoUrl || element.mediaUrl || element.streamId || 'No URL';
+        const videoTitle = element.text || element.title || 'Video';
         const lockIcon = element.locked ? 'fa-lock' : 'fa-lock-open';
         const lockColor = element.locked ? 'bg-yellow-500' : 'bg-gray-500';
         div.innerHTML = `
@@ -1420,9 +1422,9 @@ function createElementDiv(element) {
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-            <div class="relative w-full h-full">
+            <div class="relative w-full h-full cursor-pointer" title="${videoTitle} → ${videoUrl}">
                 <img src="${thumbnailUrl}" class="w-full h-full object-cover rounded">
-                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded">
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded pointer-events-none">
                     <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center">
                         <i class="fas fa-play text-purple-600 text-2xl ml-1"></i>
                     </div>

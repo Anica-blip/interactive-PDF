@@ -498,9 +498,11 @@ function initFlipbook() {
                     }
                     currentPage = page;
                     updatePageInfo();
+                    return true; // Allow turn to proceed
                 } catch (error) {
                     console.error('Error during page turn:', error);
-                    return false; // Cancel turn on error
+                    // Don't block the turn, just log the error
+                    return true;
                 }
             },
             turned: function(event, page, view) {
