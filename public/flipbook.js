@@ -658,7 +658,9 @@ function playVideo(hotspot) {
     console.log('   - IframeURL:', hotspot.iframeUrl);
     
     try {
-        videoTitle.textContent = hotspot.title || hotspot.text || 'Video';
+        // Hide title completely
+        videoTitle.textContent = '';
+        videoTitle.style.display = 'none';
         videoPlayerWrapper.innerHTML = '';
         
         // Get the video URL from any available property
@@ -668,7 +670,6 @@ function playVideo(hotspot) {
         
         if (!videoUrl && !hotspot.streamId) {
             console.error('No video URL found in element:', hotspot);
-            alert('Video URL not found. Please check the element configuration.');
             return;
         }
     
@@ -727,14 +728,27 @@ function playVideo(hotspot) {
                 video.src = url;
                 video.controls = true;
                 video.autoplay = true;
-                video.style.maxWidth = '100%';
-                video.style.maxHeight = '70vh';
-                video.style.width = 'auto';
-                video.style.height = 'auto';
+                video.style.width = '100%';
+                video.style.height = '100%';
                 video.style.objectFit = 'contain';
+                video.setAttribute('crossorigin', 'anonymous');
                 if (hotspot.thumbnailUrl || hotspot.poster) {
                     video.poster = hotspot.thumbnailUrl || hotspot.poster;
                 }
+                
+                // Simple sizing - let object-fit: contain handle aspect ratio
+                video.onloadedmetadata = () => {
+                    console.log('📐 Video loaded:', video.videoWidth, 'x', video.videoHeight);
+                };
+                
+                // Error handling - console only, no popup alerts
+                video.onerror = (e) => {
+                    console.error('❌ Video failed to load:', url);
+                    console.error('Error details:', e);
+                    console.error('Error code:', video.error ? video.error.code : 'unknown');
+                    videoPlayerWrapper.innerHTML = '<div style="color: white; text-align: center; padding: 40px;">❌ Video Error<br><br>Failed to load video file.<br><br>Check browser console (F12) for details.</div>';
+                };
+                
                 videoPlayerWrapper.appendChild(video);
             }
         }
@@ -743,7 +757,6 @@ function playVideo(hotspot) {
     videoOverlay.classList.add('active');
     } catch (error) {
         console.error('Error playing video:', error);
-        alert('Failed to play video: ' + error.message);
     }
 }
 
@@ -1036,15 +1049,20 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             console.log('   Scaled to:', scaledX.toFixed(1), scaledY.toFixed(1), scaledWidth.toFixed(1), scaledHeight.toFixed(1));
         }
         
-        const elementDiv = $('<div></div>').css({
-            position: 'absolute',
-            left: scaledX + 'px',
-            top: scaledY + 'px',
-            width: scaledWidth + 'px',
-            height: scaledHeight + 'px',
-            cursor: 'pointer',
-            zIndex: 10
-        });
+        const elementDiv = $('<div></div>')
+            .addClass('interactive-element')
+            .attr('data-element-type', element.type)
+            .attr('data-element-url', element.url || '')
+            .attr('data-element-data', JSON.stringify(element))
+            .css({
+                position: 'absolute',
+                left: scaledX + 'px',
+                top: scaledY + 'px',
+                width: scaledWidth + 'px',
+                height: scaledHeight + 'px',
+                cursor: 'pointer',
+                zIndex: 10
+            });
         
         // Handle different element types
         if (element.type === '3c-button' && element.imagePath) {
@@ -1351,6 +1369,71 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
 }
 
 /**
+ * Setup event delegation for interactive elements
+ * This ensures clicks work even when Turn.js manipulates the DOM
+ */
+function setupInteractiveElementHandlers() {
+    console.log('🎯 Setting up event delegation for interactive elements...');
+    
+    // Use event delegation - attach to document which never gets destroyed
+    $(document).on('click', '.interactive-element', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        const $element = $(this);
+        const elementData = JSON.parse($element.attr('data-element-data'));
+        const elementType = $element.attr('data-element-type');
+        
+        console.log('\n🎯 ========== INTERACTIVE ELEMENT CLICKED ==========');
+        console.log('Element type:', elementType);
+        console.log('Element data:', elementData);
+        
+        // Handle different element types
+        if (elementType === '3c-button' || elementType === 'button') {
+            if (elementData.url) {
+                console.log('📍 URL:', elementData.url);
+                if (isVideoUrl(elementData.url)) {
+                    console.log('🎥 Opening video...');
+                    playVideo(elementData);
+                } else {
+                    console.log('🔗 Opening link...');
+                    const popup = window.open(elementData.url, '_blank', 'width=800,height=600');
+                    if (!popup) {
+                        console.warn('⚠️ Popup blocked');
+                    }
+                }
+            } else if (elementData.videoUrl || elementData.streamId) {
+                playVideo(elementData);
+            }
+        } else if (elementType === 'hotspot' || elementType === 'link') {
+            if (elementData.url) {
+                if (isVideoUrl(elementData.url)) {
+                    playVideo(elementData);
+                } else {
+                    const popup = window.open(elementData.url, '_blank', 'width=800,height=600');
+                    if (!popup) {
+                        console.warn('⚠️ Popup blocked');
+                    }
+                }
+            }
+        } else if (elementType === 'video' || elementType === 'cloudflare-stream') {
+            console.log('🎬 Opening video element...');
+            playVideo(elementData);
+        } else if (elementType === 'gif' || elementType === 'image') {
+            console.log('🖼️ Opening GIF/image element...');
+            showGif(elementData);
+        } else if (elementType === 'audio') {
+            console.log('🎵 Opening audio element...');
+            playAudio(elementData);
+        }
+        
+        console.log('========================================\n');
+    });
+    
+    console.log('✅ Event delegation setup complete');
+}
+
+/**
  * Update page info display
  */
 function updatePageInfo() {
@@ -1363,8 +1446,6 @@ function updatePageInfo() {
 
 // Initialize on load
 $(document).ready(() => {
-    init();
-});
-$(document).ready(() => {
+    setupInteractiveElementHandlers();
     init();
 });
