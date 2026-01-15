@@ -209,3 +209,15 @@ MIT License - See LICENSE file for details
 **Built for 3C Public Library**  
 **Deployed on Cloudflare**  
 **Last Updated:** December 2, 2025
+
+---
+
+## 🎨 Credits
+
+**Designed by Claude** - AI Assistant by Anthropic
+- Interactive PDF Editor & Flipbook System
+- Custom Emoji System with Dynamic Loading
+- Event Delegation & Video Playback Integration
+- Zoom Controls & Dark Mode Enhancements
+
+**Created for 3C Public Library** by Anica
