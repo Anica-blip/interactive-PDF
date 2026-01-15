@@ -1058,6 +1058,7 @@ function add3CEmoji(emojiType) {
     assets.push(asset);
     renderAssetLibrary();
     showStatus(`✅ ${emojiName} added${url ? ' with URL' : ' as decoration'}`, 'success');
+}
 
 /**
  * Add custom emoji from General folder
