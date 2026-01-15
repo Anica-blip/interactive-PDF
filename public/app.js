@@ -1058,6 +1058,43 @@ function add3CEmoji(emojiType) {
     assets.push(asset);
     renderAssetLibrary();
     showStatus(`✅ ${emojiName} added${url ? ' with URL' : ' as decoration'}`, 'success');
+
+/**
+ * Add custom emoji from General folder
+ * User provides filename (e.g., "Windsurf Link.png") and it loads from /3C Buttons/Emojis/General/
+ */
+function addCustomEmoji() {
+    const filename = prompt('Enter the filename of your custom emoji (e.g., "Windsurf Link.png"):\n\nPlace your image in: /3C Buttons/Emojis/General/');
+    if (!filename) return;
+    
+    let url = prompt('Enter URL for this custom emoji (optional - leave empty for decoration only):');
+    
+    // Ensure URL has protocol if provided
+    if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    
+    // Build path to General folder
+    const imagePath = '/3C Buttons/Emojis/General/' + filename;
+    
+    // Extract name from filename (remove extension)
+    const emojiName = filename.replace(/\.[^/.]+$/, '');
+    
+    const asset = {
+        id: Date.now(),
+        type: url ? '3c-emoji' : '3c-emoji-decoration',
+        url: url || null,
+        imagePath: imagePath,
+        name: emojiName,
+        thumbnail: imagePath,
+        embedded: false
+    };
+    
+    assets.push(asset);
+    renderAssetLibrary();
+    showStatus(`✅ Custom emoji "${emojiName}" added${url ? ' with URL' : ' as decoration'}`, 'success');
+}
+
 }
 
 // Add button (interactive element)
