@@ -41,6 +41,7 @@ async function exportProjectJSON() {
             embeddedMode: embeddedMode,
             flipbookMode: flipbookMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            partNumber: document.getElementById('partNumber')?.value || '',
             folderName: document.getElementById('folderName')?.value || '',
             subfolderName: document.getElementById('subfolderName')?.value || ''
         },
@@ -266,6 +267,7 @@ async function saveDraft(silent = false) {
             embeddedMode: embeddedMode,
             flipbookMode: flipbookMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            partNumber: document.getElementById('partNumber')?.value || '',
             folderName: folderName,
             subfolderName: subfolderName
         }
@@ -334,6 +336,7 @@ async function savePublishedProject(pdfUrl) {
             embeddedMode: embeddedMode,
             flipbookMode: flipbookMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+            partNumber: document.getElementById('partNumber')?.value || '',
             folderName: document.getElementById('folderName')?.value || '',
             subfolderName: document.getElementById('subfolderName')?.value || ''
         }
@@ -972,8 +975,13 @@ function uploadMediaFile(type) {
 
 // Add 3C button (branded button with image)
 function add3CButton(buttonType) {
-    const url = prompt('Enter URL for this 3C button:');
+    let url = prompt('Enter URL for this 3C button:');
     if (!url) return;
+    
+    // Ensure URL has protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
     
     // Map button types to their image files
     const buttonImages = {
@@ -1010,7 +1018,12 @@ function add3CButton(buttonType) {
 
 // Add 3C emoji badge (circular emoji badges)
 function add3CEmoji(emojiType) {
-    const url = prompt('Enter URL for this 3C emoji badge (optional - leave empty for decoration only):');
+    let url = prompt('Enter URL for this 3C emoji badge (optional - leave empty for decoration only):');
+    
+    // Ensure URL has protocol if provided
+    if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
     
     // Map emoji types to their image files
     const emojiImages = {
@@ -1829,6 +1842,7 @@ async function generatePDF() {
                 embeddedMode: embeddedMode,
                 flipbookMode: flipbookMode,
                 versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+                partNumber: document.getElementById('partNumber')?.value || '',
                 folderName: document.getElementById('folderName')?.value || '',
                 subfolderName: document.getElementById('subfolderName')?.value || ''
             }
@@ -2330,6 +2344,7 @@ function exportProjectJSON() {
                 embeddedMode: embeddedMode,
                 flipbookMode: flipbookMode,
                 versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
+                partNumber: document.getElementById('partNumber')?.value || '',
                 folderName: folderName,
                 subfolderName: subfolderName,
                 createdAt: new Date().toISOString(),
@@ -2700,6 +2715,9 @@ function updatePreviewPage() {
         if (element.url) {
             el.title = `Click to visit: ${element.url}`;
             el.onclick = () => {
+                console.log('🔗 Editor preview - Opening URL:', element.url);
+                console.log('   Element type:', element.type);
+                console.log('   Element text:', element.text);
                 window.open(element.url, '_blank');
             };
             el.style.transition = 'transform 0.2s';

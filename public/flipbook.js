@@ -731,7 +731,6 @@ function playVideo(hotspot) {
                 video.style.width = '100%';
                 video.style.height = '100%';
                 video.style.objectFit = 'contain';
-                video.setAttribute('crossorigin', 'anonymous');
                 if (hotspot.thumbnailUrl || hotspot.poster) {
                     video.poster = hotspot.thumbnailUrl || hotspot.poster;
                 }
@@ -1084,14 +1083,21 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 try {
                     console.log('3C Button clicked:', element.text, '| URL:', element.url);
                     if (element.url) {
+                        // Ensure URL has protocol (fix for legacy buttons)
+                        let buttonUrl = element.url;
+                        if (!buttonUrl.startsWith('http://') && !buttonUrl.startsWith('https://')) {
+                            buttonUrl = 'https://' + buttonUrl;
+                            console.log('Added https:// protocol to URL:', buttonUrl);
+                        }
+                        
                         // Check if it's a video URL - use overlay popup
-                        if (isVideoUrl(element.url)) {
-                            console.log('Video URL detected - opening in overlay:', element.url);
+                        if (isVideoUrl(buttonUrl)) {
+                            console.log('Video URL detected - opening in overlay:', buttonUrl);
                             playVideo(element);
                         } else {
-                            console.log('Regular link - opening in new window:', element.url);
+                            console.log('Regular link - opening in new window:', buttonUrl);
                             // Regular link - open in new window
-                            const popup = window.open(element.url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
+                            const popup = window.open(buttonUrl, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
                             if (!popup) {
                                 console.error('Popup blocked by browser');
                                 alert('Please allow popups for this site to open links');
@@ -1392,12 +1398,20 @@ function setupInteractiveElementHandlers() {
         if (elementType === '3c-button' || elementType === 'button') {
             if (elementData.url) {
                 console.log('📍 URL:', elementData.url);
-                if (isVideoUrl(elementData.url)) {
+                
+                // Ensure URL has protocol (fix for legacy buttons)
+                let buttonUrl = elementData.url;
+                if (!buttonUrl.startsWith('http://') && !buttonUrl.startsWith('https://')) {
+                    buttonUrl = 'https://' + buttonUrl;
+                    console.log('Added https:// protocol to URL:', buttonUrl);
+                }
+                
+                if (isVideoUrl(buttonUrl)) {
                     console.log('🎥 Opening video...');
                     playVideo(elementData);
                 } else {
                     console.log('🔗 Opening link...');
-                    const popup = window.open(elementData.url, '_blank', 'width=800,height=600');
+                    const popup = window.open(buttonUrl, '_blank', 'width=800,height=600');
                     if (!popup) {
                         console.warn('⚠️ Popup blocked');
                     }
@@ -1407,10 +1421,17 @@ function setupInteractiveElementHandlers() {
             }
         } else if (elementType === 'hotspot' || elementType === 'link') {
             if (elementData.url) {
-                if (isVideoUrl(elementData.url)) {
+                // Ensure URL has protocol (fix for legacy elements)
+                let linkUrl = elementData.url;
+                if (!linkUrl.startsWith('http://') && !linkUrl.startsWith('https://')) {
+                    linkUrl = 'https://' + linkUrl;
+                    console.log('Added https:// protocol to URL:', linkUrl);
+                }
+                
+                if (isVideoUrl(linkUrl)) {
                     playVideo(elementData);
                 } else {
-                    const popup = window.open(elementData.url, '_blank', 'width=800,height=600');
+                    const popup = window.open(linkUrl, '_blank', 'width=800,height=600');
                     if (!popup) {
                         console.warn('⚠️ Popup blocked');
                     }
