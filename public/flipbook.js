@@ -1014,9 +1014,9 @@ async function reloadFlipbook() {
         });
         
         // Update wrapper to match new size (important for zoom visual effect)
-        // Reduce width slightly to minimize gap between pages
+        // Reduce width to eliminate gap between pages in double-page mode
         $('#flipbook-wrapper').css({
-            width: (pageWidth * 2 - 4) + 'px',
+            width: (pageWidth * 2 - 20) + 'px',
             height: pageHeight + 'px'
         });
         
