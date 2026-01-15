@@ -994,12 +994,20 @@ async function reloadFlipbook() {
         // Resize container to fit new dimensions
         const pageWidth = Math.round(A4_WIDTH_PX * scale);
         const pageHeight = Math.round(A4_HEIGHT_PX * scale);
+        
+        // Update flipbook dimensions
         $('#flipbook').css({
             width: (pageWidth * 2) + 'px',
             height: pageHeight + 'px'
         });
         
-        console.log('Flipbook reloaded at', Math.round(scale * 100) + '%');
+        // Update wrapper to match new size (important for zoom visual effect)
+        $('#flipbook-wrapper').css({
+            width: (pageWidth * 2) + 'px',
+            height: pageHeight + 'px'
+        });
+        
+        console.log('Flipbook reloaded at', Math.round(scale * 100) + '%, size:', (pageWidth * 2) + 'x' + pageHeight);
     } catch (error) {
         console.error('Error reloading flipbook:', error);
     } finally {

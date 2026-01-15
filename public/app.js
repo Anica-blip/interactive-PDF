@@ -1027,15 +1027,19 @@ function add3CEmoji(emojiType) {
     
     // Map emoji types to their image files
     const emojiImages = {
-        'clubhouse': '/3C Buttons/Emoji/3C Emoji - ClubHouse.png',
-        'training': '/3C Buttons/Emoji/3C Emoji - Training.png',
-        'diamond': '/3C Buttons/Emoji/3C Emoji - Diamond.png'
+        'clubhouse': '/3C Buttons/Emojis/3C Emoji - Clubhouse.png',
+        'training': '/3C Buttons/Emojis/3C Emoji - Training.png',
+        'diamond': '/3C Buttons/Emojis/3C Emoji - Diamond.png',
+        'generic': '/3C Buttons/Emojis/3C Emoji - Generic.png',
+        'reframe': '/3C Buttons/Emojis/3C Emoji - Reframe.png'
     };
     
     const emojiNames = {
         'clubhouse': '3C ClubHouse Badge',
         'training': '3C Training Badge',
-        'diamond': '3C Diamond Badge'
+        'diamond': '3C Diamond Badge',
+        'generic': '3C Generic Badge',
+        'reframe': '3C Reframe Badge'
     };
     
     const imagePath = emojiImages[emojiType];
@@ -1168,7 +1172,7 @@ function renderAssetLibrary() {
                 <p class="text-xs font-medium text-purple-700 truncate">${asset.name}</p>
                 <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
-        } else if (asset.type === 'image' || asset.thumbnail.startsWith('http') || asset.url.startsWith('data:image')) {
+        } else if (asset.type === 'image' || asset.thumbnail.startsWith('http') || (asset.url && asset.url.startsWith('data:image'))) {
             const imgSrc = asset.thumbnail.startsWith('http') ? asset.thumbnail : asset.url;
             assetDiv.innerHTML = `
                 <img src="${imgSrc}" class="w-full h-16 object-cover rounded mb-1">
