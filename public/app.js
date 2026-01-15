@@ -1198,15 +1198,25 @@ function renderAssetLibrary() {
         
         // Show image thumbnail for 3C buttons, emojis, and images
         if (asset.type === '3c-button') {
+            // Convert relative button paths to full GitHub Pages URLs
+            let buttonImgSrc = asset.imagePath;
+            if (buttonImgSrc && !buttonImgSrc.startsWith('http')) {
+                buttonImgSrc = 'https://anica-blip.github.io/interactive-PDF/public' + (buttonImgSrc.startsWith('/') ? buttonImgSrc : '/' + buttonImgSrc);
+            }
             assetDiv.innerHTML = `
-                <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded mb-1">
+                <img src="${buttonImgSrc}" class="w-full h-16 object-contain rounded mb-1">
                 <p class="text-xs font-medium text-blue-700 truncate">${asset.name}</p>
                 <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
         } else if (asset.type === '3c-emoji' || asset.type === '3c-emoji-decoration') {
+            // Convert relative emoji paths to full GitHub Pages URLs
+            let emojiImgSrc = asset.imagePath;
+            if (emojiImgSrc && !emojiImgSrc.startsWith('http')) {
+                emojiImgSrc = 'https://anica-blip.github.io/interactive-PDF/public' + (emojiImgSrc.startsWith('/') ? emojiImgSrc : '/' + emojiImgSrc);
+            }
             assetDiv.innerHTML = `
-                <img src="${asset.imagePath}" class="w-full h-16 object-contain rounded-full mb-1">
-                <p class="text-xs font-medium text-purple-700 truncate">${asset.name}</p>
+                <img src="${emojiImgSrc}" class="w-full h-16 object-contain rounded-full mb-1" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2240%22%3E😊%3C/text%3E%3C/svg%3E'">
+                <p class="text-xs font-medium text-purple-700 truncate">${asset.name || 'Custom Emoji'}</p>
                 <p class="text-xs text-gray-500">${typeLabel}</p>
             `;
         } else if (asset.type === 'image' || asset.thumbnail.startsWith('http') || (asset.url && asset.url.startsWith('data:image'))) {
