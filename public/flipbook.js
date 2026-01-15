@@ -969,7 +969,14 @@ async function reloadFlipbook() {
         
         // Destroy existing flipbook
         if (flipbookInitialized) {
-            $('#flipbook').turn('destroy');
+            try {
+                // Check if turn.js is actually initialized on the element
+                if (typeof $('#flipbook').turn === 'function' && $('#flipbook').data('turn')) {
+                    $('#flipbook').turn('destroy');
+                }
+            } catch (e) {
+                console.log('Turn.js destroy skipped:', e.message);
+            }
             flipbookInitialized = false;
         }
         
