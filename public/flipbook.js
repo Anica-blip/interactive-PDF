@@ -894,9 +894,10 @@ function setupEventListeners() {
         }
     });
     
-    // Refresh button - reload flipbook if pages go out of sync
+    // Refresh button - reload flipbook and go to page 1
     $('#refresh-flipbook').on('click', () => {
         console.log('🔄 Refresh flipbook clicked');
+        currentPage = 1; // Reset to page 1
         reloadFlipbook();
     });
     
@@ -991,10 +992,14 @@ async function reloadFlipbook() {
             initFlipbook();
         }
         
-        // Restore page position after reload
-        if (savedPage > 1) {
+        // Restore page position after reload (unless refresh button was clicked)
+        if (savedPage > 1 && currentPage !== 1) {
             setTimeout(() => {
                 $('#flipbook').turn('page', savedPage);
+            }, 100);
+        } else if (currentPage === 1) {
+            setTimeout(() => {
+                $('#flipbook').turn('page', 1);
             }, 100);
         }
         
@@ -1009,8 +1014,9 @@ async function reloadFlipbook() {
         });
         
         // Update wrapper to match new size (important for zoom visual effect)
+        // Reduce width slightly to minimize gap between pages
         $('#flipbook-wrapper').css({
-            width: (pageWidth * 2) + 'px',
+            width: (pageWidth * 2 - 4) + 'px',
             height: pageHeight + 'px'
         });
         
@@ -1127,6 +1133,49 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
             });
             
             elementDiv.append(img);
+        } else if (element.type === '3c-emoji' || element.type === '3c-emoji-decoration') {
+            // 3C Emoji with image from GitHub Pages
+            let emojiImgSrc = element.imagePath || element.image;
+            if (emojiImgSrc && !emojiImgSrc.startsWith('http')) {
+                emojiImgSrc = 'https://anica-blip.github.io/interactive-PDF/public' + (emojiImgSrc.startsWith('/') ? emojiImgSrc : '/' + emojiImgSrc);
+            }
+            
+            if (emojiImgSrc) {
+                const img = $('<img>').attr('src', emojiImgSrc).css({
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    cursor: element.url ? 'pointer' : 'default',
+                    transition: 'transform 0.2s'
+                });
+                
+                if (element.url) {
+                    img.hover(
+                        function() { $(this).css('transform', 'scale(1.05)'); },
+                        function() { $(this).css('transform', 'scale(1)'); }
+                    );
+                    
+                    img.on('click', function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        try {
+                            console.log('3C Emoji clicked:', element.name, '| URL:', element.url);
+                            let emojiUrl = element.url;
+                            if (!emojiUrl.startsWith('http://') && !emojiUrl.startsWith('https://')) {
+                                emojiUrl = 'https://' + emojiUrl;
+                            }
+                            const popup = window.open(emojiUrl, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
+                            if (!popup) {
+                                alert('Please allow popups for this site to open links');
+                            }
+                        } catch (error) {
+                            console.error('Error handling emoji click:', error);
+                        }
+                    });
+                }
+                
+                elementDiv.append(img);
+            }
         } else if (element.type === 'button') {
             // Regular button with text
             const button = $('<button></button>')
