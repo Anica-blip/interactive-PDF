@@ -488,6 +488,9 @@ function initFlipbook() {
         duration: 1000,
         pages: totalPages,
         page: 1, // ALWAYS start on page 1
+        // Corner configuration to align with document edges
+        turnCorners: 'bl,br,tl,tr', // Enable all corners
+        cornerSize: Math.min(pageWidth * 0.15, 100), // 15% of page width, max 100px
         when: {
             turning: function(event, page, view) {
                 try {

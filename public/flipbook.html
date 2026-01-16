@@ -145,6 +145,46 @@
             justify-content: center;
             align-items: center;
             min-height: 100%;
+            position: relative;
+        }
+
+        /* Side navigation arrows */
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 60px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+
+        .nav-arrow:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .nav-arrow:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        #prev-page {
+            left: -60px;
+        }
+
+        #next-page {
+            right: -60px;
         }
 
         #flipbook {
@@ -365,11 +405,7 @@
         </div>
         
         <div id="toolbar-center">
-            <button id="first-page" class="btn" title="First Page">⏮</button>
-            <button id="prev-page" class="btn" title="Previous Page">◀</button>
             <span id="page-info">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
-            <button id="next-page" class="btn" title="Next Page">▶</button>
-            <button id="last-page" class="btn" title="Last Page">⏭</button>
         </div>
         
         <div id="toolbar-right">
@@ -383,7 +419,9 @@
     <!-- Flipbook Container -->
     <div id="flipbook-container">
         <div id="flipbook-wrapper">
+            <button id="prev-page" class="nav-arrow" title="Previous Page">◀</button>
             <div id="flipbook"></div>
+            <button id="next-page" class="nav-arrow" title="Next Page">▶</button>
         </div>
     </div>
 
