@@ -904,18 +904,18 @@ function setupEventListeners() {
     // Zoom controls - properly re-render at new scale
     $('#zoom-in').on('click', () => {
         console.log('🔍 Zoom in clicked');
-        scale += 0.05; // Increase by 5%
-        scale = Math.round(scale * 100) / 100; // Round to 2 decimals
-        if (scale > 1.5) scale = 1.5; // Max 150%
-        reloadFlipbook();
+        scale += 0.05;
+        scale = Math.round(scale * 100) / 100;
+        if (scale > 1.5) scale = 1.5;
+        applyZoom();
     });
     
     $('#zoom-out').on('click', () => {
         console.log('🔍 Zoom out clicked');
-        scale -= 0.05; // Decrease by 5%
-        scale = Math.round(scale * 100) / 100; // Round to 2 decimals
-        if (scale < 0.3) scale = 0.3; // Min 30%
-        reloadFlipbook();
+        scale -= 0.05;
+        scale = Math.round(scale * 100) / 100;
+        if (scale < 0.3) scale = 0.3;
+        applyZoom();
     });
     
     // Close video
@@ -952,6 +952,15 @@ function setupEventListeners() {
 /**
  * Reload flipbook after zoom change
  */
+function applyZoom() {
+    console.log('Applying zoom:', Math.round(scale * 100) + '%');
+    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+    $('#flipbook-wrapper').css({
+        'transform': 'scale(' + (scale / 0.48) + ')',
+        'transform-origin': 'center top'
+    });
+}
+
 async function reloadFlipbook() {
     if (!loading) {
         console.error('Loading element not found!');
@@ -959,7 +968,7 @@ async function reloadFlipbook() {
     }
     
     loading.classList.remove('hidden');
-    console.log('Reloading flipbook at', Math.round(scale * 100) + '% zoom');
+    console.log('Reloading flipbook');
     
     // Update zoom display
     document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
