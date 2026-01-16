@@ -1518,6 +1518,15 @@ function setupInteractiveElementHandlers() {
         } else if (elementType === 'audio') {
             console.log('🎵 Opening audio element...');
             playAudio(elementData);
+        } else if (elementType === '3c-emoji' || elementType === '3c-emoji-decoration') {
+            if (elementData.url) {
+                let emojiUrl = elementData.url;
+                if (!emojiUrl.startsWith('http://') && !emojiUrl.startsWith('https://')) {
+                    emojiUrl = 'https://' + emojiUrl;
+                }
+                const popup = window.open(emojiUrl, '_blank', 'width=800,height=600');
+                if (!popup) alert('Please allow popups');
+            }
         }
         
         console.log('========================================\n');
