@@ -901,12 +901,12 @@ function setupEventListeners() {
         reloadFlipbook();
     });
     
-    // Zoom controls - properly re-render at new scale
+    // Zoom controls - scale container only (max 53% to prevent gaps)
     $('#zoom-in').on('click', () => {
         console.log('🔍 Zoom in clicked');
         scale += 0.05;
         scale = Math.round(scale * 100) / 100;
-        if (scale > 1.5) scale = 1.5;
+        if (scale > 0.53) scale = 0.53; // Cap at 53% to prevent gap issues
         applyZoom();
     });
     
