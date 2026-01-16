@@ -490,7 +490,7 @@ function initFlipbook() {
         page: 1, // ALWAYS start on page 1
         // Corner configuration to align with document edges
         turnCorners: 'bl,br,tl,tr', // Enable all corners
-        cornerSize: Math.min(pageWidth * 0.15, 100), // 15% of page width, max 100px
+        cornerSize: Math.min(pageWidth * 0.03, 30), // Extremely tiny corners - 3% of page width, max 30px
         when: {
             turning: function(event, page, view) {
                 try {
