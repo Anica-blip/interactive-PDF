@@ -904,21 +904,23 @@ function setupEventListeners() {
         reloadFlipbook();
     });
     
-    // Zoom controls - scale container only (max 53% to prevent gaps)
-    $('#zoom-in').on('click', () => {
-        console.log('🔍 Zoom in clicked');
-        scale += 0.05;
-        scale = Math.round(scale * 100) / 100;
-        if (scale > 0.53) scale = 0.53; // Cap at 53% to prevent gap issues
-        applyZoom();
+    // Zoom controls - only 48% and 53% allowed, reload JSON at new size starting page 1
+    $('#zoom-in').on('click', async () => {
+        console.log('🔍 Zoom in clicked - reloading JSON at 53%');
+        if (scale < 0.53) {
+            scale = 0.53; // Jump to 53%
+            currentPage = 1; // Start at page 1
+            await reloadFlipbook();
+        }
     });
     
-    $('#zoom-out').on('click', () => {
-        console.log('🔍 Zoom out clicked');
-        scale -= 0.05;
-        scale = Math.round(scale * 100) / 100;
-        if (scale < 0.3) scale = 0.3;
-        applyZoom();
+    $('#zoom-out').on('click', async () => {
+        console.log('🔍 Zoom out clicked - reloading JSON at 48%');
+        if (scale > 0.48) {
+            scale = 0.48; // Jump to 48%
+            currentPage = 1; // Start at page 1
+            await reloadFlipbook();
+        }
     });
     
     // Close video
@@ -1527,8 +1529,14 @@ function setupInteractiveElementHandlers() {
                 if (!emojiUrl.startsWith('http://') && !emojiUrl.startsWith('https://')) {
                     emojiUrl = 'https://' + emojiUrl;
                 }
-                const popup = window.open(emojiUrl, '_blank', 'width=800,height=600');
-                if (!popup) alert('Please allow popups');
+                // Check if it's a video URL
+                if (isVideoUrl(emojiUrl)) {
+                    console.log('🎥 3c-emoji video detected, using purple overlay...');
+                    playVideo({...elementData, url: emojiUrl});
+                } else {
+                    const popup = window.open(emojiUrl, '_blank', 'width=800,height=600');
+                    if (!popup) alert('Please allow popups');
+                }
             }
         }
         
