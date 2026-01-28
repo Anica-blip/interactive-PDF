@@ -8,6 +8,7 @@ let dragOffset = { x: 0, y: 0 };
 let resizing = false;
 let embeddedMode = false; // Toggle between embedded and link mode
 let flipbookMode = true; // Toggle for magazine-style flipbook (DEFAULT: ON)
+let presentationMode = false; // Toggle for presentation mode (DEFAULT: OFF - saves as flipbook)
 let currentProjectId = null; // Track current project for updates
 let currentPdfUrl = null; // Track current PDF URL
 let copiedElement = null; // Store copied element for paste
@@ -40,6 +41,7 @@ async function exportProjectJSON() {
             orientation: document.getElementById('orientation').value,
             embeddedMode: embeddedMode,
             flipbookMode: flipbookMode,
+            presentationMode: presentationMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
             partNumber: document.getElementById('partNumber')?.value || '',
             folderName: document.getElementById('folderName')?.value || '',
@@ -141,6 +143,22 @@ function toggleFlipbookMode() {
         description.textContent = '📖 Enable for magazine-style page turning';
         description.classList.remove('text-purple-700', 'font-semibold');
         showStatus('📄 Standard PDF mode: Normal page viewing', 'info');
+    }
+}
+
+// Toggle presentation mode
+function togglePresentationMode() {
+    presentationMode = document.getElementById('presentationMode')?.checked || false;
+    const description = document.getElementById('presentationDescription');
+    
+    if (presentationMode) {
+        description.textContent = '📊 Presentation mode ON - Will save as PRESENTATION type';
+        description.classList.add('text-orange-700', 'font-semibold');
+        showStatus('📊 Presentation mode enabled: JSON will be saved as presentation type!', 'success');
+    } else {
+        description.textContent = '📊 Enable to save as presentation instead of flipbook';
+        description.classList.remove('text-orange-700', 'font-semibold');
+        showStatus('📖 Flipbook type: JSON will be saved as flipbook type', 'info');
     }
 }
 
@@ -266,6 +284,7 @@ async function saveDraft(silent = false) {
             orientation: document.getElementById('orientation').value,
             embeddedMode: embeddedMode,
             flipbookMode: flipbookMode,
+            presentationMode: presentationMode,
             versionNumber: document.getElementById('versionNumber')?.value || 'v1.0',
             partNumber: document.getElementById('partNumber')?.value || '',
             folderName: folderName,
@@ -2241,6 +2260,7 @@ async function loadProject(projectId) {
         if (projectJson.settings) {
             embeddedMode = projectJson.settings.embeddedMode || false;
             flipbookMode = projectJson.settings.flipbookMode || false;
+            presentationMode = projectJson.settings.presentationMode || false;
             document.getElementById('pageSize').value = projectJson.settings.pageSize || 'A4';
             document.getElementById('orientation').value = projectJson.settings.orientation || 'portrait';
             document.getElementById('pdfTitle').value = projectJson.settings.title || project.title || 'Untitled PDF';
@@ -2273,6 +2293,7 @@ async function loadProject(projectId) {
             // Update toggles
             document.getElementById('embeddedMode').checked = embeddedMode;
             document.getElementById('flipbookMode').checked = flipbookMode;
+            document.getElementById('presentationMode').checked = presentationMode;
         }
         
         // Render everything
