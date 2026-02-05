@@ -212,6 +212,15 @@ async function init() {
         if (projectId) {
             console.log('Loading from Supabase project:', projectId);
             await loadProjectFromSupabase(projectId);
+            
+            // Render all pages
+            await renderAllPages();
+            
+            // Initialize presentation
+            initPresentation();
+        
+            // Setup event listeners
+            setupEventListeners();
         }
         // Priority 2: Check for sessionStorage manifest (from builder preview)
         else if (sessionManifest) {
@@ -219,13 +228,22 @@ async function init() {
             await initFromManifest(JSON.parse(sessionManifest));
             // Clear sessionStorage after loading
             sessionStorage.removeItem('presentationManifest');
+            
+            // Render all pages
+            await renderAllPages();
+            
+            // Initialize presentation
+            initPresentation();
+        
+            // Setup event listeners
+            setupEventListeners();
         }
         // Priority 3: Check for manifest URL (from 3C Content Library - JSON only)
         else if (manifestUrl) {
             console.log('Loading from manifest URL (3C Content Library)');
             const manifestData = await loadManifestFromUrl(manifestUrl);
             await initFromManifest(manifestData);
-        }
+            
             // Render all pages
             await renderAllPages();
             

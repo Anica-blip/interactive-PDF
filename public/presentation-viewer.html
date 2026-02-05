@@ -206,12 +206,21 @@
          /* Direction */
         #prev-page {
              left: 20px;
-             transform: scaleX(-1);
         }
 
         #next-page {
              right: 20px;
-             transform: scaleX(1);
+        }
+        
+        /* Rotate arrows to point in correct directions */
+        #prev-page::before {
+            content: '◀';
+            font-size: 24px;
+        }
+        
+        #next-page::before {
+            content: '▶';
+            font-size: 24px;
         }
 
         /* Hide arrows on first/last page */
