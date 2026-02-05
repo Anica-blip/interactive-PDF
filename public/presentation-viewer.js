@@ -173,6 +173,29 @@ async function loadProjectFromSupabase(projectId) {
 }
 
 /**
+ * Load manifest JSON from URL (for 3C Content Library)
+ */
+async function loadManifestFromUrl(url) {
+    try {
+        console.log('Fetching manifest from:', url);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const manifestData = await response.json();
+        console.log('Manifest loaded from URL:', manifestData.title || 'Untitled');
+        console.log('Pages:', manifestData.pages?.length || 0);
+        
+        return manifestData;
+    } catch (error) {
+        console.error('Failed to load manifest from URL:', error);
+        throw new Error(`Failed to load presentation manifest: ${error.message}`);
+    }
+}
+
+/**
  * Initialize presentation
  */
 async function init() {
