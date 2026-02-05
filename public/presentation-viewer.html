@@ -33,7 +33,7 @@
     <script src="config.js"></script>
     
     <!-- Presentation Script with cache busting -->
-    <script src="presentation-viewer.js?v=20250104-2300"></script>
+    <script src="presentation-viewer.js?v=20250205-2320"></script>
     
     <style>
         * {
@@ -176,14 +176,13 @@
             position: relative;
         }
 
-        /* Navigation Arrows - positioned at BOTTOM of page */
+        /* Side navigation arrows - positioned at BOTTOM of page */
         .nav-arrow {
             position: absolute;
             bottom: 20px;
             width: 50px;
             height: 50px;
-            background: rgba(155, 89, 182, 0.3);
-            border-radius: 50%;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -205,23 +204,14 @@
          }
 
          /* Direction */
-         #nav-arrow-left {
+        #prev-page {
              left: 20px;
              transform: scaleX(-1);
         }
 
-        #nav-arrow-right {
+        #next-page {
              right: 20px;
              transform: scaleX(1);
-        }
-
-        /* Hover MUST preserve direction */
-        #nav-arrow-left:hover {
-            transform: scaleX(-1) scale(1.1);
-        }
-
-        #nav-arrow-right:hover {
-            transform: scaleX(1) scale(1.1);
         }
 
         /* Hide arrows on first/last page */
@@ -510,11 +500,11 @@
         <div id="presentation-wrapper">
             <div id="presentation"></div>
             <!-- Navigation Arrows -->
-            <div id="nav-arrow-left" class="nav-arrow left" title="Previous Page">
+            <div id="prev-page" class="nav-arrow" title="Previous Page">
                 ➥
             </div>
 
-            <div id="nav-arrow-right" class="nav-arrow" title="Next Page">
+            <div id="next-page" class="nav-arrow" title="Next Page">
                 ➥
             </div>
         </div>

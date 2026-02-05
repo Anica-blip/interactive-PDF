@@ -52,18 +52,18 @@ console.log('SessionStorage check:', {
 
 // DOM elements - will be initialized after DOM is ready
 let loading = null;
-let mediaOverlay = null;
-let mediaPlayerWrapper = null;
-let mediaTitle = null;
-let closeMediaBtn = null;
+let videoOverlay = null;
+let videoPlayerWrapper = null;
+let videoTitle = null;
+let closeVideoBtn = null;
 
 // Initialize DOM elements
 function initDOMElements() {
     loading = document.getElementById('loading');
-    mediaOverlay = document.getElementById('media-overlay');
-    mediaPlayerWrapper = document.getElementById('media-player-wrapper');
-    mediaTitle = document.getElementById('media-title');
-    closeMediaBtn = document.getElementById('close-media');
+    videoOverlay = document.getElementById('video-overlay');
+    videoPlayerWrapper = document.getElementById('video-player-wrapper');
+    videoTitle = document.getElementById('video-title');
+    closeVideoBtn = document.getElementById('close-video');
     
     if (!loading) {
         console.error('Loading element not found!');
@@ -226,7 +226,6 @@ async function init() {
             const manifestData = await loadManifestFromUrl(manifestUrl);
             await initFromManifest(manifestData);
         }
-
         // No data source
         else {
             alert('⚠️ No presentation data found!\n\nTo view presentation:\n1. From editor: Click "View Presentation" button\n2. From Supabase: Use URL ?project=PROJECT_ID\n3. From library: Use URL ?manifest=JSON_URL');
