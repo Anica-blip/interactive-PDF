@@ -226,6 +226,15 @@ async function init() {
             const manifestData = await loadManifestFromUrl(manifestUrl);
             await initFromManifest(manifestData);
         }
+            // Render all pages
+            await renderAllPages();
+            
+            // Initialize presentation
+            initPresentation();
+        
+            // Setup event listeners
+            setupEventListeners();
+        }
         // No data source
         else {
             alert('⚠️ No presentation data found!\n\nTo view presentation:\n1. From editor: Click "View Presentation" button\n2. From Supabase: Use URL ?project=PROJECT_ID\n3. From library: Use URL ?manifest=JSON_URL');
