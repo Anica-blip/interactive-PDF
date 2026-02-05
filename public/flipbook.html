@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3C Interactive Flipbook</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- jQuery (required for turn.js) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Turn.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
+    
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <!-- Cloudflare Stream Player -->
+    <script src="https://embed.cloudflarestream.com/embed/sdk.latest.js"></script>
+    
+    <!-- Configuration (must load before flipbook.js) -->
+    <script src="config.js"></script>
+    
+    <!-- Flipbook Script with cache busting -->
+    <script src="flipbook.js?v=20250104-2300"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #toolbar {
+            background: rgba(42, 42, 42, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            height: 50px;
+        }
+
+        #toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #toolbar-center {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.5;
+        }
+
+        .btn-return {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            padding: 8px 15px;
+            width: auto;
+            font-size: 14px;
+            gap: 5px;
+        }
+
+        .btn-return:hover {
+            background: linear-gradient(135deg, #357abd 0%, #2868a8 100%);
+        }
+
+        #page-info {
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        #toolbar-left h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        #flipbook-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            position: relative;
+            perspective: 2000px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: transparent;
+        }
+
+        #flipbook-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
+            position: relative;
+        }
+
+        /* Side navigation arrows */
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 60px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+
+        .nav-arrow:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .nav-arrow:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        #prev-page {
+            left: -60px;
+        }
+
+        #next-page {
+            right: -60px;
+        }
+
+        #flipbook {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        .page {
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 15px;
+            right: 20px;
+            color: #666;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Video Overlay */
+        #video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        #video-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        #video-container {
+            position: relative;
+            max-width: 95vw;
+            max-height: 95vh;
+            width: auto;
+            height: auto;
+            background: rgba(75, 40, 130, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            animation: slideUp 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        #video-player-wrapper {
+            position: relative;
+            width: 90vw;
+            height: 85vh;
+            max-width: 90vw;
+            max-height: 85vh;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #video-player-wrapper stream,
+        #video-player-wrapper iframe,
+        #video-player-wrapper video,
+        #video-player-wrapper img {
+            width: 100%;
+            height: 100%;
+            border: none;
+            object-fit: contain;
+        }
+
+        #video-player-wrapper audio {
+            width: 100%;
+            max-width: 600px;
+            border: none;
+        }
+
+        #close-video {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            width: 50px;
+            height: 50px;
+            background: #ff4757;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10000;
+        }
+
+        #close-video:hover {
+            background: #ff3838;
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        #video-title {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #4a90e2;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 20px;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        #loading p {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #aaa;
+        }
+
+        /* Zoom level */
+        #zoom-level {
+            color: #aaa;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        /* Scrollbar styling */
+        #flipbook-container::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #flipbook-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #flipbook-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+        }
+
+        #flipbook-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <div id="toolbar-left">
+            <img src="3C Thread To Success logo.png" alt="3C Logo" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; object-fit: cover;">
+            <h2 style="color: #a78bfa;">3C Interactive Flipbook</h2>
+        </div>
+        
+        <div id="toolbar-center">
+            <button id="first-page" class="btn" title="First Page">⏮</button>
+            <span id="page-info">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+            <button id="last-page" class="btn" title="Last Page">⏭</button>
+        </div>
+        
+        <div id="toolbar-right">
+            <button class="btn" id="refresh-flipbook" title="Refresh Flipbook">🔄</button>
+            <button class="btn" id="zoom-out" title="Zoom Out">−</button>
+            <span id="zoom-level">48%</span>
+            <button class="btn" id="zoom-in" title="Zoom In">+</button>
+        </div>
+    </div>
+
+    <!-- Flipbook Container -->
+    <div id="flipbook-container">
+        <div id="flipbook-wrapper">
+            <button id="prev-page" class="nav-arrow" title="Previous Page">◀</button>
+            <div id="flipbook"></div>
+            <button id="next-page" class="nav-arrow" title="Next Page">▶</button>
+        </div>
+    </div>
+
+    <!-- Video Overlay -->
+    <div id="video-overlay">
+        <div id="video-container">
+            <button id="close-video">✕</button>
+            <div id="video-title"></div>
+            <div id="video-player-wrapper"></div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading flipbook...</p>
+    </div>
+</body>
+</html>
+

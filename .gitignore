@@ -1,0 +1,94 @@
+# Interactive PDF Creator - Git Ignore File
+# Keeps private assets and generated files out of GitHub
+
+# ===== PRIVATE ASSETS =====
+# Your Canva PDFs and other sensitive files
+private-assets/
+*.pdf
+*.psd
+*.ai
+*.sketch
+*.fig
+
+# ===== OUTPUT DIRECTORIES =====
+# Generated PDFs and test results
+test-output/
+examples/output/
+output/
+temp/
+*.generated.pdf
+*-enhanced.pdf
+*-interactive.pdf
+
+# ===== MEDIA FILES =====
+# Large media files that shouldn't be in git
+*.mp4
+*.mov
+*.avi
+*.wmv
+*.mkv
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.flac
+*.ogg
+
+# ===== NODE.JS =====
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# ===== DEVELOPMENT FILES =====
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===== LOGS =====
+logs
+*.log
+
+# ===== ENVIRONMENT FILES =====
+.env
+.env.local
+*.env
+config.js  # Contains API keys (Supabase anon key, etc.) - DO NOT COMMIT
+
+# ===== TEMPORARY FILES =====
+*.tmp
+*.temp
+.cache/
+
+# ===== DOCUMENTATION (User will add manually) =====
+READY-FOR-CLOUDFLARE.md
+COMPLETE-SETUP-SUMMARY.md
+FILES-CHECKLIST.md
+DOC/CLOUDFLARE-DEPLOYMENT-COMPLETE.md
+DOC/WORKER-DEPLOYMENT-GUIDE.md
+DOC/CLOUDFLARE-FIX-STEPS.md
+DOC/QUICK-ACTION-CHECKLIST.md
+DOC/DEPLOYMENT.md

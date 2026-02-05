@@ -1,0 +1,21 @@
+// config.example.js - EXAMPLE CONFIGURATION FILE
+// Copy this file to config.js and add your actual keys
+
+// ⚠️ INSTRUCTIONS:
+// 1. Copy this file: config.example.js → config.js
+// 2. Get your keys from: https://supabase.com/dashboard/project/cgxjqsbrditbteqhdyus/settings/api
+// 3. Paste your anon key below
+// 4. Save config.js
+// 5. DO NOT commit config.js to GitHub (it's in .gitignore)
+
+const SUPABASE_CONFIG = {
+    // Your Supabase project URL
+    url: 'https://cgxjqsbrditbteqhdyus.supabase.co',
+    
+    // Your Supabase anon (public) key
+    // Get from: Supabase Dashboard → Settings → API → Project API keys → anon/public
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4',
+};
+
+// Export configuration
+window.SUPABASE_CONFIG = SUPABASE_CONFIG;
