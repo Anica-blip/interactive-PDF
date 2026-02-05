@@ -52,18 +52,18 @@ console.log('SessionStorage check:', {
 
 // DOM elements - will be initialized after DOM is ready
 let loading = null;
-let videoOverlay = null;
-let videoPlayerWrapper = null;
-let videoTitle = null;
-let closeVideoBtn = null;
+let mediaOverlay = null;
+let mediaPlayerWrapper = null;
+let mediaTitle = null;
+let closeMediaBtn = null;
 
 // Initialize DOM elements
 function initDOMElements() {
     loading = document.getElementById('loading');
-    videoOverlay = document.getElementById('video-overlay');
-    videoPlayerWrapper = document.getElementById('video-player-wrapper');
-    videoTitle = document.getElementById('video-title');
-    closeVideoBtn = document.getElementById('close-video');
+    mediaOverlay = document.getElementById('media-overlay');
+    mediaPlayerWrapper = document.getElementById('media-player-wrapper');
+    mediaTitle = document.getElementById('media-title');
+    closeMediaBtn = document.getElementById('close-media');
     
     if (!loading) {
         console.error('Loading element not found!');
@@ -184,9 +184,6 @@ async function init() {
         }
 
         console.log('🖥️ Desktop device detected, loading desktop presentation...');
-        const params = getUrlParams();
-        contentId = params.content;
-        const manifestUrl = params.manifest;
         
         // Priority 1: Check for project ID (from Supabase)
         if (projectId) {
