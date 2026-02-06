@@ -225,6 +225,9 @@ async function init() {
         
             // Setup event listeners
             setupEventListeners();
+            
+            // Hide loading indicator
+            loading.classList.add('hidden');
         }
         // Priority 2: Check for sessionStorage manifest (from builder preview)
         else if (sessionManifest) {
@@ -241,6 +244,9 @@ async function init() {
         
             // Setup event listeners
             setupEventListeners();
+            
+            // Hide loading indicator
+            loading.classList.add('hidden');
         }
         // Priority 3: Check for manifest URL (from 3C Content Library - JSON only)
         else if (manifestUrl) {
@@ -256,6 +262,9 @@ async function init() {
         
             // Setup event listeners
             setupEventListeners();
+            
+            // Hide loading indicator
+            loading.classList.add('hidden');
         }
         // No data source
         else {
@@ -1276,14 +1285,20 @@ function setupEventListeners() {
     });
     
     // Navigation arrows
-    document.getElementById('prev-page').addEventListener('click', () => {
-        console.log('Previous arrow clicked');
-        $('#presentation').turn('previous');
+    $('#prev-page').on('click', () => {
+        const current = $('#presentation').turn('page');
+        console.log('Previous clicked - current:', current, 'going to:', current - 1);
+        if (current > 1) {
+            $('#presentation').turn('page', current - 1);
+        }
     });
     
-    document.getElementById('next-page').addEventListener('click', () => {
-        console.log('Next arrow clicked');
-        $('#presentation').turn('next');
+    $('#next-page').on('click', () => {
+        const current = $('#presentation').turn('page');
+        console.log('Next clicked - current:', current, 'going to:', current + 1);
+        if (current < totalPages) {
+            $('#presentation').turn('page', current + 1);
+        }
     });
     
     // Close media
