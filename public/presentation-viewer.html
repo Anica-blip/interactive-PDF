@@ -33,7 +33,7 @@
     <script src="config.js"></script>
     
     <!-- Presentation Script with cache busting -->
-    <script src="presentation-viewer.js?v=20250205-2320"></script>
+    <script src="presentation-viewer.js?v=20250206-0037"></script>
     
     <style>
         * {
@@ -203,24 +203,14 @@
              box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
          }
 
-         /* Direction */
+         /* Direction - flip left arrow to point left */
         #prev-page {
              left: 20px;
+             transform: scaleX(-1);
         }
 
         #next-page {
              right: 20px;
-        }
-        
-        /* Rotate arrows to point in correct directions */
-        #prev-page::before {
-            content: '◀';
-            font-size: 24px;
-        }
-        
-        #next-page::before {
-            content: '▶';
-            font-size: 24px;
         }
 
         /* Hide arrows on first/last page */
