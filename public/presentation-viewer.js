@@ -1276,11 +1276,11 @@ function setupEventListeners() {
     });
     
     // Navigation arrows
-    $('#nav-arrow-left').on('click', () => {
+    $('#prev-page').on('click', () => {
         $('#presentation').turn('previous');
     });
     
-    $('#nav-arrow-right').on('click', () => {
+    $('#next-page').on('click', () => {
         $('#presentation').turn('next');
     });
     
@@ -1370,8 +1370,8 @@ function updatePageInfo() {
     $('#next-page, #last-page').prop('disabled', currentPage === totalPages);
     
     // Update navigation arrows visibility
-    const leftArrow = document.getElementById('nav-arrow-left');
-    const rightArrow = document.getElementById('nav-arrow-right');
+    const leftArrow = document.getElementById('prev-page');
+    const rightArrow = document.getElementById('next-page');
     
     if (leftArrow) {
         if (currentPage === 1) {
