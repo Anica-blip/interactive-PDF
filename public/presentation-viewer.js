@@ -56,6 +56,8 @@ let videoOverlay = null;
 let videoPlayerWrapper = null;
 let videoTitle = null;
 let closeVideoBtn = null;
+let mediaOverlay = null;
+let closeMediaBtn = null;
 
 // Initialize DOM elements
 function initDOMElements() {
@@ -64,6 +66,8 @@ function initDOMElements() {
     videoPlayerWrapper = document.getElementById('video-player-wrapper');
     videoTitle = document.getElementById('video-title');
     closeVideoBtn = document.getElementById('close-video');
+    mediaOverlay = document.getElementById('media-overlay');
+    closeMediaBtn = document.getElementById('close-media');
     
     if (!loading) {
         console.error('Loading element not found!');
