@@ -218,7 +218,7 @@ async function init() {
             await loadProjectFromSupabase(projectId);
             
             // Render all pages
-            await renderAllPages();
+            await renderPagesAtScale();
             
             // Initialize presentation
             initPresentation();
@@ -234,7 +234,7 @@ async function init() {
             sessionStorage.removeItem('presentationManifest');
             
             // Render all pages
-            await renderAllPages();
+            await renderPagesAtScale();
             
             // Initialize presentation
             initPresentation();
@@ -249,7 +249,7 @@ async function init() {
             await initFromManifest(manifestData);
             
             // Render all pages
-            await renderAllPages();
+            await renderPagesAtScale();
             
             // Initialize presentation
             initPresentation();
@@ -1276,11 +1276,13 @@ function setupEventListeners() {
     });
     
     // Navigation arrows
-    $('#prev-page').on('click', () => {
+    document.getElementById('prev-page').addEventListener('click', () => {
+        console.log('Previous arrow clicked');
         $('#presentation').turn('previous');
     });
     
-    $('#next-page').on('click', () => {
+    document.getElementById('next-page').addEventListener('click', () => {
+        console.log('Next arrow clicked');
         $('#presentation').turn('next');
     });
     
