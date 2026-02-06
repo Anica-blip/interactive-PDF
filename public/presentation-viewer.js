@@ -259,8 +259,6 @@ async function init() {
             loading.classList.add('hidden');
             return;
         }
-    
-        loading.classList.add('hidden');
     } catch (error) {
         console.error('Init error:', error);
         alert('Failed to load presentation: ' + error.message);
