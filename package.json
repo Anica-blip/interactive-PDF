@@ -1,0 +1,44 @@
+{
+  "name": "interactive-pdf",
+  "version": "1.0.0",
+  "description": "A JavaScript library for creating interactive PDF documents with embedded multimedia elements, form controls, and clickable actions",
+  "main": "pdf-generator.js",
+  "type": "module",
+  "scripts": {
+    "start": "node dev-server.js",
+    "dev": "node dev-server.js",
+    "build": "echo 'No build step required for Cloudflare Worker'"
+  },
+  "keywords": [
+    "pdf",
+    "interactive",
+    "multimedia",
+    "javascript",
+    "pdf-creation",
+    "forms",
+    "annotations",
+    "pdf-lib"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.400.0",
+    "fs-extra": "^11.1.1",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "wrangler": "^4.51.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/interactive-pdf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/interactive-pdf/issues"
+  },
+  "homepage": "https://github.com/yourusername/interactive-pdf#readme"
+}

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>3C Presentation Viewer</title>
+    <link rel="icon" type="image/png" href="favicon1.png">
+    
+    <!-- jQuery (required for turn.js) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Turn.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
+    
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <!-- jsPDF for download functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="supabaseAPI.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Cloudflare Stream Player -->
+    <script src="https://embed.cloudflarestream.com/embed/sdk.latest.js"></script>
+    
+    <!-- Configuration (must load before presentation-viewer.js) -->
+    <script src="config.js"></script>
+    
+    <!-- Presentation Script with cache busting -->
+    <script src="presentation-viewer.js?v=20250206-0304"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a237e 100%);
+            color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #toolbar {
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            height: 60px;
+        }
+
+        #toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #toolbar-center {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #8e44ad, #663399);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+        }
+
+        .btn:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.5;
+            box-shadow: none;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border: none;
+            color: white;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-back:hover {
+            background: linear-gradient(135deg, #8e44ad, #663399);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+        }
+
+        #page-info {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 120px;
+            text-align: center;
+            padding: 8px 16px;
+            background: rgba(45, 45, 45, 0.95);
+            border-radius: 8px;
+        }
+
+        #toolbar-left h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #9b59b6;
+            text-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+        }
+
+        #presentation-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            position: relative;
+            perspective: 2000px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #presentation-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
+            position: relative;
+        }
+
+        #presentation {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        /* Side navigation arrows - positioned at BOTTOM of page */
+        .nav-arrow {
+            position: absolute;
+            bottom: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(155, 89, 182, 0.5);
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+         }
+
+         /* Shared hover visuals ONLY (no transform here) */
+         .nav-arrow:hover {
+             background: rgba(155, 89, 182, 0.5);
+             border-color: rgba(155, 89, 182, 0.8);
+             box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+         }
+
+         /* Direction - flip left arrow to point left */
+        #prev-page {
+             left: -60px;
+             transform: scaleX(-1);
+        }
+
+        #next-page {
+             right: -60px;
+        }
+
+        /* Hide arrows on first/last page */
+        .nav-arrow.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .page {
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 15px;
+            right: 20px;
+            color: #666;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Interactive Elements Overlay */
+        .interactive-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .interactive-element {
+            position: absolute;
+            pointer-events: all;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .interactive-element:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        /* Video/Media Overlay */
+        #media-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        #media-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        #media-container {
+            position: relative;
+            max-width: 95vw;
+            max-height: 95vh;
+            width: auto;
+            height: auto;
+            background: rgba(75, 40, 130, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            animation: slideUp 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        #media-player-wrapper {
+            position: relative;
+            width: 90vw;
+            height: 85vh;
+            max-width: 90vw;
+            max-height: 85vh;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #media-player-wrapper iframe,
+        #media-player-wrapper video,
+        #media-player-wrapper img {
+            width: 100%;
+            height: 100%;
+            border: none;
+            object-fit: contain;
+        }
+
+        #media-player-wrapper audio {
+            width: 100%;
+            max-width: 600px;
+            border: none;
+        }
+
+        #close-media {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #ff1744, #f50057);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10000;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+
+        #close-media:hover {
+            background: linear-gradient(135deg, #d50000, #c51162);
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        #media-title {
+            color: #9b59b6;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(155, 89, 182, 0.2);
+            border-top: 4px solid #9b59b6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+            background: rgba(13, 71, 161, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(233, 30, 99, 0.3);
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        #loading p {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #ffffff;
+        }
+
+        /* Zoom level */
+        #zoom-level {
+            color: #ffffff;
+            font-size: 13px;
+            min-width: 50px;
+            text-align: center;
+            padding: 8px 12px;
+            background: rgba(45, 45, 45, 0.95);
+            border-radius: 8px;
+        }
+
+        /* Scrollbar styling */
+        #presentation-container::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #presentation-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #presentation-container::-webkit-scrollbar-thumb {
+            background: rgba(155, 89, 182, 0.3);
+            border-radius: 6px;
+        }
+
+        #presentation-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(155, 89, 182, 0.5);
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <div id="toolbar-left">
+            <img src="3C Thread To Success logo.png" alt="3C Logo" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; object-fit: cover; background: white;">
+            <h2>3C Presentation Viewer</h2>
+        </div>
+        
+        <div id="toolbar-center">
+            <button id="first-page" class="btn" title="First Page">⏮</button>
+            <button id="prev-page" class="btn" title="Previous Page" style="display: none;">◀</button>
+            <span id="page-info"><span id="current-page">1</span> of <span id="total-pages">1</span></span>
+            <button id="next-page" class="btn" title="Next Page" style="display: none;">▶</button>
+            <button id="last-page" class="btn" title="Last Page">⏭</button>
+        </div>
+        
+        <div id="toolbar-right">
+            <button class="btn btn-icon" id="back-btn" title="Close" style="background: linear-gradient(135deg, #ff6b35, #ff8c42); box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <button class="btn btn-icon" id="download-btn" title="Download PDF" style="background: linear-gradient(135deg, #4caf50, #66bb6a); box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </button>
+            <button class="btn btn-icon" id="refresh-btn" title="Refresh">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+            </button>
+            <button class="btn" id="zoom-out" title="Zoom Out">−</button>
+            <span id="zoom-level">48%</span>
+            <button class="btn" id="zoom-in" title="Zoom In">+</button>
+        </div>
+    </div>
+
+    <!-- Presentation Container -->
+    <div id="presentation-container">
+        <div id="presentation-wrapper">
+            <div id="presentation"></div>
+            <!-- Navigation Arrows -->
+            <div id="prev-page" class="nav-arrow" title="Previous Page">➥</div>
+            <div id="next-page" class="nav-arrow" title="Next Page">➥</div>
+        </div>
+    </div>
+
+    <!-- Media Overlay -->
+    <div id="media-overlay">
+        <div id="media-container">
+            <button id="close-media">✕</button>
+            <div id="media-title"></div>
+            <div id="media-player-wrapper"></div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading presentation...</p>
+    </div>
+</body>
+</html>
+
