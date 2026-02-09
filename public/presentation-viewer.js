@@ -550,10 +550,15 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         // Log each element type for debugging
         console.log(`   Element ${idx + 1}: type="${element.type}", x=${element.x}, y=${element.y}, width=${element.width}, height=${element.height}`);
         
-        // Element positions are saved relative to editor canvas (595px x 842px)
+        // Element positions are saved relative to editor canvas
+        // Editor dimensions depend on orientation:
+        // - Portrait: 595px x 842px
+        // - Landscape: 842px x 595px
         // We need to scale them to current viewer size (pageWidth x pageHeight)
-        const scaleX = pageWidth / EDITOR_WIDTH_PX;
-        const scaleY = pageHeight / EDITOR_HEIGHT_PX;
+        const editorWidth = isLandscape ? 842 : EDITOR_WIDTH_PX;
+        const editorHeight = isLandscape ? 595 : EDITOR_HEIGHT_PX;
+        const scaleX = pageWidth / editorWidth;
+        const scaleY = pageHeight / editorHeight;
         
         if (idx === 0) {
             console.log('🔍 Element scaling:');
@@ -793,14 +798,24 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                             console.log('🎭 3C Emoji clicked:', element);
                             if (element.url) {
                                 console.log('📍 Emoji URL:', element.url);
-                                if (isVideoUrl(element.url)) {
+                                
+                                // Ensure URL has protocol
+                                let emojiUrl = element.url;
+                                if (!emojiUrl.startsWith('http://') && !emojiUrl.startsWith('https://')) {
+                                    emojiUrl = 'https://' + emojiUrl;
+                                }
+                                
+                                if (isVideoUrl(emojiUrl)) {
                                     console.log('🎥 Opening video...');
-                                    playMedia(element, 'video');
+                                    playMedia({...element, url: emojiUrl}, 'video');
                                 } else {
                                     console.log('🔗 Opening link...');
-                                    const popup = window.open(element.url, '_blank', 'width=800,height=600');
+                                    // Mobile-friendly popup settings
+                                    const popup = window.open(emojiUrl, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
                                     if (!popup) {
                                         console.error('❌ Popup blocked');
+                                        // Fallback for mobile - try direct navigation
+                                        window.location.href = emojiUrl;
                                     } else {
                                         console.log('✅ Link opened successfully');
                                     }
@@ -813,6 +828,8 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                 }
                 
                 elementDiv.append(img);
+            } else {
+                console.error(`   ❌ 3C Emoji missing imagePath! Element:`, element);
             }
         } else if (element.type === 'hotspot' || element.type === 'link') {
             // Invisible clickable area
