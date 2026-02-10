@@ -805,11 +805,18 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
                                     emojiUrl = 'https://' + emojiUrl;
                                 }
                                 
+                                // Detect media type and open in appropriate popup
                                 if (isVideoUrl(emojiUrl)) {
-                                    console.log('🎥 Opening video...');
+                                    console.log('🎥 Video detected - opening in popup...');
                                     playMedia({...element, url: emojiUrl}, 'video');
+                                } else if (isAudioUrl(emojiUrl)) {
+                                    console.log('🎵 Audio detected - opening in popup...');
+                                    playMedia({...element, url: emojiUrl}, 'audio');
+                                } else if (isImageUrl(emojiUrl)) {
+                                    console.log('🖼️ Image/GIF detected - opening in popup...');
+                                    showGif({...element, url: emojiUrl});
                                 } else {
-                                    console.log('🔗 Opening link...');
+                                    console.log('🔗 Opening link in new window...');
                                     // Mobile-friendly popup settings
                                     const popup = window.open(emojiUrl, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes');
                                     if (!popup) {
@@ -993,6 +1000,39 @@ function isVideoUrl(url) {
 }
 
 /**
+ * Detect if URL is an audio file
+ */
+function isAudioUrl(url) {
+    if (!url) return false;
+    const audioPatterns = [
+        /\.mp3$/i,
+        /\.wav$/i,
+        /\.ogg$/i,
+        /\.m4a$/i,
+        /\.aac$/i,
+        /\.flac$/i
+    ];
+    return audioPatterns.some(pattern => pattern.test(url));
+}
+
+/**
+ * Detect if URL is an image or GIF
+ */
+function isImageUrl(url) {
+    if (!url) return false;
+    const imagePatterns = [
+        /\.gif$/i,
+        /\.jpg$/i,
+        /\.jpeg$/i,
+        /\.png$/i,
+        /\.webp$/i,
+        /\.svg$/i,
+        /\.bmp$/i
+    ];
+    return imagePatterns.some(pattern => pattern.test(url));
+}
+
+/**
  * Convert video URL to embed iframe URL
  */
 function getVideoEmbedUrl(url) {
@@ -1135,8 +1175,12 @@ function playMedia(element, type) {
                 }
             }
         } else if (type === 'audio') {
-            const audioUrl = element.url || element.mediaUrl;
-            console.log('🎵 Loading audio:', audioUrl);
+            const audioUrl = element.url || element.audioUrl || element.mediaUrl;
+            console.log('📍 Audio URL:', audioUrl);
+            
+            // Hide title for cleaner look
+            mediaTitle.textContent = '';
+            mediaTitle.style.display = 'none';
             const audio = document.createElement('audio');
             audio.src = audioUrl;
             audio.controls = true;
