@@ -1148,6 +1148,9 @@
     <!-- Main Application -->
     <script src="app.js?v=20241230-1413"></script>
     <script>
+        // Define API_BASE for inline script usage
+        const API_BASE = 'https://api.3c-public-library.org/pdf';
+        
         // Check Supabase connection on page load
         document.addEventListener('DOMContentLoaded', async () => {
             const statusEl = document.getElementById('supabaseStatus');

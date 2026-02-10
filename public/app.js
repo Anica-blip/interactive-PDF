@@ -1600,11 +1600,10 @@ function startDrag(e) {
     
     draggedElement = e.currentTarget;
     
-    // Check if element is locked
-    const elementId = parseInt(draggedElement.id.replace('element-', ''));
-    const currentPage = pages[currentPageIndex];
-    const element = currentPage.elements.find(el => el.id === elementId);
-    if (element && element.locked) {
+    // Check if element is locked (reuse elementId and element from above)
+    const dragElementId = parseInt(draggedElement.id.replace('element-', ''));
+    const dragElement = pages[currentPageIndex].elements.find(el => el.id === dragElementId);
+    if (dragElement && dragElement.locked) {
         draggedElement = null;
         return; // Don't allow dragging locked elements
     }
