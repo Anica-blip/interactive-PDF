@@ -554,19 +554,16 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         // Log each element type for debugging
         console.log(`   Element ${idx + 1}: type="${element.type}", x=${element.x}, y=${element.y}, width=${element.width}, height=${element.height}`);
         
-        // Element positions are saved relative to editor canvas
-        // Editor dimensions depend on orientation:
-        // - Portrait: 595px x 842px
-        // - Landscape: 842px x 595px
-        // We need to scale them to current viewer size (pageWidth x pageHeight)
-        const editorWidth = isLandscape ? 842 : EDITOR_WIDTH_PX;
-        const editorHeight = isLandscape ? 595 : EDITOR_HEIGHT_PX;
-        const scaleX = pageWidth / editorWidth;
-        const scaleY = pageHeight / editorHeight;
+        // Element positions are saved relative to editor canvas (595px x 842px)
+        // Editor ALWAYS uses 595x842 canvas regardless of page orientation
+        // The viewer displays pages at different zoom levels
+        // We need to scale from editor canvas to viewer display size
+        const scaleX = pageWidth / EDITOR_WIDTH_PX;
+        const scaleY = pageHeight / EDITOR_HEIGHT_PX;
         
         if (idx === 0) {
             console.log('🔍 Element scaling:');
-            console.log('   Editor canvas:', EDITOR_WIDTH_PX, 'x', EDITOR_HEIGHT_PX);
+            console.log('   Editor canvas (fixed):', EDITOR_WIDTH_PX, 'x', EDITOR_HEIGHT_PX);
             console.log('   Viewer page:', pageWidth, 'x', pageHeight);
             console.log('   Scale factors:', scaleX.toFixed(3), 'x', scaleY.toFixed(3));
         }
