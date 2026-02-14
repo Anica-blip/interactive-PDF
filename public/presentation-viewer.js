@@ -554,20 +554,21 @@ function renderInteractiveElements(pageDiv, elements, pageWidth, pageHeight) {
         // Log each element type for debugging
         console.log(`   Element ${idx + 1}: type="${element.type}", x=${element.x}, y=${element.y}, width=${element.width}, height=${element.height}`);
         
-        // Element positions are saved relative to editor canvas
-        // Editor uses different dimensions for landscape vs portrait:
-        // - Portrait: 595px x 842px
-        // - Landscape: 842px x 595px
-        const pageIsLandscape = pageWidth > pageHeight;
-        const editorWidth = pageIsLandscape ? 842 : EDITOR_WIDTH_PX;
-        const editorHeight = pageIsLandscape ? 595 : EDITOR_HEIGHT_PX;
-        const scaleX = pageWidth / editorWidth;
-        const scaleY = pageHeight / editorHeight;
+        // CRITICAL: Elements are saved at 75% scale in the editor
+        // Editor canvas is ALWAYS 595px × 842px (portrait) or 842px × 595px (landscape)
+        // We must scale from the ACTUAL editor dimensions, not the viewer dimensions
+        // Detect orientation from the global isLandscape flag (set during init)
+        const editorCanvasWidth = isLandscape ? EDITOR_HEIGHT_PX : EDITOR_WIDTH_PX;   // Landscape: 842px, Portrait: 595px
+        const editorCanvasHeight = isLandscape ? EDITOR_WIDTH_PX : EDITOR_HEIGHT_PX;  // Landscape: 595px, Portrait: 842px
+        
+        // Scale from editor canvas to current viewer page size
+        const scaleX = pageWidth / editorCanvasWidth;
+        const scaleY = pageHeight / editorCanvasHeight;
         
         if (idx === 0) {
             console.log('🔍 Element scaling:');
-            console.log('   Orientation:', pageIsLandscape ? 'LANDSCAPE' : 'PORTRAIT');
-            console.log('   Editor canvas:', editorWidth, 'x', editorHeight);
+            console.log('   Orientation:', isLandscape ? 'LANDSCAPE' : 'PORTRAIT');
+            console.log('   Editor canvas:', editorCanvasWidth, 'x', editorCanvasHeight);
             console.log('   Viewer page:', pageWidth, 'x', pageHeight);
             console.log('   Scale factors:', scaleX.toFixed(3), 'x', scaleY.toFixed(3));
         }
