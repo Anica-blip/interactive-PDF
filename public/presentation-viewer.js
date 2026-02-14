@@ -21,14 +21,16 @@ let contentData = null;
 const A4_WIDTH_PX = 794;  // 210mm at 96 DPI
 const A4_HEIGHT_PX = 1123; // 297mm at 96 DPI
 
-// Current page dimensions (default to landscape for presentations)
-let currentPageWidth = A4_HEIGHT_PX;  // Start with landscape width
-let currentPageHeight = A4_WIDTH_PX;  // Start with landscape height
-let isLandscape = true;  // Default to landscape
-
 // Editor canvas dimensions (75% of A4 - this is what the editor uses)
 const EDITOR_WIDTH_PX = 595;  // 794 * 0.75
 const EDITOR_HEIGHT_PX = 842;  // 1123 * 0.75
+
+// CRITICAL: Current page dimensions must match editor canvas, not full A4
+// Elements are saved relative to editor canvas (842×595 landscape or 595×842 portrait)
+// Viewer must scale from SAME base dimensions for elements to align correctly
+let currentPageWidth = EDITOR_HEIGHT_PX;  // Start with landscape width (842px)
+let currentPageHeight = EDITOR_WIDTH_PX;  // Start with landscape height (595px)
+let isLandscape = true;  // Default to landscape
 
 // Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -290,15 +292,15 @@ async function init() {
 function detectPageOrientation() {
     // Start with landscape as default (already set in global variables)
     isLandscape = true;
-    currentPageWidth = A4_HEIGHT_PX;
-    currentPageHeight = A4_WIDTH_PX;
+    currentPageWidth = EDITOR_HEIGHT_PX;  // Landscape: 842px (editor canvas width)
+    currentPageHeight = EDITOR_WIDTH_PX;  // Landscape: 595px (editor canvas height)
     
     // Check manifest metadata for orientation
     if (manifest.orientation) {
         if (manifest.orientation === 'portrait') {
             isLandscape = false;
-            currentPageWidth = A4_WIDTH_PX;
-            currentPageHeight = A4_HEIGHT_PX;
+            currentPageWidth = EDITOR_WIDTH_PX;   // Portrait: 595px
+            currentPageHeight = EDITOR_HEIGHT_PX; // Portrait: 842px
             console.log('📐 Portrait orientation from manifest metadata');
         } else {
             console.log('📐 Landscape orientation from manifest metadata');
@@ -311,8 +313,8 @@ function detectPageOrientation() {
             // Only switch to portrait if height is clearly greater than width
             if (firstPage.height > firstPage.width) {
                 isLandscape = false;
-                currentPageWidth = A4_WIDTH_PX;
-                currentPageHeight = A4_HEIGHT_PX;
+                currentPageWidth = EDITOR_WIDTH_PX;   // Portrait: 595px
+                currentPageHeight = EDITOR_HEIGHT_PX; // Portrait: 842px
                 console.log('📐 Portrait detected from page dimensions:', firstPage.width, 'x', firstPage.height);
             } else {
                 console.log('📐 Landscape detected from page dimensions:', firstPage.width, 'x', firstPage.height);
