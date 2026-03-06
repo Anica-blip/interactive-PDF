@@ -305,6 +305,11 @@ async function saveDraft(silent = false) {
             savedProject = await saveProjectDraft(projectData);
         }
         
+        // Guard: ensure savedProject is valid before accessing .id
+        if (!savedProject || !savedProject.id) {
+            throw new Error('Save completed but no project record was returned. Please try again.');
+        }
+
         // Store project ID for future updates
         currentProjectId = savedProject.id;
         
@@ -2993,7 +2998,7 @@ async function testConnection() {
     showModalStatus('Testing connection...', 'loading');
     
     try {
-        const response = await fetch(`${url}/rest/v1/`, {
+        const response = await fetch(`${url}/rest/v1/pdf_projects?select=id&limit=1`, {
             headers: {
                 'apikey': anonKey,
                 'Authorization': `Bearer ${anonKey}`
@@ -3022,7 +3027,7 @@ async function testSupabaseConnectionStatus() {
     }
     
     try {
-        const response = await fetch(`${window.ENV_CONFIG.supabase.url}/rest/v1/`, {
+        const response = await fetch(`${window.ENV_CONFIG.supabase.url}/rest/v1/pdf_projects?select=id&limit=1`, {
             headers: {
                 'apikey': window.ENV_CONFIG.supabase.anonKey,
                 'Authorization': `Bearer ${window.ENV_CONFIG.supabase.anonKey}`
