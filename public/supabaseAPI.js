@@ -2,118 +2,113 @@
  * Supabase API Client for Interactive PDF Builder
  * Connects to Supabase Edge Functions
  * Uses credentials from window.ENV_CONFIG (loaded from config.js)
- * 
- * FIXES (2025-03-06):
+ *
+ * ARCHITECTURE (2026-03-06):
+ * - Project JSON is stored in Cloudflare R2 (drafts/project-id.json) — no size limit
+ * - Supabase stores metadata only: title, author, pages, draft_url, etc.
+ * - project_json column is no longer used (set to null on all saves)
+ * - Load: fetches row from Supabase → reads draft_url → fetches JSON from R2
+ *
+ * FIXES:
  * - Added 520 error detection with clear messaging
  * - Added retry logic (3 attempts) for network failures
  * - Added null/empty result guard in updateProjectDB
- * - Added payload size logging to help diagnose large document issues
  */
 
-// Wait for config to load
 if (!window.ENV_CONFIG?.supabase) {
     console.error('⚠️ Supabase config not found! Make sure config.js loads before supabaseAPI.js');
 }
 
-// Get configuration from window.ENV_CONFIG only
 const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
 const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
-
-// Edge Function endpoint (ONLY for final published exports)
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
-
-// Direct REST API endpoint (for draft saves - NO timeout issues)
 const DIRECT_API_URL = `${SUPABASE_URL}/rest/v1/pdf_projects`;
+const WORKER_API = 'https://api.3c-public-library.org/pdf';
 
-/**
- * Base headers for all Supabase requests
- */
 const getHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     'apikey': SUPABASE_ANON_KEY
 });
 
-/**
- * Retry wrapper - attempts a fetch up to maxRetries times
- * Handles 520 specifically and network errors
- */
 async function fetchWithRetry(url, options, maxRetries = 3) {
     let lastError;
-
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             console.log(`🔄 Attempt ${attempt}/${maxRetries} → ${options.method} ${url}`);
-
             const response = await fetch(url, options);
-
-            // 520 = Cloudflare dropped the request (network/payload issue on origin)
             if (response.status === 520) {
-                const msg = `Supabase returned a 520 error (Attempt ${attempt}/${maxRetries}). ` +
-                            `This is usually a temporary Cloudflare/Supabase infrastructure issue. ` +
-                            `Check https://status.supabase.com if this persists.`;
+                const msg = `Supabase returned a 520 error (Attempt ${attempt}/${maxRetries}). Check https://status.supabase.com if this persists.`;
                 console.warn('⚠️ 520 error:', msg);
                 lastError = new Error(msg);
-
-                // Wait before retry: 2s, 4s, 6s
                 if (attempt < maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, attempt * 2000));
                     continue;
                 }
                 throw lastError;
             }
-
-            // Any other non-ok response
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
-
             return response;
-
         } catch (err) {
-            // NetworkError (no connection, DNS failure, etc.)
             lastError = err;
             console.error(`❌ Attempt ${attempt} failed:`, err.message);
-
             if (attempt < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, attempt * 2000));
             }
         }
     }
-
     throw lastError;
 }
 
 /**
- * Save new project draft - DIRECT to Supabase (bypasses Edge Function)
- * This avoids timeout issues with large documents (31+ pages)
+ * Upload project JSON to Cloudflare R2 via Worker
+ * Stores as drafts/{projectId}.json — no size limit
  */
-saveProjectDraft = async function(projectData) {
-    console.log('💾 saveProjectDraft called with:', {
-        pagesCount: projectData.pages?.length,
-        assetsCount: projectData.assets?.length,
-        settings: projectData.settings
+async function uploadJSONToR2(projectId, jsonData) {
+    console.log(`☁️ Uploading JSON to R2: drafts/${projectId}.json`);
+    const jsonString = JSON.stringify(jsonData);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
+    console.log(`📦 JSON size: ${sizeMB} MB`);
+
+    const formData = new FormData();
+    formData.append('file', blob, `${projectId}.json`);
+    formData.append('filename', `${projectId}.json`);
+    formData.append('folder', 'drafts');
+
+    const response = await fetch(`${WORKER_API}/api/upload-media`, {
+        method: 'POST',
+        body: formData
     });
 
-    // Enrich project_json with metadata for easy querying
-    const enrichedData = {
-        ...projectData,
-        metadata: {
-            title: projectData.settings.title,
-            description: projectData.settings.description || '',
-            author: projectData.settings.author,
-            pageSize: projectData.settings.pageSize,
-            orientation: projectData.settings.orientation,
-            totalPages: projectData.pages.length,
-            flipbookMode: projectData.settings.flipbookMode,
-            presentationMode: projectData.settings.presentationMode,
-            embeddedMode: projectData.settings.embeddedMode
-        }
-    };
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`R2 upload failed: ${err}`);
+    }
 
-    const payload = {
-        project_json: enrichedData,
+    const result = await response.json();
+    const publicUrl = result.browserUrl || result.publicUrl;
+    if (!publicUrl) throw new Error('R2 upload succeeded but no URL returned');
+
+    console.log(`✅ JSON uploaded to R2: ${publicUrl}`);
+    return publicUrl;
+}
+
+/**
+ * Save new project draft
+ * Step 1: POST metadata to Supabase → get ID
+ * Step 2: Upload JSON to R2 as drafts/{id}.json
+ * Step 3: PATCH row with draft_url
+ */
+saveProjectDraft = async function(projectData) {
+    console.log('💾 saveProjectDraft:', { pagesCount: projectData.pages?.length, title: projectData.settings?.title });
+
+    // Step 1: Create metadata row (no JSON blob)
+    const metadataPayload = {
+        project_json: null,
         status: 'draft',
         title: projectData.settings.title,
         description: projectData.settings.description || '',
@@ -128,41 +123,22 @@ saveProjectDraft = async function(projectData) {
         updated_at: new Date().toISOString()
     };
 
-    // Log payload size so we can diagnose large document issues
-    const payloadSize = new Blob([JSON.stringify(payload)]).size;
-    console.log(`📦 Payload size: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
-
-    const response = await fetchWithRetry(DIRECT_API_URL, {
+    console.log('📝 Step 1: Creating Supabase metadata row...');
+    const createResponse = await fetchWithRetry(DIRECT_API_URL, {
         method: 'POST',
-        headers: {
-            ...getHeaders(),
-            'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(payload)
+        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        body: JSON.stringify(metadataPayload)
     });
 
-    const result = await response.json();
-    const record = Array.isArray(result) ? result[0] : result;
+    const createResult = await createResponse.json();
+    const record = Array.isArray(createResult) ? createResult[0] : createResult;
+    if (!record || !record.id) throw new Error('Supabase row created but no ID returned.');
 
-    if (!record || !record.id) {
-        throw new Error('Save succeeded but no record was returned from Supabase. Please try again.');
-    }
+    const projectId = record.id;
+    console.log(`✅ Step 1 done — ID: ${projectId}`);
 
-    return record;
-};
-
-/**
- * Update existing project - DIRECT to Supabase (bypasses Edge Function)
- * This avoids timeout issues with large documents (31+ pages)
- */
-updateProjectDB = async function(projectId, projectData) {
-    console.log('🔄 updateProjectDB called for project:', projectId, {
-        pagesCount: projectData.pages?.length,
-        assetsCount: projectData.assets?.length,
-        settings: projectData.settings
-    });
-
-    // Enrich project_json with metadata for easy querying
+    // Step 2: Upload JSON to R2
+    console.log('☁️ Step 2: Uploading JSON to R2...');
     const enrichedData = {
         ...projectData,
         metadata: {
@@ -178,8 +154,57 @@ updateProjectDB = async function(projectId, projectData) {
         }
     };
 
-    const payload = {
-        project_json: enrichedData,
+    const draftUrl = await uploadJSONToR2(projectId, enrichedData);
+    console.log('✅ Step 2 done:', draftUrl);
+
+    // Step 3: PATCH row with draft_url
+    console.log('🔗 Step 3: Patching row with draft_url...');
+    const patchResponse = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}`, {
+        method: 'PATCH',
+        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        body: JSON.stringify({ draft_url: draftUrl, updated_at: new Date().toISOString() })
+    });
+
+    const patchResult = await patchResponse.json();
+    const finalRecord = Array.isArray(patchResult) ? patchResult[0] : patchResult;
+    console.log('✅ Step 3 done — project saved to R2 + Supabase');
+
+    return finalRecord || record;
+};
+
+/**
+ * Update existing project
+ * Step 1: Upload JSON to R2 (overwrites drafts/{id}.json)
+ * Step 2: PATCH Supabase metadata row
+ */
+updateProjectDB = async function(projectId, projectData) {
+    console.log('🔄 updateProjectDB:', projectId, { pagesCount: projectData.pages?.length });
+
+    // Step 1: Upload updated JSON to R2
+    console.log('☁️ Step 1: Uploading updated JSON to R2...');
+    const enrichedData = {
+        ...projectData,
+        metadata: {
+            title: projectData.settings.title,
+            description: projectData.settings.description || '',
+            author: projectData.settings.author,
+            pageSize: projectData.settings.pageSize,
+            orientation: projectData.settings.orientation,
+            totalPages: projectData.pages.length,
+            flipbookMode: projectData.settings.flipbookMode,
+            presentationMode: projectData.settings.presentationMode,
+            embeddedMode: projectData.settings.embeddedMode
+        }
+    };
+
+    const draftUrl = await uploadJSONToR2(projectId, enrichedData);
+    console.log('✅ Step 1 done:', draftUrl);
+
+    // Step 2: PATCH Supabase metadata
+    console.log('📝 Step 2: Patching Supabase metadata...');
+    const metadataPayload = {
+        project_json: null,
+        draft_url: draftUrl,
         status: 'draft',
         title: projectData.settings.title,
         description: projectData.settings.description || '',
@@ -193,58 +218,31 @@ updateProjectDB = async function(projectId, projectData) {
         updated_at: new Date().toISOString()
     };
 
-    // Log payload size so we can diagnose large document issues
-    const payloadSize = new Blob([JSON.stringify(payload)]).size;
-    console.log(`📦 Update payload size: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
-
     const response = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}`, {
         method: 'PATCH',
-        headers: {
-            ...getHeaders(),
-            'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(payload)
+        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        body: JSON.stringify(metadataPayload)
     });
 
     const result = await response.json();
 
-    // Guard: empty array means the row was not found (deleted externally or ID mismatch)
+    // Guard: empty result = row not found, fall back to new insert
     if (!result || (Array.isArray(result) && result.length === 0)) {
-        console.warn('⚠️ Update returned empty result — row may not exist. Falling back to INSERT.');
-        // Fall back to creating a new record instead of crashing
+        console.warn('⚠️ Update returned empty — falling back to INSERT.');
         return await saveProjectDraft(projectData);
     }
 
     const record = Array.isArray(result) ? result[0] : result;
-
-    if (!record || !record.id) {
-        throw new Error('Update succeeded but no record was returned from Supabase. Please try again.');
-    }
-
+    console.log('✅ Step 2 done — Supabase metadata updated');
     return record;
 };
 
 /**
- * Publish project with PDF URL - DIRECT to Supabase (no Edge Function)
+ * Publish project
  */
 publishProjectDB = async function(projectId, pdfUrl, projectData) {
-    const enrichedData = {
-        ...projectData,
-        metadata: {
-            title: projectData.settings.title,
-            description: projectData.settings.description || '',
-            author: projectData.settings.author,
-            pageSize: projectData.settings.pageSize,
-            orientation: projectData.settings.orientation,
-            totalPages: projectData.pages.length,
-            flipbookMode: projectData.settings.flipbookMode,
-            presentationMode: projectData.settings.presentationMode,
-            embeddedMode: projectData.settings.embeddedMode
-        }
-    };
-
     const payload = {
-        project_json: enrichedData,
+        project_json: null,
         pdf_url: pdfUrl,
         status: 'published',
         updated_at: new Date().toISOString()
@@ -252,10 +250,7 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 
     const response = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}`, {
         method: 'PATCH',
-        headers: {
-            ...getHeaders(),
-            'Prefer': 'return=representation'
-        },
+        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(payload)
     });
 
@@ -264,33 +259,59 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 };
 
 /**
- * Get project by ID - DIRECT from Supabase (bypasses Edge Function)
+ * Get project by ID
+ * Fetches metadata from Supabase → fetches full JSON from R2 via draft_url
+ * Falls back to project_json for legacy projects that haven't been re-saved yet
  */
 getProjectDB = async function(projectId) {
+    console.log('📂 getProjectDB:', projectId);
+
     const response = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}&select=*`, {
         method: 'GET',
-        headers: {
-            ...getHeaders(),
-            'Accept-Encoding': 'gzip, deflate'
-        }
+        headers: getHeaders()
     });
 
     const result = await response.json();
-    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+    const record = Array.isArray(result) && result.length > 0 ? result[0] : null;
+
+    if (!record) {
+        console.warn('⚠️ No project found for ID:', projectId);
+        return null;
+    }
+
+    // New architecture: load JSON from R2
+    if (record.draft_url) {
+        console.log('☁️ Loading JSON from R2:', record.draft_url);
+        try {
+            const jsonResponse = await fetch(record.draft_url + '?t=' + Date.now()); // bypass cache
+            if (!jsonResponse.ok) throw new Error(`HTTP ${jsonResponse.status}`);
+            const projectJson = await jsonResponse.json();
+            console.log('✅ JSON loaded from R2:', projectJson.pages?.length, 'pages');
+            record.project_json = projectJson;
+        } catch (err) {
+            console.error('❌ Failed to fetch JSON from R2:', err.message);
+            throw new Error(`Could not load project data from R2 storage: ${err.message}`);
+        }
+    } else if (record.project_json) {
+        // Legacy fallback: old projects still have JSON in Supabase
+        console.log('📦 Legacy project — loading from Supabase project_json column');
+    } else {
+        throw new Error('Project has no draft_url and no project_json. Data may be missing.');
+    }
+
+    return record;
 };
 
 /**
- * List all projects - DIRECT from Supabase (bypasses Edge Function)
+ * List all projects — metadata only, never pulls project_json blob
  */
 listProjectsDB = async function(options = {}) {
     const limit = options.limit || 100;
     const offset = options.offset || 0;
 
-    let url = `${DIRECT_API_URL}?select=*&order=updated_at.desc&limit=${limit}&offset=${offset}`;
+    let url = `${DIRECT_API_URL}?select=id,title,description,author,status,total_pages,page_size,orientation,flipbook_mode,presentation_mode,embedded_mode,pdf_url,draft_url,thumbnail_url,created_at,updated_at&order=updated_at.desc&limit=${limit}&offset=${offset}`;
 
-    if (options.status) {
-        url += `&status=eq.${options.status}`;
-    }
+    if (options.status) url += `&status=eq.${options.status}`;
 
     const response = await fetchWithRetry(url, {
         method: 'GET',
@@ -305,15 +326,11 @@ listProjectsDB = async function(options = {}) {
  * Delete project
  */
 deleteProjectDB = async function(projectId) {
-    const response = await fetchWithRetry(EDGE_FUNCTION_URL, {
+    await fetchWithRetry(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({
-            action: 'delete',
-            id: projectId
-        })
+        body: JSON.stringify({ action: 'delete', id: projectId })
     });
-
     return true;
 };
 
@@ -326,22 +343,16 @@ testSupabaseConnectionDB = async function() {
             method: 'GET',
             headers: getHeaders()
         });
-
         return {
             connected: response.ok,
             status: response.status,
             message: response.ok ? 'Connected to Supabase' : 'Connection failed'
         };
     } catch (error) {
-        return {
-            connected: false,
-            status: 0,
-            message: error.message
-        };
+        return { connected: false, status: 0, message: error.message };
     }
 };
 
-console.log('✅ Supabase API loaded (with retry logic + 520 handling)');
-console.log('📡 Direct API (drafts):', DIRECT_API_URL);
-console.log('🚀 Edge Function (publish only):', EDGE_FUNCTION_URL);
-console.log('💡 Drafts save directly to Supabase - NO timeout issues!');
+console.log('✅ Supabase API loaded — JSON in Cloudflare R2, metadata in Supabase');
+console.log('📡 Supabase (metadata):', DIRECT_API_URL);
+console.log('☁️ R2 (JSON drafts): drafts/{project-id}.json');
