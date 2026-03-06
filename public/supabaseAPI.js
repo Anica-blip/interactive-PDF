@@ -68,7 +68,7 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
  * Stores as drafts/{projectId}.json — no size limit
  */
 async function uploadJSONToR2(projectId, jsonData) {
-    console.log(`☁️ Uploading JSON to R2: drafts/${projectId}.json`);
+    console.log(`☁️ Uploading JSON to R2: interactive-pdf/2026/drafts/${projectId}.json`);
     const jsonString = JSON.stringify(jsonData);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
@@ -77,7 +77,7 @@ async function uploadJSONToR2(projectId, jsonData) {
     const formData = new FormData();
     formData.append('file', blob, `${projectId}.json`);
     formData.append('filename', `${projectId}.json`);
-    formData.append('folder', 'drafts');
+    formData.append('folder', 'interactive-pdf/2026/drafts');
 
     const response = await fetch(`${WORKER_API}/api/upload-media`, {
         method: 'POST',
