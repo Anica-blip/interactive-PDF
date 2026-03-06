@@ -88,7 +88,7 @@ function initDOMElements() {
 async function loadProjectFromSupabase(projectId) {
     try {
         console.log('Loading project from Supabase:', projectId);
-        
+
         const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?id=eq.${projectId}&select=*`, {
             method: 'GET',
             headers: {
@@ -97,71 +97,60 @@ async function loadProjectFromSupabase(projectId) {
                 'apikey': SUPABASE_ANON_KEY
             }
         });
-        
-        console.log('Response status:', response.status, response.statusText);
-        console.log('Response headers:', response.headers.get('content-type'));
-        
+
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Response error text:', errorText);
             throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
-        
-        // Get response as text first to debug
+
         const responseText = await response.text();
-        console.log('Raw response text (first 500 chars):', responseText.substring(0, 500));
-        
         let projects;
         try {
             projects = JSON.parse(responseText);
         } catch (parseError) {
-            console.error('Failed to parse response as JSON');
-            console.error('Full response text:', responseText);
             throw new Error(`Invalid JSON response: ${parseError.message}`);
         }
-        console.log('Response from Supabase:', projects);
-        
+
         if (!projects || projects.length === 0) {
             throw new Error('Project not found');
         }
-        
+
         const project = projects[0];
         console.log('Project loaded:', project.title || 'Untitled');
-        console.log('Full project object:', project);
-        console.log('project_json exists?', !!project.project_json);
-        console.log('project_json type:', typeof project.project_json);
-        console.log('project_json value:', project.project_json);
-        
-        // Parse the JSON data from project_json column
-        
+
         let projectData;
-        if (!project.project_json) {
-            throw new Error('project_json column is empty or null');
-        }
-        
-        // Supabase JSONB columns are returned as objects, not strings
-        if (typeof project.project_json === 'object' && project.project_json !== null) {
-            console.log('project_json is an object, using directly');
-            projectData = project.project_json;
-        } else if (typeof project.project_json === 'string') {
-            console.log('project_json is a string, attempting to parse');
+
+        // NEW: Load JSON from Cloudflare R2 via draft_url (no size limit)
+        if (project.draft_url) {
+            console.log('☁️ Loading JSON from R2:', project.draft_url);
             try {
-                projectData = JSON.parse(project.project_json);
-            } catch (parseError) {
-                console.error('JSON parse error:', parseError);
-                console.error('Raw JSON string (first 500 chars):', project.project_json.substring(0, 500));
-                throw new Error(`Failed to parse project JSON: ${parseError.message}`);
+                const r2Response = await fetch(project.draft_url + '?t=' + Date.now());
+                if (!r2Response.ok) throw new Error(`R2 fetch failed: HTTP ${r2Response.status}`);
+                projectData = await r2Response.json();
+                console.log('✅ JSON loaded from R2:', projectData.pages?.length, 'pages');
+            } catch (r2Error) {
+                console.error('❌ Failed to load from R2:', r2Error.message);
+                throw new Error(`Could not load project from R2 storage: ${r2Error.message}`);
+            }
+        }
+        // LEGACY fallback: old projects still have JSON in Supabase project_json column
+        else if (project.project_json) {
+            console.log('📦 Legacy project — loading from Supabase project_json');
+            if (typeof project.project_json === 'object' && project.project_json !== null) {
+                projectData = project.project_json;
+            } else if (typeof project.project_json === 'string') {
+                try {
+                    projectData = JSON.parse(project.project_json);
+                } catch (parseError) {
+                    throw new Error(`Failed to parse project JSON: ${parseError.message}`);
+                }
             }
         } else {
-            console.error('project_json type is invalid:', typeof project.project_json);
-            console.error('project_json value:', project.project_json);
-            throw new Error(`project_json is not an object or string, it is: ${typeof project.project_json}`);
+            throw new Error('Project has no draft_url and no project_json. Data may be missing.');
         }
-        
-        console.log('projectData parsed successfully');
+
         console.log('projectData.pages count:', projectData.pages?.length || 0);
-        console.log('projectData.settings:', projectData.settings);
-        
+
         // Create manifest from project data
         const manifest = {
             title: projectData.settings?.title || project.title || 'Interactive Presentation',
@@ -170,12 +159,11 @@ async function loadProjectFromSupabase(projectId) {
             settings: projectData.settings || {},
             createdAt: project.created_at
         };
-        
+
         console.log('Manifest created with', manifest.pages.length, 'pages');
-        console.log('First page preview:', manifest.pages[0]);
-        
+
         await initFromManifest(manifest);
-        
+
     } catch (error) {
         console.error('Failed to load project from Supabase:', error);
         throw error;
