@@ -108,7 +108,7 @@ async function loadProjectFromSupabase(projectId) {
 
         let projectData;
 
-        // NEW: Load JSON from Cloudflare R2 via draft_url (no size limit)
+        // Load JSON from Cloudflare R2 via draft_url (only source since project_json column was dropped)
         if (project.draft_url) {
             console.log('☁️ Loading JSON from R2:', project.draft_url);
             try {
@@ -120,21 +120,8 @@ async function loadProjectFromSupabase(projectId) {
                 console.error('❌ Failed to load from R2:', r2Error.message);
                 throw new Error(`Could not load project from R2 storage: ${r2Error.message}`);
             }
-        }
-        // LEGACY fallback: old projects still have JSON in Supabase project_json column
-        else if (project.project_json) {
-            console.log('📦 Legacy project — loading from Supabase project_json');
-            if (typeof project.project_json === 'object' && project.project_json !== null) {
-                projectData = project.project_json;
-            } else if (typeof project.project_json === 'string') {
-                try {
-                    projectData = JSON.parse(project.project_json);
-                } catch (parseError) {
-                    throw new Error(`Failed to parse project JSON: ${parseError.message}`);
-                }
-            }
         } else {
-            throw new Error('Project has no draft_url and no project_json. Data may be missing.');
+            throw new Error('Project has no draft_url — JSON storage may be missing. Please re-save the project in the builder.');
         }
 
         console.log('projectData.pages count:', projectData.pages?.length || 0);
