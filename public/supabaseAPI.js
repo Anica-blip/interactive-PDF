@@ -108,6 +108,7 @@ saveProjectDraft = async function(projectData) {
 
     // Step 1: Create metadata row (no JSON blob)
     const metadataPayload = {
+        project_json: null,
         status: 'draft',
         title: projectData.settings.title,
         description: projectData.settings.description || '',
@@ -202,6 +203,7 @@ updateProjectDB = async function(projectId, projectData) {
     // Step 2: PATCH Supabase metadata
     console.log('📝 Step 2: Patching Supabase metadata...');
     const metadataPayload = {
+        project_json: null,
         draft_url: draftUrl,
         status: 'draft',
         title: projectData.settings.title,
@@ -240,6 +242,7 @@ updateProjectDB = async function(projectId, projectData) {
  */
 publishProjectDB = async function(projectId, pdfUrl, projectData) {
     const payload = {
+        project_json: null,
         pdf_url: pdfUrl,
         status: 'published',
         updated_at: new Date().toISOString()
