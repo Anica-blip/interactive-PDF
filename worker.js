@@ -31,7 +31,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const path = url.pathname;
+    const path = url.pathname.replace(/^\/pdf/, ''); // strip /pdf prefix — route: api.3c-public-library.org/pdf/*
 
     try {
       // Health check endpoint
