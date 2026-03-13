@@ -15,7 +15,7 @@ let copiedElement = null; // Store copied element for paste
 let selectedElementId = null; // Track currently selected element
 
 // Cloudflare Configuration - For R2 bucket (images/media) and PDF generation ONLY
-const API_BASE = 'https://api.3c-public-library.org/pdf';
+const API_BASE = 'https://api.3c-public-library.org';
 
 // Supabase functions are loaded from supabaseAPI.js
 // - saveProjectDraft() - Direct API save (no timeout)
@@ -3066,6 +3066,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
     
-    // Auto-test on load
-    testSupabaseConnectionStatus();
+    // Auto-test on load — delay to ensure config.js has finished setting window.ENV_CONFIG
+    setTimeout(() => testSupabaseConnectionStatus(), 800);
 });
