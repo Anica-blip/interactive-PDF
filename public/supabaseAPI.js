@@ -22,7 +22,7 @@ const SUPABASE_URL = window.ENV_CONFIG?.supabase?.url || '';
 const SUPABASE_ANON_KEY = window.ENV_CONFIG?.supabase?.anonKey || '';
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
 const DIRECT_API_URL = `${SUPABASE_URL}/rest/v1/pdf_projects`;
-const WORKER_API = 'https://api.3c-public-library.org';
+const WORKER_API = 'https://api.3c-public-library.org/pdf';
 
 const getHeaders = () => ({
     'Content-Type': 'application/json',
