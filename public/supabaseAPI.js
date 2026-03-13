@@ -6,7 +6,6 @@
  * ARCHITECTURE (2026-03-06):
  * - Project JSON is stored in Cloudflare R2 (drafts/project-id.json) — no size limit
  * - Supabase stores metadata only: title, author, pages, draft_url, etc.
- * - project_json column is no longer used (set to null on all saves)
  * - Load: fetches row from Supabase → reads draft_url → fetches JSON from R2
  *
  * FIXES:
@@ -108,7 +107,6 @@ saveProjectDraft = async function(projectData) {
 
     // Step 1: Create metadata row (no JSON blob)
     const metadataPayload = {
-        project_json: null,
         status: 'draft',
         title: projectData.settings.title,
         description: projectData.settings.description || '',
@@ -203,7 +201,6 @@ updateProjectDB = async function(projectId, projectData) {
     // Step 2: PATCH Supabase metadata
     console.log('📝 Step 2: Patching Supabase metadata...');
     const metadataPayload = {
-        project_json: null,
         draft_url: draftUrl,
         status: 'draft',
         title: projectData.settings.title,
@@ -242,7 +239,6 @@ updateProjectDB = async function(projectId, projectData) {
  */
 publishProjectDB = async function(projectId, pdfUrl, projectData) {
     const payload = {
-        project_json: null,
         pdf_url: pdfUrl,
         status: 'published',
         updated_at: new Date().toISOString()
@@ -261,7 +257,6 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 /**
  * Get project by ID
  * Fetches metadata from Supabase → fetches full JSON from R2 via draft_url
- * Falls back to project_json for legacy projects that haven't been re-saved yet
  */
 getProjectDB = async function(projectId) {
     console.log('📂 getProjectDB:', projectId);
@@ -279,11 +274,11 @@ getProjectDB = async function(projectId) {
         return null;
     }
 
-    // New architecture: load JSON from R2
+    // Load JSON from R2 via draft_url
     if (record.draft_url) {
         console.log('☁️ Loading JSON from R2:', record.draft_url);
         try {
-            const jsonResponse = await fetch(record.draft_url + '?t=' + Date.now()); // bypass cache
+            const jsonResponse = await fetch(record.draft_url + '?t=' + Date.now());
             if (!jsonResponse.ok) throw new Error(`HTTP ${jsonResponse.status}`);
             const projectJson = await jsonResponse.json();
             console.log('✅ JSON loaded from R2:', projectJson.pages?.length, 'pages');
@@ -292,18 +287,15 @@ getProjectDB = async function(projectId) {
             console.error('❌ Failed to fetch JSON from R2:', err.message);
             throw new Error(`Could not load project data from R2 storage: ${err.message}`);
         }
-    } else if (record.project_json) {
-        // Legacy fallback: old projects still have JSON in Supabase
-        console.log('📦 Legacy project — loading from Supabase project_json column');
     } else {
-        throw new Error('Project has no draft_url and no project_json. Data may be missing.');
+        throw new Error('Project has no draft_url. Data may be missing.');
     }
 
     return record;
 };
 
 /**
- * List all projects — metadata only, never pulls project_json blob
+ * List all projects — metadata only
  */
 listProjectsDB = async function(options = {}) {
     const limit = options.limit || 100;
