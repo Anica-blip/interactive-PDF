@@ -10,7 +10,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 // Global state
 let currentPage = 1;
 let totalPages = 0;
-let scale = 0.48; // Default 48% zoom for optimal viewing (fits viewport without scrolling)
+let scale = 0.75; // Fallback — overridden by calculateOptimalScale() on init
 let manifest = null;
 let pageCanvases = [];
 let presentationInitialized = false;
@@ -314,6 +314,34 @@ function detectPageOrientation() {
 }
 
 /**
+ * Calculate the best scale so the page fills the visible container
+ * without overflow. Called after orientation is known.
+ */
+function calculateOptimalScale() {
+    const container = document.getElementById('presentation-container');
+    if (!container) return;
+
+    // Available space: container minus padding (20px each side) and arrow room (60px each side)
+    const availableWidth  = container.clientWidth  - 40 - 120; // padding + arrows
+    const availableHeight = container.clientHeight - 40;        // padding top/bottom
+
+    if (availableWidth <= 0 || availableHeight <= 0) return;
+
+    const scaleByWidth  = availableWidth  / currentPageWidth;
+    const scaleByHeight = availableHeight / currentPageHeight;
+
+    // Use the smaller of the two so the page fits fully in both dimensions
+    const optimal = Math.min(scaleByWidth, scaleByHeight);
+
+    // Clamp between 0.30 and 1.50
+    scale = Math.min(1.50, Math.max(0.30, optimal));
+
+    console.log('📐 calculateOptimalScale →', Math.round(scale * 100) + '%',
+        '| container:', availableWidth, 'x', availableHeight,
+        '| page base:', currentPageWidth, 'x', currentPageHeight);
+}
+
+/**
  * Initialize from JSON manifest
  */
 async function initFromManifest(manifestData) {
@@ -342,6 +370,12 @@ async function initFromManifest(manifestData) {
     
     // Detect page orientation from first page or manifest metadata
     detectPageOrientation();
+
+    // Auto-fit scale to viewport now that orientation (and page dimensions) are known
+    calculateOptimalScale();
+
+    // Update zoom display to reflect calculated scale
+    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
     
     // Render all pages at current scale with 2x quality
     await renderPagesAtScale();
@@ -1309,21 +1343,21 @@ function setupEventListeners() {
         $('#presentation').turn('page', totalPages);
     });
     
-    // Zoom controls - only 48% and 53% allowed, reload JSON at new size starting page 1
+    // Zoom controls - incremental ±5% steps, clamped between 30% and 150%
     $('#zoom-in').on('click', async () => {
-        console.log('🔍 Zoom in clicked - reloading JSON at 53%');
-        if (scale < 0.53) {
-            scale = 0.53; // Jump to 53%
-            currentPage = 1; // Start at page 1
+        const newScale = Math.min(1.50, parseFloat((scale + 0.05).toFixed(2)));
+        if (newScale !== scale) {
+            scale = newScale;
+            console.log('🔍 Zoom in →', Math.round(scale * 100) + '%');
             await reloadPresentation();
         }
     });
-    
+
     $('#zoom-out').on('click', async () => {
-        console.log('🔍 Zoom out clicked - reloading JSON at 48%');
-        if (scale > 0.48) {
-            scale = 0.48; // Jump to 48%
-            currentPage = 1; // Start at page 1
+        const newScale = Math.max(0.30, parseFloat((scale - 0.05).toFixed(2)));
+        if (newScale !== scale) {
+            scale = newScale;
+            console.log('🔍 Zoom out →', Math.round(scale * 100) + '%');
             await reloadPresentation();
         }
     });
