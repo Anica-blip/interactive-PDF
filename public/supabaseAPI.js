@@ -24,9 +24,38 @@ const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pdf_projects`;
 const DIRECT_API_URL = `${SUPABASE_URL}/rest/v1/pdf_projects`;
 const WORKER_API = 'https://api.3c-public-library.org/pdf'; // /pdf prefix required — worker route: api.3c-public-library.org/pdf/*
 
-const getHeaders = () => ({
+// ── Owner sign-in ──────────────────────────────────────────────────────────
+// The pdf_projects table accepts writes only from the owner's GitHub sign-in.
+// auth-guard.js (builder page) exposes its signed-in client as window.sbAuthClient.
+// On pages without the guard, a client is created here only if the Supabase
+// library is loaded. Visitors without a session fall back to the anonymous key,
+// so the public viewer pages keep working exactly as before.
+let _authClient = null;
+function getAuthClient() {
+    if (window.sbAuthClient) return window.sbAuthClient;
+    if (_authClient) return _authClient;
+    if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        _authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    return _authClient;
+}
+
+async function getAccessToken() {
+    try {
+        const client = getAuthClient();
+        if (client) {
+            const { data: { session } } = await client.auth.getSession();
+            if (session && session.access_token) return session.access_token;
+        }
+    } catch (err) {
+        console.warn('⚠️ Could not read sign-in session, using anonymous key:', err.message);
+    }
+    return SUPABASE_ANON_KEY;
+}
+
+const getHeaders = async () => ({
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'Authorization': `Bearer ${await getAccessToken()}`,
     'apikey': SUPABASE_ANON_KEY
 });
 
@@ -124,7 +153,7 @@ saveProjectDraft = async function(projectData) {
     console.log('📝 Step 1: Creating Supabase metadata row...');
     const createResponse = await fetchWithRetry(DIRECT_API_URL, {
         method: 'POST',
-        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        headers: { ...(await getHeaders()), 'Prefer': 'return=representation' },
         body: JSON.stringify(metadataPayload)
     });
 
@@ -159,7 +188,7 @@ saveProjectDraft = async function(projectData) {
     console.log('🔗 Step 3: Patching row with draft_url...');
     const patchResponse = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}`, {
         method: 'PATCH',
-        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        headers: { ...(await getHeaders()), 'Prefer': 'return=representation' },
         body: JSON.stringify({ draft_url: draftUrl, updated_at: new Date().toISOString() })
     });
 
@@ -217,7 +246,7 @@ updateProjectDB = async function(projectId, projectData) {
 
     const response = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}`, {
         method: 'PATCH',
-        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        headers: { ...(await getHeaders()), 'Prefer': 'return=representation' },
         body: JSON.stringify(metadataPayload)
     });
 
@@ -246,7 +275,7 @@ publishProjectDB = async function(projectId, pdfUrl, projectData) {
 
     const response = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}`, {
         method: 'PATCH',
-        headers: { ...getHeaders(), 'Prefer': 'return=representation' },
+        headers: { ...(await getHeaders()), 'Prefer': 'return=representation' },
         body: JSON.stringify(payload)
     });
 
@@ -263,7 +292,7 @@ getProjectDB = async function(projectId) {
 
     const response = await fetchWithRetry(`${DIRECT_API_URL}?id=eq.${projectId}&select=*`, {
         method: 'GET',
-        headers: getHeaders()
+        headers: await getHeaders()
     });
 
     const result = await response.json();
@@ -307,7 +336,7 @@ listProjectsDB = async function(options = {}) {
 
     const response = await fetchWithRetry(url, {
         method: 'GET',
-        headers: getHeaders()
+        headers: await getHeaders()
     });
 
     const result = await response.json();
@@ -320,7 +349,7 @@ listProjectsDB = async function(options = {}) {
 deleteProjectDB = async function(projectId) {
     await fetchWithRetry(EDGE_FUNCTION_URL, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: await getHeaders(),
         body: JSON.stringify({ action: 'delete', id: projectId })
     });
     return true;
@@ -333,7 +362,7 @@ testSupabaseConnectionDB = async function() {
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/pdf_projects?select=id&limit=1`, {
             method: 'GET',
-            headers: getHeaders()
+            headers: await getHeaders()
         });
         return {
             connected: response.ok,
