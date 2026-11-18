@@ -14,30 +14,63 @@
  * 
  * Note: All Supabase database operations are now handled by Supabase Edge Functions.
  * This worker ONLY handles R2 bucket operations and Cloudflare Stream.
+ *
+ * Access rules (v2):
+ *   - GET /api/health  -> open to everyone (status check only)
+ *   - every other route -> owner only. The builder page signs in with GitHub through
+ *     Supabase (project cgxjqsbrditbteqhdyus) and sends the login token; this Worker
+ *     asks Supabase's is_owner() function whether that login is the owner's.
+ *     No key or email is stored in this Worker.
+ *   - Browsers on other websites are not given access (see ALLOWED_ORIGINS).
+ *   - Public viewers do not use this Worker: they read files straight from
+ *     files.3c-public-library.org.
  */
+
+// Public Supabase details (the anon key is meant to be public, same as config.js).
+// Used only to check the owner sign-in.
+const SUPABASE_URL = 'https://cgxjqsbrditbteqhdyus.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneGpxc2JyZGl0YnRlcWhkeXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTY1ODEsImV4cCI6MjA2NjY5MjU4MX0.xUDy5ic-r52kmRtocdcW8Np9-lczjMZ6YKPXc03rIG4';
+
+// Websites allowed to call the owner-only routes from a browser
+const ALLOWED_ORIGINS = [
+  'https://builder.3c-public-library.org',
+  'https://interactive-pdf.pages.dev',
+];
 
 export default {
     async fetch(request, env) {
-    // CORS headers for browser requests
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/^\/pdf/, ''); // strip /pdf prefix — route: api.3c-public-library.org/pdf/*
+    const isHealth = path === '/api/health' && request.method === 'GET';
+    const origin = request.headers.get('Origin') || '';
+
+    // CORS headers for browser requests.
+    // Health check is open to all; every other route only answers the builder's own addresses.
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Vary': 'Origin'
     };
+    if (isHealth) {
+      corsHeaders['Access-Control-Allow-Origin'] = '*';
+    } else if (ALLOWED_ORIGINS.includes(origin)) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+    }
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
-    const url = new URL(request.url);
-    const path = url.pathname.replace(/^\/pdf/, ''); // strip /pdf prefix — route: api.3c-public-library.org/pdf/*
-
     try {
-      // Health check endpoint
-      if (path === '/api/health' && request.method === 'GET') {
+      // Health check endpoint (open)
+      if (isHealth) {
         return handleHealthCheck(env, corsHeaders);
       }
+
+      // Everything below is owner only
+      const denied = await requireOwner(request, corsHeaders);
+      if (denied) return denied;
 
       // Upload PDF to R2
       if (path === '/api/upload-pdf' && request.method === 'POST') {
@@ -91,6 +124,47 @@ export default {
     }
   },
 };
+
+/**
+ * Owner check: the caller must send "Authorization: Bearer <login token>" and
+ * Supabase's is_owner() function must answer true for that login.
+ * Returns null when the caller is the owner, otherwise a ready-made error response.
+ */
+async function requireOwner(request, corsHeaders) {
+  const reply = (body, status) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  const match = (request.headers.get('Authorization') || '').match(/^Bearer\s+(\S+)$/i);
+  if (!match) return reply({ error: 'Sign in required' }, 401);
+
+  let res;
+  try {
+    res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_owner`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${match[1]}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+  } catch (e) {
+    return reply({ error: 'Could not verify sign-in. Try again.' }, 503);
+  }
+  if (res.status === 401 || res.status === 403) {
+    return reply({ error: 'Sign in required' }, 401);
+  }
+  if (!res.ok) {
+    return reply({ error: 'Could not verify sign-in. Try again.' }, 503);
+  }
+  let isOwner = false;
+  try { isOwner = (await res.json()) === true; } catch (e) { isOwner = false; }
+  if (!isOwner) return reply({ error: 'This account does not have access' }, 403);
+  return null;
+}
 
 /**
  * Health check endpoint
