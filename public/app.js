@@ -957,39 +957,27 @@ function uploadMediaFile(type) {
         showStatus(`📤 Uploading ${file.name} to Cloudflare...`, 'info');
         
         try {
-            // Upload video to Cloudflare Stream
-            if (type === 'video') {
-                const streamData = await uploadToStream(file);
-                const asset = {
-                    id: Date.now(),
-                    type: 'video',
-                    streamId: streamData.videoId,
-                    url: streamData.iframeUrl,
-                    thumbnailUrl: streamData.thumbnailUrl,
-                    name: file.name,
-                    thumbnail: streamData.thumbnailUrl,
-                    embedded: true // Stream videos are always embedded
-                };
-                
-                assets.push(asset);
-                renderAssetLibrary();
-                showStatus(`✅ ${file.name} uploaded to Cloudflare Stream!`, 'success');
-            } else {
-                // For images and audio, upload to R2
-                const r2Data = await uploadToR2(file, type);
-                const asset = {
-                    id: Date.now(),
-                    type: type,
-                    url: r2Data.url,
-                    name: file.name,
-                    thumbnail: type === 'image' ? r2Data.url : getAssetThumbnail(type),
-                    embedded: embeddedMode
-                };
-                
-                assets.push(asset);
-                renderAssetLibrary();
-                showStatus(`✅ ${file.name} uploaded to R2!`, 'success');
+            // Videos, images and audio all go to R2 (Cloudflare Stream is not used).
+            // The Worker takes files up to about 100 MB; a larger video goes into the
+            // bucket and is added with its link instead.
+            if (file.size > 100 * 1024 * 1024) {
+                showStatus(`❌ ${file.name} is larger than 100 MB. Put it in the bucket and add it with its link instead.`, 'error');
+                return;
             }
+
+            const r2Data = await uploadToR2(file, type);
+            const asset = {
+                id: Date.now(),
+                type: type,
+                url: r2Data.url,
+                name: file.name,
+                thumbnail: type === 'image' ? r2Data.url : getAssetThumbnail(type, r2Data.url),
+                embedded: embeddedMode
+            };
+            
+            assets.push(asset);
+            renderAssetLibrary();
+            showStatus(`✅ ${file.name} uploaded to R2!`, 'success');
         } catch (error) {
             console.error('Upload failed:', error);
             showStatus(`❌ Upload failed: ${error.message}`, 'error');
