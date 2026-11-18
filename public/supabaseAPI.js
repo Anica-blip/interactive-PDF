@@ -107,8 +107,11 @@ async function uploadJSONToR2(projectId, jsonData) {
     formData.append('filename', `${projectId}.json`);
     formData.append('folder', 'interactive-pdf/2026/drafts');
 
+    // Owner sign-in: the Worker only accepts uploads from the owner's login
+    const token = await getAccessToken();
     const response = await fetch(`${WORKER_API}/api/upload-media`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
     });
 
