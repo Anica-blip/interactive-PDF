@@ -2059,7 +2059,9 @@ async function uploadToStream(file) {
         throw new Error(error.error || 'Upload failed');
     }
     
-    return await response.json();
+    // The Worker answers with embedUrl; the builder reads it as iframeUrl
+    const data = await response.json();
+    return { ...data, iframeUrl: data.iframeUrl || data.embedUrl };
 }
 
 /**
@@ -2068,6 +2070,11 @@ async function uploadToStream(file) {
 async function uploadToR2(file, type) {
     const formData = new FormData();
     formData.append('file', file);
+    // The Worker requires a filename. A time stamp is added so a new upload never
+    // replaces an older file with the same name, and unsafe characters are replaced
+    // so the public link works.
+    const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    formData.append('filename', safeName);
     formData.append('folder', 'interactive/2026');
     
     // Owner sign-in: the Worker only accepts uploads from the owner's login
@@ -2084,7 +2091,8 @@ async function uploadToR2(file, type) {
     }
     
     const data = await response.json();
-    return { url: data.url };
+    // The Worker answers with browserUrl / publicUrl (not url)
+    return { url: data.url || data.browserUrl || data.publicUrl };
 }
 
 function showResults(result) {
