@@ -2046,8 +2046,11 @@ async function uploadToStream(file) {
     formData.append('file', file);
     formData.append('name', file.name);
     
+    // Owner sign-in: the Worker only accepts uploads from the owner's login
+    const token = await getAccessToken();
     const response = await fetch(`${API_BASE}/api/upload-stream`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
     });
     
@@ -2067,8 +2070,11 @@ async function uploadToR2(file, type) {
     formData.append('file', file);
     formData.append('folder', 'interactive/2026');
     
+    // Owner sign-in: the Worker only accepts uploads from the owner's login
+    const token = await getAccessToken();
     const response = await fetch(`${API_BASE}/api/upload-media`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
     });
     
